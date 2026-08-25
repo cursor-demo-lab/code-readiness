@@ -118,6 +118,7 @@ assert.ok(contributing.anyFiles.includes("CONTRIBUTING.rst"));
 assert.ok(contributing.anyFiles.includes("CONTRIBUTING"));
 assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.rst"));
 assert.equal(IGNORE_DIRS.has(".github"), false);
+assert.equal(IGNORE_DIRS.has(".cursor"), true);
 
 const linter = catalog.criteria.find((row) => row.id === "linter");
 assert.ok(linter.anyFiles.includes("ruff.toml"));
@@ -366,9 +367,18 @@ assert.ok(envDoc.anyFiles.includes(".envrc.example"));
 assert.ok(envDoc.anyFiles.includes("dotenv.example"));
 
 const containerization = catalog.criteria.find((row) => row.id === "containerization");
+assert.ok(containerization.anyFiles.includes("Dockerfile"));
 assert.ok(containerization.anyFiles.includes("compose.yaml"));
 assert.ok(containerization.anyFiles.includes("compose.yml"));
 assert.ok(containerization.anyFiles.includes("Containerfile"));
+assert.ok(containerization.anyFiles.includes(".cursor/environment.json"));
+assert.equal(
+  containerization.anyFiles.includes("environment.json"),
+  false,
+  "root environment.json is the wrong path; only .cursor/environment.json counts",
+);
+assert.match(containerization.fail, /Dockerfile/);
+assert.match(containerization.fail, /\.cursor\/environment\.json/);
 
 const deadCode = catalog.criteria.find((row) => row.id === "dead-code-detection");
 assert.ok(deadCode.anyFiles.includes(".vulture"));
@@ -1127,6 +1137,8 @@ assert.equal(emptyById.linter.pass, false);
 assert.equal(emptyById.linter.skipped, false);
 assert.equal(emptyById.editorconfig.pass, false);
 assert.equal(emptyById.editorconfig.skipped, false);
+assert.equal(emptyById.containerization.pass, false, emptyById.containerization.message);
+assert.match(emptyById.containerization.message, /No Dockerfile/);
 assert.equal(emptyById["env-documentation"].skipped, true);
 assert.equal(emptyById["lock-file"].skipped, false);
 assert.equal(emptyById["type-checker"].skipped, true);
@@ -1469,6 +1481,13 @@ assertPass("containerization", { "compose.yaml": "services: {}\n" }, /compose\.y
 assertPass("containerization", { "compose.yml": "services: {}\n" }, /compose\.yml/);
 assertPass("containerization", { Containerfile: "FROM alpine\n" }, /Containerfile/);
 assertFail("containerization", { Makefile: "image:\n\tdocker build .\n" });
+assertPass(
+  "containerization",
+  { ".cursor/environment.json": JSON.stringify({ install: "npm install" }) },
+  /environment\.json/,
+);
+assertFail("containerization", { "environment.json": JSON.stringify({ install: "npm install" }) });
+assertPass("containerization", { Dockerfile: "FROM node:20\n" }, /Dockerfile/);
 
 assertPass("ci-config", { "azure-pipelines.yml": "pool: vm\n" }, /azure-pipelines\.yml/);
 assertPass("ci-config", { ".azure-pipelines/ci.yml": "pool: vm\n" }, /\.azure-pipelines/);
@@ -1601,6 +1620,13 @@ assert.match(
   /Agents generate code that looks right/,
   "pillar Cards must render a technical why-for-agents sentence",
 );
+assert.match(canvasTemplate, /containerization: "\.cursor\/environment\.json"/);
+assert.match(canvasTemplate, /"Dockerfile"/);
+assert.match(
+  canvasTemplate,
+  /Cursor Cloud Agent `\.cursor\/environment\.json`/,
+);
+assert.match(canvasTemplate, /root `environment\.json` is not a hit/);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
@@ -1640,6 +1666,8 @@ assert.match(checksReadme, /Do not dummy `\.editorconfig`/);
 assert.match(checksReadme, /ESLint and Biome are both first-class JS\/TS linters/);
 assert.match(checksReadme, /golangci-lint/);
 assert.match(checksReadme, /\.toml/);
+assert.match(checksReadme, /containerization.*also passes on `\.cursor\/environment\.json`/);
+assert.match(checksReadme, /root `environment\.json` does not count/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
