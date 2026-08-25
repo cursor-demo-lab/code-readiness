@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
-import { evaluateRepo, LOCK_FILES, scoreResults } from "./evaluate.mjs";
+import { evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
 import { globMatch } from "./walk.mjs";
 
@@ -171,6 +171,13 @@ assert.equal(
 );
 assert.equal(linter.anyFiles.includes(".php-cs-fixer.php"), false);
 assert.equal(linter.languagesPass, undefined);
+for (const formatterFile of [".prettierrc", "rustfmt.toml", ".rustfmt.toml", ".clang-format"]) {
+  assert.equal(
+    linter.anyFiles.includes(formatterFile),
+    false,
+    `${formatterFile} is a formatter, not a linter`,
+  );
+}
 
 const formatter = catalog.criteria.find((row) => row.id === "formatter");
 assert.ok(formatter.anyFiles.includes(".prettierrc"));
@@ -522,6 +529,7 @@ const byId = resultById(evalJs);
 assert.equal(byId.license.pass, true);
 assert.equal(byId.readme.pass, true);
 assert.equal(byId.editorconfig.pass, true);
+assert.equal(byId.editorconfig.skipped, false, "both linter and .editorconfig still pass, not skip");
 assert.equal(byId["lock-file"].pass, true);
 assert.equal(byId.linter.pass, true);
 assert.equal(byId["test-files-exist"].pass, true);
@@ -572,8 +580,11 @@ const l1MissEditor = tmp("code-readiness-l1-");
 writeGuidedMinusEditorconfig(l1MissEditor);
 const l1MissEval = evaluateRepo(l1MissEditor);
 const l1MissById = resultById(l1MissEval);
+assert.equal(l1MissById.linter.pass, true, l1MissById.linter.message);
+assert.equal(l1MissById.editorconfig.skipped, true, l1MissById.editorconfig.message);
 assert.equal(l1MissById.editorconfig.pass, false);
 assert.equal(l1MissById.editorconfig.level, 2);
+assert.match(l1MissById.editorconfig.message, /prescriptive linter/i);
 assert.equal(l1MissById.license.pass, true);
 assert.equal(l1MissById.readme.pass, true);
 assert.equal(l1MissById["lock-file"].pass, true);
@@ -585,6 +596,12 @@ assert.equal(l1MissScored.l1Passed, 3);
 assert.equal(l1MissScored.l1Total, 3);
 assert.ok(l1MissScored.l2Passed / l1MissScored.l2Total >= LEVEL_THRESHOLD);
 assert.equal(l1MissScored.level, 2, "missing only .editorconfig still reaches Documented");
+const l1MissRecs = recommend(l1MissEval.results, l1MissScored.level);
+assert.equal(
+  l1MissRecs.some((row) => row.criterionId === "editorconfig"),
+  false,
+  "skipped editorconfig must not lead the todo list",
+);
 
 const pyGuidedRoot = tmp("code-readiness-py-guided-");
 fs.writeFileSync(
@@ -614,6 +631,7 @@ fs.writeFileSync(path.join(pyGuidedRoot, "Makefile"), "setup:\n\t@echo setup\nte
 const pyGuidedEval = evaluateRepo(pyGuidedRoot);
 const pyGuidedById = resultById(pyGuidedEval);
 assert.equal(pyGuidedById["lock-file"].skipped, true, pyGuidedById["lock-file"].message);
+assert.equal(pyGuidedById.editorconfig.skipped, true, pyGuidedById.editorconfig.message);
 assert.equal(pyGuidedById.editorconfig.pass, false);
 assert.equal(pyGuidedById.editorconfig.level, 2);
 assert.equal(pyGuidedById.readme.pass, true);
@@ -635,6 +653,9 @@ const goEval = evaluateRepo(goRoot);
 const goById = resultById(goEval);
 assert.equal(goById.formatter.pass, true, goById.formatter.message);
 assert.match(goById.formatter.message, /Go has built-in formatting via gofmt/);
+assert.equal(goById.linter.pass, false, "gofmt is not a linter");
+assert.equal(goById.editorconfig.skipped, false, "formatter must not skip editorconfig");
+assert.equal(goById.editorconfig.pass, false);
 assert.equal(goById["type-checker"].pass, true, goById["type-checker"].message);
 assert.equal(goById["version-pinned"].pass, true);
 
@@ -643,6 +664,9 @@ fs.writeFileSync(path.join(rustRoot, "Cargo.toml"), "[package]\nname = \"x\"\nve
 const rustEval = evaluateRepo(rustRoot);
 const rustById = resultById(rustEval);
 assert.equal(rustById.formatter.pass, true, rustById.formatter.message);
+assert.equal(rustById.linter.pass, false, "rustfmt is not a linter");
+assert.equal(rustById.editorconfig.skipped, false, "formatter must not skip editorconfig");
+assert.equal(rustById.editorconfig.pass, false);
 assert.equal(rustById["type-checker"].pass, true, rustById["type-checker"].message);
 assert.equal(
   rustById["test-framework"].pass,
@@ -830,6 +854,55 @@ fs.writeFileSync(path.join(ruffRoot, "pyproject.toml"), "[tool.ruff]\nline-lengt
 const ruffById = resultById(evaluateRepo(ruffRoot));
 assert.equal(ruffById.linter.pass, true, ruffById.linter.message);
 assert.match(ruffById.linter.message, /pyproject\.toml/);
+assert.equal(ruffById.editorconfig.skipped, true, ruffById.editorconfig.message);
+
+const eslintNoEditorRoot = tmp("code-readiness-eslint-no-editor-");
+fs.writeFileSync(path.join(eslintNoEditorRoot, "eslint.config.js"), "export default [];\n");
+const eslintNoEditorById = resultById(evaluateRepo(eslintNoEditorRoot));
+assert.equal(eslintNoEditorById.linter.pass, true, eslintNoEditorById.linter.message);
+assert.equal(eslintNoEditorById.editorconfig.skipped, true, eslintNoEditorById.editorconfig.message);
+assert.equal(eslintNoEditorById.editorconfig.pass, false);
+assert.match(eslintNoEditorById.editorconfig.message, /prescriptive linter/i);
+
+const neitherStyleRoot = tmp("code-readiness-neither-style-");
+fs.writeFileSync(path.join(neitherStyleRoot, "index.js"), "export default {}\n");
+const neitherStyleById = resultById(evaluateRepo(neitherStyleRoot));
+assert.equal(neitherStyleById.linter.pass, false);
+assert.equal(neitherStyleById.linter.skipped, false);
+assert.equal(neitherStyleById.editorconfig.pass, false);
+assert.equal(neitherStyleById.editorconfig.skipped, false);
+assert.match(neitherStyleById.editorconfig.message, /No \.editorconfig found/);
+
+const editorOnlyRoot = tmp("code-readiness-editor-only-");
+fs.writeFileSync(path.join(editorOnlyRoot, ".editorconfig"), "root = true\n");
+const editorOnlyById = resultById(evaluateRepo(editorOnlyRoot));
+assert.equal(editorOnlyById.editorconfig.pass, true, editorOnlyById.editorconfig.message);
+assert.equal(editorOnlyById.editorconfig.skipped, false);
+assert.equal(editorOnlyById.linter.pass, false);
+
+const flake8Root = tmp("code-readiness-flake8-");
+fs.writeFileSync(path.join(flake8Root, ".flake8"), "[flake8]\nmax-line-length = 88\n");
+const flake8ById = resultById(evaluateRepo(flake8Root));
+assert.equal(flake8ById.linter.pass, true, flake8ById.linter.message);
+assert.match(flake8ById.linter.message, /\.flake8/);
+assert.equal(flake8ById.editorconfig.skipped, true, flake8ById.editorconfig.message);
+assert.equal(flake8ById.editorconfig.pass, false);
+
+const clippyRoot = tmp("code-readiness-clippy-");
+fs.writeFileSync(path.join(clippyRoot, "clippy.toml"), "too-many-arguments-threshold = 8\n");
+const clippyById = resultById(evaluateRepo(clippyRoot));
+assert.equal(clippyById.linter.pass, true, clippyById.linter.message);
+assert.match(clippyById.linter.message, /clippy\.toml/);
+assert.equal(clippyById.editorconfig.skipped, true, clippyById.editorconfig.message);
+assert.equal(clippyById.editorconfig.pass, false);
+
+const clangTidyRoot = tmp("code-readiness-clang-tidy-");
+fs.writeFileSync(path.join(clangTidyRoot, ".clang-tidy"), "Checks: '-*'\n");
+const clangTidyById = resultById(evaluateRepo(clangTidyRoot));
+assert.equal(clangTidyById.linter.pass, true, clangTidyById.linter.message);
+assert.match(clangTidyById.linter.message, /\.clang-tidy/);
+assert.equal(clangTidyById.editorconfig.skipped, true, clangTidyById.editorconfig.message);
+assert.equal(clangTidyById.editorconfig.pass, false);
 
 const mypyRoot = tmp("code-readiness-mypy-");
 fs.writeFileSync(path.join(mypyRoot, "pyproject.toml"), "[tool.mypy]\nstrict = true\n");
@@ -876,6 +949,9 @@ const dprintById = resultById(evaluateRepo(dprintRoot));
 assert.equal(dprintById.formatter.pass, true, dprintById.formatter.message);
 assert.match(dprintById.formatter.message, /\.dprint\.jsonc/);
 assert.equal(/Go has built-in formatting via gofmt/.test(dprintById.formatter.message), false);
+assert.equal(dprintById.linter.pass, false);
+assert.equal(dprintById.editorconfig.skipped, false, "formatter must not skip editorconfig");
+assert.equal(dprintById.editorconfig.pass, false);
 assert.equal(dprintById["type-checker"].skipped, true, dprintById["type-checker"].message);
 
 const noFmtRoot = tmp("code-readiness-nofmt-");
@@ -1118,6 +1194,7 @@ const jsFunctionalById = resultById(jsFunctionalEval);
 const jsFunctionalScored = scoreResults(jsFunctionalEval.catalog, jsFunctionalEval.results);
 assert.equal(jsFunctionalById.readme.pass, true);
 assert.equal(jsFunctionalById.linter.pass, true);
+assert.equal(jsFunctionalById.editorconfig.skipped, true, jsFunctionalById.editorconfig.message);
 assert.equal(jsFunctionalById["test-files-exist"].pass, true);
 assert.equal(jsFunctionalById["type-checker"].skipped, true, jsFunctionalById["type-checker"].message);
 assert.equal(jsFunctionalScored.l1Passed, 3);
@@ -1481,7 +1558,9 @@ assert.match(canvasTemplate, /Checkbox/);
 assert.equal(canvasTemplate.includes("RadarChart"), false);
 assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(canvasTemplate), false);
 assert.equal(/linear-gradient|radial-gradient/.test(canvasTemplate), false);
-assert.match(canvasTemplate, /Functional/);
+assert.match(canvasTemplate, /WHY_FOR_AGENTS/);
+assert.match(canvasTemplate, /agent-runnable style oracle/);
+assert.match(canvasTemplate, /only when there is no linter/);
 assert.match(canvasTemplate, /Documented/);
 assert.equal(/Foundational|Guided/.test(canvasTemplate), false);
 assert.match(canvasTemplate, /function remainingGateFails/);
@@ -1519,7 +1598,7 @@ assert.match(canvasTemplate, /countedPillarFails/);
 assert.match(canvasTemplate, /Category breakdown/);
 assert.match(
   canvasTemplate,
-  /Agents guess indent and charset/,
+  /Agents generate code that looks right/,
   "pillar Cards must render a technical why-for-agents sentence",
 );
 
@@ -1533,6 +1612,8 @@ assert.match(skillMd, /remaining fails at `nextLevel` first/);
 assert.match(skillMd, /category breakdown/);
 assert.match(skillMd, /why it helps agents/);
 assert.match(skillMd, /only for when `l1Capped` is true/);
+assert.match(skillMd, /prescriptive linter/);
+assert.match(skillMd, /WHY_FOR_AGENTS/);
 assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
 assert.equal(/Nest is that shape|L2 10\/13/.test(skillMd), false);
@@ -1553,6 +1634,8 @@ const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md
 assert.match(checksReadme, /would be L2 except/);
 assert.match(checksReadme, /L2 fail ids/);
 assert.match(checksReadme, /not `l1CapReasons`/);
+assert.match(checksReadme, /language-native/);
+assert.match(checksReadme, /prescriptive linter/);
 assert.match(checksReadme, /Do not dummy `\.editorconfig`/);
 assert.match(checksReadme, /ESLint and Biome are both first-class JS\/TS linters/);
 assert.match(checksReadme, /golangci-lint/);

@@ -44,7 +44,7 @@
       "requiresLLM": false,
       "anyFiles": [".editorconfig"],
       "fail": "No .editorconfig found.",
-      "fix": "Add an .editorconfig to standardize indentation and file encoding.",
+      "fix": "Add an .editorconfig only when no prescriptive linter is configured. A linter is the agent-runnable style oracle. Do not dummy .editorconfig.",
       "effort": "low"
     },
     {
@@ -101,7 +101,7 @@
         { "file": "Cargo.toml", "includes": ["[lints.clippy", "[workspace.lints", "[lints.rust"] }
       ],
       "fail": "No linter configuration found.",
-      "fix": "Add a linter config such as ESLint, Biome, Ruff, or golangci-lint.",
+      "fix": "Add a language-native linter config such as ESLint, Biome, Ruff, flake8, pylint, golangci-lint, clippy, clang-tidy, hlint, Credo, or tflint.",
       "effort": "medium"
     },
     {
