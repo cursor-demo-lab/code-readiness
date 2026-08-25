@@ -143,7 +143,7 @@ function evalCriterion(criterion, ctx) {
         return hit(`${file} found with ${content.length} characters`);
       }
     }
-    return miss(criterion.fail, criterion.fix);
+    return miss(criterion.fail);
   }
 
   if (criterion.testFiles) {
@@ -151,19 +151,19 @@ function evalCriterion(criterion, ctx) {
     if (found.length > 0) {
       return hit(`Found ${found.length} test file(s)`, found.slice(0, 8).join(", "));
     }
-    return miss(criterion.fail, criterion.fix);
+    return miss(criterion.fail);
   }
 
   if (criterion.ciFiles) {
     const found = ciFiles(ctx.files);
     if (found.length > 0) return hit(`CI configuration found: ${found[0]}`);
-    return miss(criterion.fail, criterion.fix);
+    return miss(criterion.fail);
   }
 
   if (criterion.lockFileFreshDays) {
     const result = lockFresh(ctx.repoRoot, ctx.files, criterion.lockFileFreshDays);
     if (result.ok) return hit(`Lock file ${result.file} modified within 6 months`);
-    return miss(criterion.fail, criterion.fix);
+    return miss(criterion.fail);
   }
 
   const fileHits = evalAnyFiles(ctx.repoRoot, ctx.files, [
@@ -194,14 +194,14 @@ function evalCriterion(criterion, ctx) {
     const { configs, hit: file } = evalCiGrep(ctx.repoRoot, ctx.files, criterion.ciGrep);
     if (file) return hit(`CI config matched in ${file}`);
     if (configs.length === 0 && !criterion.anyFiles && !criterion.packageJsonPath) {
-      return miss(`No CI configuration found to check.`, criterion.fix);
+      return miss("No CI configuration found to check.");
     }
     if (file == null && configs.length > 0 && !criterion.packageJsonPath && !criterion.makefileTarget) {
-      return miss(criterion.fail, criterion.fix);
+      return miss(criterion.fail);
     }
   }
 
-  return miss(criterion.fail, criterion.fix);
+  return miss(criterion.fail);
 }
 
 export function evaluateRepo(repoRoot) {
