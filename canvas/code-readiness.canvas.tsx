@@ -117,9 +117,9 @@ type Report = {
 };
 
 const LEVELS: Array<{ level: 1 | 2 | 3 | 4 | 5; label: string }> = [
-  { level: 1, label: "Foundational" },
-  { level: 2, label: "Guided" },
-  { level: 3, label: "Structured" },
+  { level: 1, label: "Functional" },
+  { level: 2, label: "Documented" },
+  { level: 3, label: "Standardized" },
   { level: 4, label: "Optimized" },
   { level: 5, label: "Autonomous" },
 ];
@@ -318,7 +318,7 @@ export default function CodeReadinessCanvas() {
   const gapCallout = band.l1Capped
     ? {
         title: "L1 capped",
-        body: `Passed the L2 gate (${band.l2Passed}/${band.l2Total}) but stuck on ${band.l1CapReasons.join(", ")}. Sequential 80% gate. This cap is why the band stays Foundational.`,
+        body: `Passed the L2 gate (${band.l2Passed}/${band.l2Total}) but stuck on ${band.l1CapReasons.join(", ")}. Sequential 80% gate. This cap is why the band stays Functional.`,
       }
     : report.level5Disclaimer
       ? {

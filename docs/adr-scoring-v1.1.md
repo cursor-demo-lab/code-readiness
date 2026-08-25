@@ -1,32 +1,53 @@
-# ADR: scoring contract v1.1
+# ADR: scoring contract v2
+
+Supersedes the v1.1 identity band (L1 75% of readme / license / lock-file).
 
 ## Decision
 
-Keep the sequential gate for levels 2–5 at `LEVEL_THRESHOLD` (0.8). Change only what made L1/L2 untruthful on the 18-repo eval.
+Align **level placement of existing check ids** with Factory Agent Readiness. Unlock remains 80% of counted rows at the current level. Skipped rows leave the denominator. The walk is still sequential; minimum level is 1. No new criterion ids. No new pillars. No LLM scoring. No L4/L5 retune except ids that left those levels.
 
-- **L1 is 75% of counted L1 rows.** `thresholdForLevel(1)` is 0.75. L1 is readme, license, and lock-file (language-aware skip). 75% of 3 requires 3/3; when lock-file skips, 75% of 2 requires 2/2. Do not special-case individual L1 ids.
-- **`editorconfig` is L2 style.** Same check id, still `style-linting`. A missing `.editorconfig` no longer caps L1. 8/9 L2 plus an editorconfig fail is 8/10 = 80% and can reach Guided.
-- **L2+ stays 80% sequential.** `needed` for the next-level remainder uses the same per-level threshold (`Math.ceil(n * threshold)`).
-- **`lock-file` is language-aware.** Catalog `anyFiles` and `LOCK_FILES` stay identical and include `uv.lock`, `pdm.lock`, and `npm-shrinkwrap.json`. Missing lock files skip (drop from the L1 denominator) when `detectLanguages` says Java, C, C++, Haskell, Python, JavaScript, or TypeScript. `pyproject.toml` is not a lockfile. Committed `uv.lock` / `poetry.lock` / `Pipfile.lock` / `package-lock.json` still pass. JS libraries often omit a lockfile; skip rather than fail. `setup-script` also passes on package.json `scripts.test` / `scripts.lint` / `scripts.build`, not only `scripts.dev`.
-- **`env-documentation` skips empty trees.** Skip when there is no `.env.example` / `.env.template` / `.env.sample` and also no `.env`, `.env.*`, `docker-compose*.yml`, `compose*.yml`, or `.envrc` / `direnv`. Fail only when those env/compose files exist without an example.
-- **Path truth.** `contributing` also matches `**/CONTRIBUTING.md` and `docs/**/contributing*` (nested FastAPI-style guides). `ai-context` accepts `AGENTS.md` and `.github/AGENTS.md`. Keep `v1SkipLLM`.
+- **`thresholdForLevel` is 0.80 for every level, including L1.** The 0.75 L1 special case is gone. `catalog.level1Threshold` is 0.8.
+- **Labels (engine-owned):** 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. Canvas may print these strings from report JSON; it does not recompute the gate.
+- **L1 Functional:** `readme`, `linter`, `test-files-exist`, `type-checker`. 80% of 4 requires 4/4. When `type-checker` skips, 80% of 3 requires 3/3. License and lock-file are not an L1 identity band.
+- **`type-checker` skip.** Keep `languagesPass` for Go / Rust / Java / Kotlin / C# / Swift. Pass on mypy / pyright files, `setup.cfg` `[mypy]`, pyproject `[tool.mypy]` / `[tool.pyright]`, or `tsconfig.json` with `strict: true`. If none of those hit and there is no `tsconfig.json`, skip (JavaScript without tsconfig, Python without mypy/pyright, and similar). A present non-strict `tsconfig.json` still fails. Skip drops from the L1 denominator.
+- **L2 Documented:** `license` and `lock-file` move here (lock-file keeps the JS/TS/Python/Java/C/Haskell skip-when-absent). `ai-context` and `pre-commit-hooks` move here from L3. Also: `editorconfig`, `formatter`, `test-framework`, `test-script`, `contributing`, `env-documentation`, `setup-script`, `version-pinned`, `ci-config`.
+- **L3 Standardized:** `api-docs`, `codeowners`, `containerization`, `ci-runs-tests`, `ci-runs-linters`, `build-automated`, `no-outdated-deps`, `security-policy`, `dep-update-automation`.
+- **Python-native L2 detectors (unchanged from this branch).** `test-script` still accepts `scripts.test` / Makefile `test`, plus `scripts/test` / `scripts/test.sh` / `scripts/test-*`, tox/nox/pytest.ini, or pyproject `[tool.pytest` / `[tool.tox` / `[tool.hatch.envs`. `setup-script` still accepts package.json `scripts.dev|test|lint|build`, Makefile `setup|install`, a root Makefile, plus `scripts/install*`, `setup.py` / `setup.cfg`, or pyproject `[build-system]`.
 
-## 18-repo evidence
+## Level map (existing ids only)
 
-The band was a lie: 16/18 repos stuck at L1.
+| Level | Label | Counted ids |
+| --- | --- | --- |
+| 1 | Functional | readme, linter, test-files-exist, type-checker |
+| 2 | Documented | license, lock-file, editorconfig, formatter, test-framework, test-script, contributing, env-documentation, setup-script, version-pinned, ci-config, ai-context, pre-commit-hooks |
+| 3 | Standardized | api-docs, codeowners, containerization, ci-runs-tests, ci-runs-linters, build-automated, no-outdated-deps, security-policy, dep-update-automation |
+| 4 | Optimized | coverage-config, e2e-tests, architecture-docs, deploy-pipeline, branch-protection, dead-code-detection, security-scanning, secrets-detection |
+| 5 | Autonomous | bundle-analysis (plus skipped LLM rows) |
 
-- `cli/cli` was 8/10 L2 and still Foundational because of `.editorconfig`.
-- `env-documentation` failed 18/18, including libraries with nothing to document.
-- Flask, FastAPI, and httpx failed L1 `lock-file` despite `uv.lock`.
-- Gson, JUnit, jq, and shellcheck failed `lock-file` in languages with no conventional committed lockfile.
-- huggingface/diffusers is L2 8/9 at 56% but stays Foundational because L1 is 2/4 (no `.editorconfig` and no lockfile). encode/httpx is the same shape. Python libraries often ship `pyproject.toml` / `setup.py` without committing `uv.lock` / `poetry.lock` / `Pipfile.lock`; skip lock-file in that case rather than fail.
-- After PR #7, huggingface/diffusers skips lock-file and L1 is 2/3 (readme+license pass, editorconfig fail). 2/3 = 0.667 < 0.75, so it stays Foundational even though L2 is 8/9. psf/requests is the same shape (L2 9/9). encode/httpx still fails L1 on editorconfig with L2 7/9. Demoting editorconfig to L2 makes that 8/9 plus an editorconfig fail into 8/10 = 80% Guided.
-- After editorconfig→L2, eslint/eslint is L1 at 62% with L1 2/3 (lock-file fail) and L2 9/10; JS libraries often omit package-lock. nestjs/nest is L1 3/3 and L2 8/11 (editorconfig, env-documentation, setup-script); `scripts.test` without `scripts.dev` should pass setup-script so 9/11 is Guided. Do not auto-pass env-documentation.
+Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=9 need 8, L4=8 need 7, L5=1 need 1.
 
-## Explicitly unchanged
+## Why
 
-- L2+ 80% sequential gate
-- No LLM scoring (`v1SkipLLM`, skipped L5 quality rows stay out of the denominator)
-- Repository-root walk (ignored dirs still skipped; no repo-wide search of ignored trees)
-- L4/L5 check ids and thresholds
-- Canvas chrome / layout (report may expose `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1Capped`, `l1CapReasons` for the canvas)
+Factory L1 Functional examples are README, linter, type checker, and unit tests. Factory L2 Documented examples include AGENTS.md and pre-commit. Our previous L1 75% identity band (readme / license / lock) was the lie: a repo could look Functional and still sit at band 1 for a missing lockfile, or look unfinished and clear L1 on license+lock alone.
+
+Factory L3 examples include FastAPI. The earlier Python-native `test-script` / `setup-script` work stays: pytest/tox/hatch and `scripts/test*` / `[build-system]` are real signals, not JS/Makefile-only shapes.
+
+## Explicitly refused
+
+- New criterion ids
+- New pillars (observability, task discovery, product, build-system)
+- LLM checks (`v1SkipLLM`; L5 quality rows stay skipped)
+- Moving `branch-protection` to L2 (detector is a weak file mention; stays L4)
+- Moving `containerization` to L2 (Dockerfile false-pass; stays L3 Standardized). Factory's L2 devcontainer is a subset of this detector.
+- Moving `e2e-tests` to L3 (Factory L3 integration tests). Our detector is Playwright/Cypress, not generic integration; stays L4.
+- L4/L5 threshold or id retune beyond ids that moved away
+- Canvas chrome / layout (level label strings only)
+
+## Unchanged mechanics
+
+- Sequential 80% gate, skipped rows out of the denominator
+- Repository-root walk
+- Seven pillars
+- Python-native test-script / setup-script detectors
+- `env-documentation` skip on empty trees
+- `lock-file` language-aware skip-when-absent (now an L2 skip)

@@ -7,16 +7,16 @@ export const CANVAS_TITLE = "Code Readiness";
 export const SIDECAR_FILENAME = "code-readiness.canvas.data.json";
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export const LEVEL_THRESHOLD = 0.8;
-export const LEVEL_1_THRESHOLD = 0.75;
+export const LEVEL_1_THRESHOLD = 0.8;
 
-export function thresholdForLevel(level) {
-  return level === 1 ? LEVEL_1_THRESHOLD : LEVEL_THRESHOLD;
+export function thresholdForLevel(_level) {
+  return LEVEL_THRESHOLD;
 }
 
 export const LEVEL_LABELS = {
-  1: "Foundational",
-  2: "Guided",
-  3: "Structured",
+  1: "Functional",
+  2: "Documented",
+  3: "Standardized",
   4: "Optimized",
   5: "Autonomous",
 };

@@ -48,15 +48,15 @@ If you cannot produce real check results, stop. Do not emit a canvas.
 
 Keep the catalog's seven pillars and level names. Do not invent a second band.
 
-Levels: 1 Foundational, 2 Guided, 3 Structured, 4 Optimized, 5 Autonomous. L1 is readme, license, and lock-file (language-aware skip) at 75%. editorconfig is L2 style. L2+ stays 80% sequential. Minimum level is always 1.
+Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. Every level is 80% sequential, including L1. L1 is readme, linter, test-files-exist, and type-checker (skip when there is no conventional checker file). license and lock-file are L2. Minimum level is always 1.
 
-`maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (readme, license, lock-file). The canvas treats that cap as the primary visual. L1 is 75% of counted L1 rows (3/3, or 2/2 when lock-file skips). L2+ stays 80% sequential.
+`maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (readme, linter, test-files-exist, type-checker). The canvas treats that cap as the primary visual. L1 is 80% of counted L1 rows (4/4, or 3/3 when type-checker skips).
 
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
 `ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` counts. Do not add LLM scoring.
 
-Forbidden UI copy: "Level 3 Standardized", "9 pillars".
+Forbidden UI copy: "9 pillars".
 
 Required attribution: local filesystem heuristics from checks/catalog.json; not `/doctor`.
 
