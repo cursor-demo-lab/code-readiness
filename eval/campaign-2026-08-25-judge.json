@@ -1,0 +1,63 @@
+{
+  "ranking_ok_expected": false,
+  "ranking_ok_internal": true,
+  "goldens": {
+    "chat-example": {
+      "grounding": 5,
+      "fixture_agreement": 5,
+      "remediation_quality": 4,
+      "canvas_completeness": 5,
+      "level_sanity": 5,
+      "hallucinated_configs": false
+    },
+    "express": {
+      "grounding": 5,
+      "fixture_agreement": 4,
+      "remediation_quality": 4,
+      "canvas_completeness": 4,
+      "level_sanity": 5,
+      "hallucinated_configs": false
+    },
+    "fastapi": {
+      "grounding": 5,
+      "fixture_agreement": 5,
+      "remediation_quality": 4,
+      "canvas_completeness": 4,
+      "level_sanity": 3,
+      "hallucinated_configs": false
+    },
+    "act": {
+      "grounding": 4,
+      "fixture_agreement": 4,
+      "remediation_quality": 5,
+      "canvas_completeness": 4,
+      "level_sanity": 5,
+      "hallucinated_configs": false
+    }
+  },
+  "campaign": {
+    "n": 18,
+    "languages_covered": [
+      "JavaScript",
+      "TypeScript",
+      "Python",
+      "Go",
+      "Rust",
+      "Java",
+      "C",
+      "Haskell"
+    ],
+    "l2_repos": ["colinhacks/zod", "nektos/act"],
+    "notes": "Denominator check: all 18 reported percentages are exact roundings of n/35 (39 criteria minus 4 requiresLLM skips), and each maps to a unique integer pass count (9=3, 17=6, 31=11, 34=12, 37=13, 40=14, 43=15, 49=17, 57=20, 63=22). llm_calls=0 is structural, not observed discipline: report.mjs hardcodes it. Remediation lists for all four goldens reproduce the deterministic sort in recommend() exactly (nextLevel rows first, then impact, then effort low>medium>high, stable in catalog order), which is the single strongest grounding signal in the campaign. Six catalog behaviors were reproduced against synthetic fixtures rather than assumed: ruff in pyproject passes formatter and fails linter; mypy in pyproject fails type-checker; uv.lock fails lock-file; docs/en/docs/contributing.md fails contributing; LICENSE-MIT, UNLICENSE, and COPYING all fail license; a test/ directory of non-suffixed files fails test-files-exist; gotestsum in CI fails ci-runs-tests. A 3-of-4 L1 fixture with every L2 row satisfied scored 49% and still landed Level 1, which reproduces the cap mechanism behind 15 of 18 rows. Level sanity is docked only for fastapi: the gate is applied correctly (editorconfig and lock-file both fail, so L1 needs 4 of 4 and cannot pass) but it ties express at 34% and Level 1, which the eval harness forbids. That is a catalog-resolution failure, not a scoring bug. act carries the only unverified affirmative claim: ai-context passing means one of CLAUDE.md, .cursor/rules, .cursorrules, or .github/copilot-instructions.md exists in the tree, which cannot be confirmed without a clone; its ci-runs-tests fail alongside a test-script pass implies a Makefile test target that CI does not invoke by name. Both are the rows to spot-check first. No report or remediation named a file, tool, or config outside the catalog's own literals, so hallucinated_configs is false everywhere. The campaign canvas (n, levels, scores, L1 gaps, top fix) omits the pillar rollup and the language dimension that the per-repo canvas carries, so cross-repo pillar weakness is not visible; the L1 gap column is doing all the explanatory work. no-outdated-deps passes carry no signal in this campaign because it reads mtime and every golden was freshly cloned. Two secondary patterns worth recording: L1 fails concentrate almost entirely in editorconfig (10 of 18) and lock-file (9 of 18), while license (2) and readme (1) are rare; and among repos with no L1 fails, the L2 gate is decided by the dev-environment rows (env-documentation, setup-script, version-pinned), which is why prettier and commander.js sit at 49 to 63 percent and still report Level 1."
+  },
+  "mean": 4.45,
+  "min": 3,
+  "pass": true,
+  "optimize": [
+    "Broaden lock-file and give it a not-applicable state. Add uv.lock, pdm.lock, cabal.project.freeze, stack.yaml.lock, gradle/verification-metadata.xml, mix.lock, Podfile.lock, and conan.lock, and skip the row (third state, out of the denominator) for languages with no lock convention such as C and Maven-without-lock. This is a catalog list edit plus reuse of the existing skipped state, and it clears the single largest source of L1 gate failures: 9 of 18 repos, including the fastapi band miss.",
+    "Make the L1 gate survivable. Four L1 rows at an 80% threshold means ceil to 4 of 4, so one cosmetic miss hard-caps a mature repo at Level 1: a synthetic fixture missing only .editorconfig scored 49% and stayed Level 1, and .editorconfig alone gates 10 of 18 repos. Either add a fifth L1 criterion so 4 of 5 clears, or keep the gate and surface a capReason field in maturity_level so the canvas can say Level 1 because lock-file failed rather than implying broad immaturity. Constants plus one report field.",
+    "Teach linter and type-checker to read pyproject.toml and setup.cfg. Add fileContains rules for [tool.ruff.lint], [tool.mypy], and [tool.pyright] so Python repos stop being credited a formatter while failing the linter and type checker they actually configure. Pure catalog addition, verified against a fixture, and it is the direct cause of fastapi landing at or below express.",
+    "Widen path and convention matching on three rows. test-files-exist should accept test/**, spec/**, and **/*_test.rb so express stops failing with a large committed suite; contributing should accept **/contributing* and docs/**/contributing*; license should accept LICENSE-*, LICENCE-*, COPYING, and UNLICENSE so ripgrep and jq stop failing a row they satisfy in spirit. Catalog-only, low risk, moderate score movement.",
+    "Fix the two rows that currently produce noise. Replace the mtime read in no-outdated-deps with git log on the lock file, or mark it skipped when mtime equals checkout time, because a fresh clone makes it a free pass for every repo that has a lock file. Separately, extend the ci-runs-tests ciGrep with gotestsum, cargo nextest, tox, nox, uv run pytest, and pnpm run test patterns; a gotestsum-only workflow fails the row today even though CI plainly runs tests."
+  ]
+}
