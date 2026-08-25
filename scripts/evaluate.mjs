@@ -77,31 +77,45 @@ function isBasenameOnly(pattern) {
   return Boolean(pattern) && !pattern.includes("/") && !isGlobPattern(pattern);
 }
 
-function evalAnyFiles(repoRoot, files, patterns) {
+function pathHasSegments(file, segments) {
+  if (!segments?.length) return false;
+  return file.split("/").some((part) => segments.includes(part));
+}
+
+function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   if (!patterns?.length) return [];
+  const ignoreSegments = options.ignorePathSegments ?? [];
   const hits = [];
   for (const pattern of patterns) {
     if (isGlobPattern(pattern)) {
-      hits.push(...findMatches(files, [pattern]));
+      hits.push(...findMatches(files, [pattern]).filter((file) => !pathHasSegments(file, ignoreSegments)));
       continue;
     }
     if (pattern.includes("/")) {
-      if (fs.existsSync(path.join(repoRoot, pattern))) hits.push(pattern);
+      if (!pathHasSegments(pattern, ignoreSegments) && fs.existsSync(path.join(repoRoot, pattern))) {
+        hits.push(pattern);
+      }
       continue;
     }
-    if (fs.existsSync(path.join(repoRoot, pattern))) hits.push(pattern);
+    if (!pathHasSegments(pattern, ignoreSegments) && fs.existsSync(path.join(repoRoot, pattern))) {
+      hits.push(pattern);
+    }
     for (const file of files) {
-      if (file !== pattern && posixBasename(file) === pattern) hits.push(file);
+      if (file !== pattern && posixBasename(file) === pattern && !pathHasSegments(file, ignoreSegments)) {
+        hits.push(file);
+      }
     }
   }
   return hits;
 }
 
-function evalFileContains(repoRoot, files, rules) {
+function evalFileContains(repoRoot, files, rules, options = {}) {
   if (!rules?.length) return null;
+  const ignoreSegments = options.ignorePathSegments ?? [];
   for (const rule of rules) {
     const basenameOnly = isBasenameOnly(rule.file);
     const matches = files.filter((file) => {
+      if (pathHasSegments(file, ignoreSegments)) return false;
       if (file === rule.file || globMatch(file, rule.file)) return true;
       return basenameOnly && posixBasename(file) === rule.file;
     });
@@ -233,10 +247,14 @@ function evalCriterion(criterion, ctx) {
     return miss(criterion.fail);
   }
 
-  const fileHits = evalAnyFiles(ctx.repoRoot, ctx.files, [
-    ...(criterion.anyFiles ?? []),
-    ...(criterion.anyGlobs ?? []),
-  ]);
+  const pinPathIgnore =
+    criterion.id === "version-pinned" ? { ignorePathSegments: ["testdata", "fixtures"] } : {};
+  const fileHits = evalAnyFiles(
+    ctx.repoRoot,
+    ctx.files,
+    [...(criterion.anyFiles ?? []), ...(criterion.anyGlobs ?? [])],
+    pinPathIgnore,
+  );
   if (fileHits.length > 0) {
     return hit(`Found ${fileHits[0]}`);
   }
@@ -262,7 +280,7 @@ function evalCriterion(criterion, ctx) {
     return hit(`Makefile target matched: ${criterion.makefileTarget}`);
   }
 
-  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains);
+  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains, pinPathIgnore);
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
