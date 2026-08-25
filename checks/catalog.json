@@ -40,7 +40,7 @@
       "id": "editorconfig",
       "name": "EditorConfig present",
       "pillarId": "style-linting",
-      "level": 1,
+      "level": 2,
       "requiresLLM": false,
       "anyFiles": [".editorconfig"],
       "fail": "No .editorconfig found.",

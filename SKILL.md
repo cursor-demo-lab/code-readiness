@@ -48,9 +48,9 @@ If you cannot produce real check results, stop. Do not emit a canvas.
 
 Keep the catalog's seven pillars and level names. Do not invent a second band.
 
-Levels: 1 Foundational, 2 Guided, 3 Structured, 4 Optimized, 5 Autonomous. L1 is 3/4 (75%). L2+ stays 80% sequential. Minimum level is always 1.
+Levels: 1 Foundational, 2 Guided, 3 Structured, 4 Optimized, 5 Autonomous. L1 is readme, license, and lock-file (language-aware skip) at 75%. editorconfig is L2 style. L2+ stays 80% sequential. Minimum level is always 1.
 
-`maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (editorconfig, lock-file, and the other L1 ids). The canvas treats that cap as the primary visual. L1 is 3/4 (75%). L2+ stays 80% sequential.
+`maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (readme, license, lock-file). The canvas treats that cap as the primary visual. L1 is 75% of counted L1 rows (3/3, or 2/2 when lock-file skips). L2+ stays 80% sequential.
 
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 

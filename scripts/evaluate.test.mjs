@@ -53,8 +53,8 @@ assert.deepEqual(
 function countedAt(level) {
   return catalog.criteria.filter((row) => row.level === level && !row.requiresLLM).length;
 }
-assert.equal(countedAt(1), 4);
-assert.equal(countedAt(2), 10);
+assert.equal(countedAt(1), 3);
+assert.equal(countedAt(2), 11);
 assert.equal(countedAt(3), 12);
 assert.equal(countedAt(4), 8);
 assert.equal(countedAt(5), 1);
@@ -62,6 +62,14 @@ assert.equal(countedAt(5), 1);
 assert.equal(thresholdForLevel(1), 0.75);
 assert.equal(thresholdForLevel(2), LEVEL_THRESHOLD);
 assert.equal(thresholdForLevel(5), LEVEL_THRESHOLD);
+
+const editorconfig = catalog.criteria.find((row) => row.id === "editorconfig");
+assert.equal(editorconfig.level, 2);
+assert.equal(editorconfig.pillarId, "style-linting");
+assert.deepEqual(
+  catalog.criteria.filter((row) => row.level === 1).map((row) => row.id).sort(),
+  ["license", "lock-file", "readme"],
+);
 
 const lockFile = catalog.criteria.find((row) => row.id === "lock-file");
 assert.deepEqual(lockFile.anyFiles, LOCK_FILES);
@@ -156,26 +164,27 @@ function catalogRows({ l1Pass, l2Pass }) {
   });
 }
 
-const l1ThreeOfFour = catalogRows({
+const l1ThreeOfThree = catalogRows({
   l1Pass: (criterion) => criterion.id !== "editorconfig",
   l2Pass: () => true,
 });
-const scoredL1 = scoreResults(catalog, l1ThreeOfFour);
-assert.equal(scoredL1.level, 2, "L1 3/4 plus complete L2 should reach Guided");
+const scoredL1 = scoreResults(catalog, l1ThreeOfThree);
+assert.equal(scoredL1.level, 2, "L1 3/3 plus complete L2 should reach Guided");
 assert.equal(scoredL1.l1Passed, 3);
-assert.equal(scoredL1.l1Total, 4);
-assert.equal(scoredL1.l2Passed, 10);
-assert.equal(scoredL1.l2Total, 10);
+assert.equal(scoredL1.l1Total, 3);
+assert.equal(scoredL1.l2Passed, 11);
+assert.equal(scoredL1.l2Total, 11);
 assert.equal(scoredL1.nextLevelProgress.needed, Math.ceil(12 * LEVEL_THRESHOLD));
 
-const l1TwoMisses = catalogRows({
+const l1TwoOfThree = catalogRows({
   l1Pass: (criterion) => criterion.id !== "editorconfig" && criterion.id !== "license",
   l2Pass: () => true,
 });
-const scoredTwoMiss = scoreResults(catalog, l1TwoMisses);
-assert.equal(scoredTwoMiss.level, 1, "two L1 misses still cap at Foundational");
-assert.equal(scoredTwoMiss.l1Passed, 2);
-assert.equal(scoredTwoMiss.nextLevelProgress.needed, Math.ceil(10 * LEVEL_THRESHOLD));
+const scoredTwoOfThree = scoreResults(catalog, l1TwoOfThree);
+assert.equal(scoredTwoOfThree.level, 1, "L1 2/3 still caps at Foundational");
+assert.equal(scoredTwoOfThree.l1Passed, 2);
+assert.equal(scoredTwoOfThree.l1Total, 3);
+assert.equal(scoredTwoOfThree.nextLevelProgress.needed, Math.ceil(11 * LEVEL_THRESHOLD));
 
 const root = tmp("code-readiness-");
 fs.writeFileSync(path.join(root, "LICENSE"), "MIT\n");
@@ -213,8 +222,8 @@ assert.equal(byId["ai-context"].pass, true, "AGENTS.md satisfies ai-context");
 const scored = scoreResults(evalJs.catalog, evalJs.results);
 assert.equal(scored.level, 1);
 assert.ok(scored.scorePercent > 0);
-assert.equal(scored.l1Passed, 4);
-assert.equal(scored.l1Total, 4);
+assert.equal(scored.l1Passed, 3);
+assert.equal(scored.l1Total, 3);
 
 function writeGuidedMinusEditorconfig(dir) {
   fs.writeFileSync(path.join(dir, "LICENSE"), "MIT\n");
@@ -245,14 +254,56 @@ writeGuidedMinusEditorconfig(l1MissEditor);
 const l1MissEval = evaluateRepo(l1MissEditor);
 const l1MissById = resultById(l1MissEval);
 assert.equal(l1MissById.editorconfig.pass, false);
+assert.equal(l1MissById.editorconfig.level, 2);
 assert.equal(l1MissById.license.pass, true);
 assert.equal(l1MissById.readme.pass, true);
 assert.equal(l1MissById["lock-file"].pass, true);
 const l1MissScored = scoreResults(l1MissEval.catalog, l1MissEval.results);
 assert.equal(l1MissScored.l1Passed, 3);
-assert.equal(l1MissScored.l1Total, 4);
+assert.equal(l1MissScored.l1Total, 3);
 assert.ok(l1MissScored.l2Passed / l1MissScored.l2Total >= LEVEL_THRESHOLD);
 assert.equal(l1MissScored.level, 2, "missing only .editorconfig still reaches Guided");
+
+const pyGuidedRoot = tmp("code-readiness-py-guided-");
+fs.writeFileSync(
+  path.join(pyGuidedRoot, "pyproject.toml"),
+  [
+    "[project]",
+    'name = "x"',
+    'version = "0.1.0"',
+    'requires-python = ">=3.10"',
+    "",
+    "[tool.ruff]",
+    "line-length = 88",
+    "",
+    "[tool.pytest.ini_options]",
+    'testpaths = ["."]',
+    "",
+  ].join("\n"),
+);
+fs.writeFileSync(
+  path.join(pyGuidedRoot, "README.md"),
+  `${"A".repeat(520)}\n# sample\nsetup and usage.\n`,
+);
+fs.writeFileSync(path.join(pyGuidedRoot, "LICENSE"), "MIT\n");
+fs.writeFileSync(path.join(pyGuidedRoot, "test_sample.py"), "def test_ok():\n    assert True\n");
+fs.writeFileSync(path.join(pyGuidedRoot, "CONTRIBUTING.md"), "# contributing\n");
+fs.writeFileSync(path.join(pyGuidedRoot, "Makefile"), "setup:\n\t@echo setup\ntest:\n\tpytest\n");
+const pyGuidedEval = evaluateRepo(pyGuidedRoot);
+const pyGuidedById = resultById(pyGuidedEval);
+assert.equal(pyGuidedById["lock-file"].skipped, true, pyGuidedById["lock-file"].message);
+assert.equal(pyGuidedById.editorconfig.pass, false);
+assert.equal(pyGuidedById.editorconfig.level, 2);
+assert.equal(pyGuidedById.readme.pass, true);
+assert.equal(pyGuidedById.license.pass, true);
+assert.equal(pyGuidedById["env-documentation"].skipped, true);
+const pyGuidedScored = scoreResults(pyGuidedEval.catalog, pyGuidedEval.results);
+assert.equal(pyGuidedScored.l1Passed, 2);
+assert.equal(pyGuidedScored.l1Total, 2);
+assert.equal(pyGuidedScored.l2Passed, 8);
+assert.equal(pyGuidedScored.l2Total, 10);
+assert.ok(pyGuidedScored.l2Passed / pyGuidedScored.l2Total >= LEVEL_THRESHOLD);
+assert.equal(pyGuidedScored.level, 2, "Python 8/9 L2 plus editorconfig fail is 8/10 Guided");
 
 const goRoot = tmp("code-readiness-go-");
 fs.writeFileSync(path.join(goRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n");
@@ -440,10 +491,10 @@ const capEval = evaluateRepo(capRoot);
 const capReport = buildReport(capEval, { repoRoot: capRoot, repoName: "cap" });
 assert.equal(capReport.maturity_level.level, 1);
 assert.equal(capReport.maturity_level.l1Capped, true);
-assert.ok(capReport.maturity_level.l1CapReasons.includes("editorconfig"));
+assert.equal(capReport.maturity_level.l1CapReasons.includes("editorconfig"), false);
 assert.ok(capReport.maturity_level.l1CapReasons.includes("license"));
 assert.equal(capReport.maturity_level.l1Passed, 2);
-assert.equal(capReport.maturity_level.l1Total, 4);
+assert.equal(capReport.maturity_level.l1Total, 3);
 assert.ok(capReport.maturity_level.l2Total >= 8);
 assert.ok(
   capReport.maturity_level.l2Passed / capReport.maturity_level.l2Total >= 0.8,
