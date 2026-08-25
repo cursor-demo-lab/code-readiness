@@ -119,11 +119,31 @@ assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Cargo.toml" &
 
 const setupScript = catalog.criteria.find((row) => row.id === "setup-script");
 assert.ok(setupScript.anyFiles.includes("Makefile"));
+assert.ok(setupScript.anyFiles.includes("scripts/install"));
+assert.ok(setupScript.anyFiles.includes("scripts/install.sh"));
+assert.ok(setupScript.anyFiles.includes("scripts/install-*"));
+assert.ok(setupScript.anyFiles.includes("setup.py"));
+assert.ok(setupScript.anyFiles.includes("setup.cfg"));
 assert.equal(setupScript.makefileTarget, "setup|install");
 assert.match(String(setupScript.packageJsonPath), /scripts\.dev/);
 assert.match(String(setupScript.packageJsonPath), /scripts\.test/);
 assert.match(String(setupScript.packageJsonPath), /scripts\.lint/);
 assert.match(String(setupScript.packageJsonPath), /scripts\.build/);
+assert.ok(setupScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[build-system]")));
+
+const testScript = catalog.criteria.find((row) => row.id === "test-script");
+assert.equal(testScript.packageJsonPath, "scripts.test");
+assert.equal(testScript.makefileTarget, "test");
+assert.ok(testScript.anyFiles.includes("scripts/test"));
+assert.ok(testScript.anyFiles.includes("scripts/test.sh"));
+assert.ok(testScript.anyFiles.includes("scripts/test-*"));
+assert.ok(testScript.anyFiles.includes("tox.ini"));
+assert.ok(testScript.anyFiles.includes("tox.toml"));
+assert.ok(testScript.anyFiles.includes("noxfile.py"));
+assert.ok(testScript.anyFiles.includes("pytest.ini"));
+assert.ok(testScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
+assert.ok(testScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.tox")));
+assert.ok(testScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.hatch.envs")));
 
 const license = catalog.criteria.find((row) => row.id === "license");
 assert.ok(license.anyFiles.includes("LICENSE-MIT"));
@@ -353,6 +373,8 @@ assert.equal(pyNoLockById["lock-file"].skipped, true, pyNoLockById["lock-file"].
 assert.match(pyNoLockById["lock-file"].message, /no conventional committed lockfile/i);
 assert.equal(pyNoLockById["lock-file"].pass, false);
 assert.equal(/pyproject\.toml/i.test(pyNoLockById["lock-file"].message), false);
+assert.equal(pyNoLockById["test-script"].pass, false, pyNoLockById["test-script"].message);
+assert.equal(pyNoLockById["setup-script"].pass, false, pyNoLockById["setup-script"].message);
 
 const pyJsLockRoot = tmp("code-readiness-pyjs-lock-");
 fs.writeFileSync(
@@ -397,6 +419,25 @@ const setupTestById = resultById(evaluateRepo(setupTestRoot));
 assert.equal(setupTestById["setup-script"].pass, true, setupTestById["setup-script"].message);
 assert.match(setupTestById["setup-script"].message, /scripts\.test/);
 assert.equal(/scripts\.dev/.test(setupTestById["setup-script"].message), false);
+assert.equal(setupTestById["test-script"].pass, true, setupTestById["test-script"].message);
+
+const pyNativeRoot = tmp("code-readiness-py-native-");
+fs.writeFileSync(
+  path.join(pyNativeRoot, "pyproject.toml"),
+  "[build-system]\nrequires = [\"setuptools\"]\n[tool.pytest.ini_options]\n",
+);
+const pyNativeById = resultById(evaluateRepo(pyNativeRoot));
+assert.equal(pyNativeById["test-script"].pass, true, pyNativeById["test-script"].message);
+assert.equal(pyNativeById["setup-script"].pass, true, pyNativeById["setup-script"].message);
+assert.match(pyNativeById["test-script"].message, /\[tool\.pytest/);
+assert.match(pyNativeById["setup-script"].message, /\[build-system\]/);
+
+const testShRoot = tmp("code-readiness-test-sh-");
+fs.mkdirSync(path.join(testShRoot, "scripts"));
+fs.writeFileSync(path.join(testShRoot, "scripts", "test.sh"), "pytest\n");
+const testShById = resultById(evaluateRepo(testShRoot));
+assert.equal(testShById["test-script"].pass, true, testShById["test-script"].message);
+assert.match(testShById["test-script"].message, /scripts\/test\.sh/);
 
 const envSkipRoot = tmp("code-readiness-env-skip-");
 fs.writeFileSync(path.join(envSkipRoot, "index.js"), "export default {}\n");

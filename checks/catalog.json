@@ -202,7 +202,27 @@
       "requiresLLM": false,
       "packageJsonPath": "scripts.test",
       "makefileTarget": "test",
-      "anyFiles": ["gradlew", "build.gradle.kts", "build.gradle", "mvnw", "pom.xml", "Cargo.toml", "*.sln", "*.csproj", "Rakefile"],
+      "anyFiles": [
+        "gradlew",
+        "build.gradle.kts",
+        "build.gradle",
+        "mvnw",
+        "pom.xml",
+        "Cargo.toml",
+        "*.sln",
+        "*.csproj",
+        "Rakefile",
+        "scripts/test",
+        "scripts/test.sh",
+        "scripts/test-*",
+        "tox.ini",
+        "tox.toml",
+        "noxfile.py",
+        "pytest.ini"
+      ],
+      "fileContains": [
+        { "file": "pyproject.toml", "includes": ["[tool.pytest", "[tool.tox", "[tool.hatch.envs"] }
+      ],
       "fail": "No test script or test target found.",
       "fix": "Add a test script in package.json or a test target in the Makefile.",
       "effort": "medium"
@@ -396,7 +416,22 @@
       "requiresLLM": false,
       "packageJsonPath": "scripts.dev|scripts.test|scripts.lint|scripts.build",
       "makefileTarget": "setup|install",
-      "anyFiles": ["Makefile", "scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
+      "anyFiles": [
+        "Makefile",
+        "scripts/setup*",
+        "gradlew",
+        "mvnw",
+        "*.sln",
+        "Rakefile",
+        "scripts/install",
+        "scripts/install.sh",
+        "scripts/install-*",
+        "setup.py",
+        "setup.cfg"
+      ],
+      "fileContains": [
+        { "file": "pyproject.toml", "includes": ["[build-system]"] }
+      ],
       "fail": "No setup script or dev command found.",
       "fix": "Add a Makefile setup target, scripts/setup, or a package.json test, lint, build, or dev script.",
       "effort": "medium"
