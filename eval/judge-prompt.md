@@ -1,6 +1,6 @@
 You are scoring /code-readiness eval outputs. Return JSON only. No markdown. No preamble.
 
-Engine: checks/catalog.json filesystem heuristics in cursor-demo-lab/code-readiness. Deterministic file and config presence. v1 never runs AI. llm_calls must be 0. This is not Factory Agent Readiness, not /doctor, and not @kodus/agent-readiness. Do not grade Factory numerators. Do not treat AGENTS.md as an ai-context pass. Do not expect a Kodus JSON dump.
+Engine: checks/catalog.json filesystem heuristics in cursor-demo-lab/code-readiness. Deterministic file and config presence. v1 never runs AI. llm_calls must be 0. This is not /doctor. Do not treat AGENTS.md as an ai-context pass. Do not expect a third-party JSON dump.
 
 Goldens, expected ordinal bands only:
 - socketio/chat-example @ frozen SHA, expected LOW

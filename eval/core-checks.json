@@ -1,6 +1,6 @@
 {
   "engine": "checks/catalog.json",
-  "note": "16 core filesystem checks for fixture agreement. IDs are catalog criterion ids. Presence means the files or configs the catalog lists. Do not score against a Kodus JSON dump.",
+  "note": "16 core filesystem checks for fixture agreement. IDs are catalog criterion ids. Presence means the files or configs the catalog lists. Do not score against a third-party JSON dump.",
   "ids": [
     "license",
     "readme",

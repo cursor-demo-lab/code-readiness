@@ -1,6 +1,6 @@
 # Check catalog
 
-`checks/catalog.json` is the scoring spec. The agent evaluates every criterion with Read, glob, and grep only. Do not install packages. Do not run `npx`. Do not call Factory. Do not run tests, linters, or scanners.
+`checks/catalog.json` is the scoring spec. The agent evaluates every criterion with Read, glob, and grep only. Do not install packages. Do not run `npx`. Do not run tests, linters, or scanners.
 
 v1 skips `requiresLLM` criteria. Those are a third state: skipped, excluded from the 80% denominator, not fails.
 

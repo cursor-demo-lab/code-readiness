@@ -1,6 +1,6 @@
 export const ENGINE_NAME = "code-readiness filesystem heuristics";
 export const ATTRIBUTION =
-  "local filesystem heuristics inspired by Kodus and Factory Agent Readiness; not a Factory report; not /doctor; not running @kodus/agent-readiness.";
+  "local filesystem heuristics from checks/catalog.json; not /doctor.";
 export const SCOPE_LABEL = "repository root only";
 export const CANVAS_FILENAME = "code-readiness.canvas.tsx";
 export const CANVAS_TITLE = "Code Readiness";

@@ -11,7 +11,7 @@ This skill owns readiness content. `/canvas` owns path, import, design, and link
 | `canvas/code-readiness.canvas.tsx` | Template. Import only from `cursor/canvas`. Filename kebab-case. Title Case of the stem is Code Readiness. |
 | `code-readiness.canvas.data.json` | Sidecar next to the managed copy. Shape `{ "report": payload }`. |
 
-The canvas reads the sidecar with `useCanvasState("report", null)`. Inline data is the managed-skill default. This report uses a sidecar because it reruns. Cache the JSON report under `.cursor/cache/readiness/`. Never cache the canvas.
+The canvas reads the sidecar with `useCanvasState("report", null)`. Filter UI uses `useCanvasState("pillarFilter", "all")` and `useCanvasState("failsOnly", true)`. Inline data is the managed-skill default. This report uses a sidecar because it reruns. Cache the JSON report under `.cursor/cache/readiness/`. Never cache the canvas.
 
 ## Copy then sidecar
 
@@ -42,16 +42,64 @@ CLI does not load `/canvas`. Cloud agents only behind `cloud_canvas_skill`, defa
 
 `CODE_READINESS_CANVAS_DIR` overrides the managed directory. `CODE_READINESS_SURFACE=local` or `cloud` forces a surface.
 
+## Cursor design system
+
+The canvas must look like Cursor, not a custom dashboard. Follow the managed `/canvas` skill and `cursor/canvas` SDK exactly.
+
+Import **only** from `"cursor/canvas"`. Call `useHostTheme()` in the root component so surfaces, type, and accent follow the host Cursor theme. Do not hardcode hex, rgb, gradients, box-shadow, or emoji chrome in the canvas file.
+
+Typography comes from the SDK heading and text primitives (`canvasTypography`): H1 24/30 weight 590, H2 18/24, body 14/20, small 12/16. Spacing is the canvas scale used as `gap`: 8, 12, 16, 24. Radius comes from primitives (`sm` / `md` / `lg`). `canvasSpacing` and `canvasRadius` are not public exports — do not invent those identifiers as imports.
+
+### Primitives this template uses
+
+Hooks: `useHostTheme`, `useCanvasState`, `useCanvasAction`.
+
+Layout and type: `Stack`, `Row`, `Spacer`, `Grid`, `H1`, `H2`, `H3`, `Text`, `Code`, `Divider`.
+
+Chrome: `Pill`, `Button`, `Select`, `Toggle`, `Stat` (two in the header, never a third), `Callout`, `Card` / `CardHeader` / `CardBody` (pillar board only).
+
+Data: `UsageBar`, `Swatch`, `PieChart`, `BarChart`, `TodoListCard`, `CollapsibleSection`, `Table`.
+
+Do not use `DiffView`, DAG helpers, `RadarChart`, `Link` (no URL to earn it), hex colors, gradients, or emoji chrome.
+
+Mix open sections with the seven named pillar Cards. Do not wrap the page, stats, charts, or tables in Card.
+
+### Intended look (Cursor Light)
+
+Reference: `Cursor_Light_Theme` / `canvasPaletteLight`. Host theme plus SDK tokens apply these; they must not appear in `code-readiness.canvas.tsx`.
+
+| Token | Hex | Role |
+| --- | --- | --- |
+| paper | `#f7f7f4` | page / editor surface |
+| panel | `#fffdf9` | elevated panel |
+| ink | `#26251e` | primary type |
+| muted | `#928f82` | tertiary type |
+| accent | `#f54e00` | Cursor orange |
+
+Dark hosts resolve through `useHostTheme()` the same way. Do not fork a light-only stylesheet.
+
+### Chart
+
+Horizontal `BarChart` of pillar scores, `yMax={100}`, `valueSuffix="%"`, `referenceLines` at 80. Series `tone` follows counted score (danger / warning / success). Caption on `Text size="small"`. Do not omit series `tone`. No `RadarChart`.
+
+`PieChart` donut is pass / fail / skip with tones `success` / `danger` / `neutral`. `Swatch` is the pie legend (green / red / gray).
+
 ## Layout
 
-Thesis-first. Job: what band are we in, and what three fixes move the needle?
+Thesis-first. Job: what band are we in, is L1 hard-capped, and what three fixes move the needle?
 
-- Open header, not a Card: eyebrow `/CODE-READINESS`, repo `H1` (one H1), two Stats, thesis, tertiary source line
-- `TodoListCard` of the top 3 to 5 remediations
-- One Callout for the next-level gap
-- Horizontal `BarChart` of pillar scores, `yMax={100}`, `valueSuffix="%"`, `referenceLines` at 80, caption on `Text size="small"`
-- `CollapsibleSection` plus fail-only `Table` per pillar that has fails
+- Open header: eyebrow `/CODE-READINESS`, `H1` plus `Row` / `Spacer` / level `Pill`, second `Pill` when `l1Capped` (most important visual), five L1–L5 `Pill`s with the current level `active`, two Stats, counted `UsageBar` (`22 / 35 counted`), thesis, tertiary source line
+- One `Callout`: L1 cap when present, else Level 5 disclaimer, else next-level gap
+- `TodoListCard` of the top 3 to 5 remediations; `Button` + `useCanvasAction` `openFile` when a remediation names a concrete path
+- Donut + swatch legend
+- `Grid` of seven pillar Cards: `CardHeader` is the pillar name, `CardBody` is that pillar's `UsageBar` plus a small percent. Named-entity board, not a metric-card wall
+- Horizontal pillar `BarChart`
+- `Select` + `Toggle` then `CollapsibleSection` + `Table` under `H2` / `H3`. Criterion id in `Code`, level in `Pill`. Tables are not inside Cards
 
-No RadarChart. No Overview / Metrics / Details shell. No nested scroll. No Factory score copy.
+L1 capped means the sequential gate holds the band at Foundational even though the L2 gate already passes (`l2Passed` / `l2Total`). Reasons are failing L1 ids such as `editorconfig` and `lock-file`. Report JSON carries `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. The canvas does not recompute the 80% gate.
+
+No Overview / Metrics / Details shell. No nested scroll. No invented product-score copy. Keep "not `/doctor`" if it helps disambiguate.
+
+Level labels on the canvas are ours: Foundational, Guided, Structured, Optimized, Autonomous.
 
 V2 slop: 2 or more of gradients, emojis, box-shadow, wall of identical cards, rainbow, giant text, decorative borders means redesign.

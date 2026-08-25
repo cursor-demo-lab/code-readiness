@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadCatalog } from "./catalog.mjs";
+import { loadCatalog, skillRoot } from "./catalog.mjs";
+import { ATTRIBUTION } from "./constants.mjs";
 import { evaluateRepo, scoreResults } from "./evaluate.mjs";
+import { buildReport } from "./report.mjs";
 import { globMatch } from "./walk.mjs";
 
 const CORE_IDS = [
@@ -120,9 +122,57 @@ const emptyScored = scoreResults(emptyEval.catalog, emptyEval.results);
 assert.equal(emptyScored.level, 1);
 assert.equal(emptyEval.results.filter((row) => row.skipped).length, 4);
 
+const capRoot = fs.mkdtempSync(path.join(os.tmpdir(), "code-readiness-cap-"));
+fs.mkdirSync(path.join(capRoot, ".github", "workflows"), { recursive: true });
+fs.writeFileSync(path.join(capRoot, "LICENSE"), "MIT\n");
+fs.writeFileSync(
+  path.join(capRoot, "README.md"),
+  `${"A".repeat(520)}\n# sample\nsetup and usage.\n`,
+);
+fs.writeFileSync(
+  path.join(capRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node test.js", dev: "node ." }, devDependencies: { eslint: "9.0.0" } }),
+);
+fs.writeFileSync(path.join(capRoot, "package-lock.json"), "{}\n");
+fs.writeFileSync(path.join(capRoot, "eslint.config.js"), "export default [];\n");
+fs.writeFileSync(path.join(capRoot, ".prettierrc"), "{}\n");
+fs.writeFileSync(path.join(capRoot, "jest.config.js"), "export default {};\n");
+fs.writeFileSync(path.join(capRoot, "app.test.js"), "test('ok', () => {});\n");
+fs.writeFileSync(path.join(capRoot, "CONTRIBUTING.md"), "how to contribute\n");
+fs.writeFileSync(path.join(capRoot, ".env.example"), "TOKEN=\n");
+fs.writeFileSync(path.join(capRoot, ".nvmrc"), "20\n");
+fs.writeFileSync(path.join(capRoot, ".github", "workflows", "ci.yml"), "on: push\n");
+const capEval = evaluateRepo(capRoot);
+const capReport = buildReport(capEval, { repoRoot: capRoot, repoName: "cap" });
+assert.equal(capReport.maturity_level.level, 1);
+assert.equal(capReport.maturity_level.l1Capped, true);
+assert.ok(capReport.maturity_level.l1CapReasons.includes("editorconfig"));
+assert.ok(capReport.maturity_level.l2Total >= 8);
+assert.ok(
+  capReport.maturity_level.l2Passed / capReport.maturity_level.l2Total >= 0.8,
+);
+
 fs.rmSync(root, { recursive: true, force: true });
 fs.rmSync(goRoot, { recursive: true, force: true });
 fs.rmSync(rustRoot, { recursive: true, force: true });
 fs.rmSync(javaRoot, { recursive: true, force: true });
 fs.rmSync(emptyRoot, { recursive: true, force: true });
+fs.rmSync(capRoot, { recursive: true, force: true });
+
+assert.equal(/factory|kodus/i.test(ATTRIBUTION), false);
+function walkTextFiles(dir, acc = []) {
+  for (const name of fs.readdirSync(dir)) {
+    if (name === ".git" || name === "node_modules") continue;
+    const full = path.join(dir, name);
+    if (fs.statSync(full).isDirectory()) walkTextFiles(full, acc);
+    else if (/\.(md|mjs|tsx|ts|json)$/.test(name)) acc.push(full);
+  }
+  return acc;
+}
+for (const file of walkTextFiles(skillRoot())) {
+  if (file.endsWith(`${path.sep}evaluate.test.mjs`)) continue;
+  const text = fs.readFileSync(file, "utf8").replaceAll("kodustech/agent-readiness", "");
+  assert.equal(/factory|kodus/i.test(text), false, file);
+}
+
 process.stdout.write("evaluate.test.mjs ok\n");
