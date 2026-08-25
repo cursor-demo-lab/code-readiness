@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
-import { ATTRIBUTION, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
+import { ATTRIBUTION, IGNORE_DIRS, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
 import { evaluateRepo, LOCK_FILES, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
 import { globMatch } from "./walk.mjs";
@@ -78,12 +78,57 @@ assert.equal(/does not look for AGENTS\.md/i.test(aiContext.fix), false);
 const contributing = catalog.criteria.find((row) => row.id === "contributing");
 assert.ok(contributing.anyFiles.includes("**/CONTRIBUTING.md"));
 assert.ok(contributing.anyFiles.includes("docs/**/contributing*"));
+assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.md"));
+assert.equal(IGNORE_DIRS.has(".github"), false);
+
+const linter = catalog.criteria.find((row) => row.id === "linter");
+assert.ok(linter.anyFiles.includes("ruff.toml"));
+assert.ok(linter.anyFiles.includes(".ruff.toml"));
+assert.ok(linter.anyFiles.includes(".oxlintrc.json"));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff.lint]")));
+
+const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
+assert.ok(typeChecker.anyFiles.includes("mypy.ini"));
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "setup.cfg" && rule.includes.includes("[mypy]")));
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.mypy]")));
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pyright]")));
+
+const testFramework = catalog.criteria.find((row) => row.id === "test-framework");
+assert.ok(testFramework.anyFiles.includes("conftest.py"));
+assert.ok(testFramework.anyFiles.includes("tests/conftest.py"));
+assert.ok(testFramework.anyFiles.includes("**/conftest.py"));
+assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
+assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
+assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node:test")));
+assert.ok(testFramework.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("junit")));
+
+const versionPinned = catalog.criteria.find((row) => row.id === "version-pinned");
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"engines\"")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"packageManager\"")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("rust-version")));
+
+const setupScript = catalog.criteria.find((row) => row.id === "setup-script");
+assert.ok(setupScript.anyFiles.includes("Makefile"));
+assert.equal(setupScript.makefileTarget, "setup|install");
+assert.equal(setupScript.packageJsonPath, "scripts.dev");
+
+const license = catalog.criteria.find((row) => row.id === "license");
+assert.ok(license.anyFiles.includes("LICENSE-MIT"));
+assert.ok(license.anyFiles.includes("LICENSE-*"));
+assert.ok(license.anyFiles.includes("COPYING"));
+assert.ok(license.anyFiles.includes("COPYING.md"));
+assert.ok(license.anyFiles.includes("UNLICENSE"));
 
 assert.equal(globMatch("scripts/foo.test.mjs", "**/*.test.*"), true);
 assert.equal(globMatch(".github/workflows/ci.yml", ".github/workflows/*.yml"), true);
 assert.equal(globMatch("src/foo.js", "**/*.test.*"), false);
 assert.equal(globMatch("docs/en/docs/contributing.md", "docs/**/contributing*"), true);
 assert.equal(globMatch("docs/en/docs/CONTRIBUTING.md", "**/CONTRIBUTING.md"), true);
+assert.equal(globMatch(".github/CONTRIBUTING.md", "**/CONTRIBUTING.md"), true);
+assert.equal(globMatch("tests/conftest.py", "**/conftest.py"), true);
+assert.equal(globMatch("LICENSE-MIT", "LICENSE-*"), true);
 
 function resultById(evaluation) {
   return Object.fromEntries(evaluation.results.map((row) => [row.criterionId, row]));
@@ -264,6 +309,77 @@ const nestedEval = evaluateRepo(nestedRoot);
 const nestedById = resultById(nestedEval);
 assert.equal(nestedById.contributing.pass, true, nestedById.contributing.message);
 assert.match(nestedById.contributing.message, /docs\/en\/docs\/contributing\.md/);
+
+const ruffRoot = tmp("code-readiness-ruff-");
+fs.writeFileSync(path.join(ruffRoot, "pyproject.toml"), "[tool.ruff]\nline-length = 88\n");
+const ruffById = resultById(evaluateRepo(ruffRoot));
+assert.equal(ruffById.linter.pass, true, ruffById.linter.message);
+assert.match(ruffById.linter.message, /pyproject\.toml/);
+
+const mypyRoot = tmp("code-readiness-mypy-");
+fs.writeFileSync(path.join(mypyRoot, "pyproject.toml"), "[tool.mypy]\nstrict = true\n");
+const mypyById = resultById(evaluateRepo(mypyRoot));
+assert.equal(mypyById["type-checker"].pass, true, mypyById["type-checker"].message);
+assert.match(mypyById["type-checker"].message, /pyproject\.toml/);
+
+const conftestRoot = tmp("code-readiness-conftest-");
+fs.mkdirSync(path.join(conftestRoot, "tests"), { recursive: true });
+fs.writeFileSync(path.join(conftestRoot, "tests", "conftest.py"), "# pytest fixtures\n");
+const conftestById = resultById(evaluateRepo(conftestRoot));
+assert.equal(conftestById["test-framework"].pass, true, conftestById["test-framework"].message);
+assert.match(conftestById["test-framework"].message, /conftest\.py/);
+
+const pyverRoot = tmp("code-readiness-pyver-");
+fs.writeFileSync(
+  path.join(pyverRoot, "pyproject.toml"),
+  "[project]\nname = \"x\"\nrequires-python = \">=3.10\"\n",
+);
+const pyverById = resultById(evaluateRepo(pyverRoot));
+assert.equal(pyverById["version-pinned"].pass, true, pyverById["version-pinned"].message);
+assert.match(pyverById["version-pinned"].message, /requires-python/);
+
+const makeRoot = tmp("code-readiness-make-");
+fs.writeFileSync(path.join(makeRoot, "Makefile"), "all:\n\t@echo ok\n");
+const makeById = resultById(evaluateRepo(makeRoot));
+assert.equal(makeById["setup-script"].pass, true, makeById["setup-script"].message);
+assert.match(makeById["setup-script"].message, /Makefile/);
+
+const licRoot = tmp("code-readiness-lic-");
+fs.writeFileSync(path.join(licRoot, "LICENSE-MIT"), "MIT License\n");
+const licById = resultById(evaluateRepo(licRoot));
+assert.equal(licById.license.pass, true, licById.license.message);
+assert.match(licById.license.message, /LICENSE-MIT/);
+
+const ghContribRoot = tmp("code-readiness-ghc-");
+fs.mkdirSync(path.join(ghContribRoot, ".github"), { recursive: true });
+fs.writeFileSync(path.join(ghContribRoot, ".github", "CONTRIBUTING.md"), "# contributing\n");
+const ghContribById = resultById(evaluateRepo(ghContribRoot));
+assert.equal(ghContribById.contributing.pass, true, ghContribById.contributing.message);
+assert.match(ghContribById.contributing.message, /\.github\/CONTRIBUTING\.md/);
+
+const nodeTestRoot = tmp("code-readiness-nodetest-");
+fs.writeFileSync(
+  path.join(nodeTestRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node --test" } }),
+);
+const nodeTestById = resultById(evaluateRepo(nodeTestRoot));
+assert.equal(nodeTestById["test-framework"].pass, true, nodeTestById["test-framework"].message);
+
+const pomJunitRoot = tmp("code-readiness-junit-");
+fs.writeFileSync(
+  path.join(pomJunitRoot, "pom.xml"),
+  "<project><dependency>junit</dependency></project>\n",
+);
+const pomJunitById = resultById(evaluateRepo(pomJunitRoot));
+assert.equal(pomJunitById["test-framework"].pass, true, pomJunitById["test-framework"].message);
+
+const enginesRoot = tmp("code-readiness-engines-");
+fs.writeFileSync(
+  path.join(enginesRoot, "package.json"),
+  JSON.stringify({ engines: { node: ">=18" } }),
+);
+const enginesById = resultById(evaluateRepo(enginesRoot));
+assert.equal(enginesById["version-pinned"].pass, true, enginesById["version-pinned"].message);
 
 const emptyRoot = tmp("code-readiness-empty-");
 const emptyEval = evaluateRepo(emptyRoot);
