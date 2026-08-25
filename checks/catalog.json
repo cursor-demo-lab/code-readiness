@@ -394,11 +394,11 @@
       "pillarId": "dev-environment",
       "level": 2,
       "requiresLLM": false,
-      "packageJsonPath": "scripts.dev",
+      "packageJsonPath": "scripts.dev|scripts.test|scripts.lint|scripts.build",
       "makefileTarget": "setup|install",
       "anyFiles": ["Makefile", "scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
       "fail": "No setup script or dev command found.",
-      "fix": "Add a Makefile setup target, scripts/setup, or a package.json dev script.",
+      "fix": "Add a Makefile setup target, scripts/setup, or a package.json test, lint, build, or dev script.",
       "effort": "medium"
     },
     {

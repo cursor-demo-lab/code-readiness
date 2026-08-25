@@ -35,7 +35,16 @@ export const LOCK_FILES = [
   "Package.resolved",
 ];
 
-const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set(["java", "c", "cpp", "haskell", "python"]);
+const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set([
+  "java",
+  "c",
+  "cpp",
+  "haskell",
+  "python",
+  "javascript",
+  "typescript",
+  "node",
+]);
 
 function hit(message, details) {
   return { pass: true, skipped: false, message, details };
@@ -113,6 +122,20 @@ function basename(rel) {
 
 function hasNoConventionalLockfile(languages) {
   return [...languages].some((lang) => NO_CONVENTIONAL_LOCKFILE_LANGUAGES.has(lang));
+}
+
+function packageJsonPathHit(pkg, spec) {
+  if (!spec) return null;
+  const paths = Array.isArray(spec)
+    ? spec
+    : String(spec)
+        .split("|")
+        .map((part) => part.trim())
+        .filter(Boolean);
+  for (const dotted of paths) {
+    if (packageJsonHas(pkg, dotted)) return dotted;
+  }
+  return null;
 }
 
 function hasEnvSignals(files) {
@@ -211,8 +234,9 @@ function evalCriterion(criterion, ctx) {
     }
   }
 
-  if (criterion.packageJsonPath && packageJsonHas(ctx.pkg, criterion.packageJsonPath)) {
-    return hit(`${criterion.packageJsonPath} found in package.json`);
+  const pkgPathHit = packageJsonPathHit(ctx.pkg, criterion.packageJsonPath);
+  if (pkgPathHit) {
+    return hit(`${pkgPathHit} found in package.json`);
   }
 
   if (makefileHasTarget(ctx.repoRoot, criterion.makefileTarget)) {
