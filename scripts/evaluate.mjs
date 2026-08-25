@@ -116,11 +116,6 @@ function evalCiGrep(repoRoot, files, pattern) {
   return { configs, hit: null };
 }
 
-function basename(rel) {
-  const parts = rel.split("/");
-  return parts[parts.length - 1] ?? rel;
-}
-
 function hasNoConventionalLockfile(languages) {
   return [...languages].some((lang) => NO_CONVENTIONAL_LOCKFILE_LANGUAGES.has(lang));
 }
@@ -141,11 +136,11 @@ function packageJsonPathHit(pkg, spec) {
 
 function hasEnvSignals(files) {
   return files.some((file) => {
-    const name = basename(file);
-    if (name === ".env" || name === ".envrc" || name === "direnv") return true;
-    if (name.startsWith(".env.")) return true;
-    if (/^docker-compose.*\.ya?ml$/i.test(name)) return true;
-    if (/^compose.*\.ya?ml$/i.test(name)) return true;
+    if (file.includes("/")) return false;
+    if (file === ".env" || file === ".envrc" || file === "direnv") return true;
+    if (file.startsWith(".env.")) return true;
+    if (/^docker-compose.*\.ya?ml$/i.test(file)) return true;
+    if (/^compose\.ya?ml$/i.test(file)) return true;
     return false;
   });
 }
