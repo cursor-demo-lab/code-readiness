@@ -831,6 +831,18 @@ assert.match(canvasTemplate, /Checkbox/);
 assert.equal(canvasTemplate.includes("RadarChart"), false);
 assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(canvasTemplate), false);
 assert.equal(/linear-gradient|radial-gradient/.test(canvasTemplate), false);
+assert.match(canvasTemplate, /Functional/);
+assert.match(canvasTemplate, /Documented/);
+assert.equal(/Foundational|Guided/.test(canvasTemplate), false);
+
+const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
+assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
+assert.match(skillMd, /would be L2 except/);
+assert.equal(/Foundational|Guided/.test(skillMd), false);
+
+const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
+assert.match(checksReadme, /would be L2 except/);
+assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
   for (const name of fs.readdirSync(dir)) {

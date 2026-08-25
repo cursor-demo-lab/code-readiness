@@ -24,6 +24,6 @@ Go, Rust, Java, Kotlin, C#, and Swift auto-pass `type-checker` when a language m
 
 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous.
 
-Every level clears at 80% of its own counted rows, including L1. L1 Functional is readme, linter, test-files-exist, and type-checker (skip when there is no conventional checker file). license and lock-file are L2. Minimum level is 1. Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=9 need 8, L4=8 need 7, L5=1 need 1 (`bundle-analysis`). If the report would show Level 5, add the disclaimer. Do not celebrate Autonomous.
+Every level clears at 80% of its own counted rows, including L1. L1 Functional is readme, linter, test-files-exist, and type-checker (skip when there is no conventional checker file). license and lock-file are L2. Minimum level is 1. Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=9 need 8, L4=8 need 7, L5=1 need 1 (`bundle-analysis`). If the report would show Level 5, add the disclaimer. Do not celebrate Autonomous. Eval canvas copy prints those engine labels; L1-capped high-% repos get a "would be L2 except …" line (do not dummy `.editorconfig`).
 
 Optional helper: `node scripts/code-readiness.mjs <repo>` applies this same catalog with Node `fs` only. No npm install.

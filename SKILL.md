@@ -52,6 +52,8 @@ Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. E
 
 `maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (readme, linter, test-files-exist, type-checker). The canvas treats that cap as the primary visual. L1 is 80% of counted L1 rows (4/4, or 3/3 when type-checker skips).
 
+Eval canvas copy must print those engine labels (Functional / Documented / Standardized / Optimized / Autonomous). For an L1-capped high-% repo, add a "would be L2 except …" line naming the failing L1 ids (`l1CapReasons`). Do not dummy `.editorconfig` to chase that cap; editorconfig is L2.
+
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
 `ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` counts. Do not add LLM scoring.
