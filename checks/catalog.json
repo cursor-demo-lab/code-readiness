@@ -61,6 +61,7 @@
         "biome.jsonc",
         ".ruff.toml",
         "ruff.toml",
+        ".oxlintrc.json",
         ".golangci.yml",
         ".golangci.yaml",
         "detekt.yml",
@@ -79,7 +80,8 @@
         { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "build.gradle", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs"] },
-        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\""] }
+        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\""] },
+        { "file": "pyproject.toml", "includes": ["[tool.ruff", "[tool.ruff.lint]"] }
       ],
       "fail": "No linter configuration found.",
       "fix": "Add a linter config such as ESLint, Biome, Ruff, or golangci-lint.",
@@ -114,7 +116,10 @@
       "level": 3,
       "requiresLLM": false,
       "anyFiles": ["mypy.ini", ".mypy.ini", "pyrightconfig.json"],
-      "fileContains": [{ "file": "setup.cfg", "includes": ["[mypy]"] }],
+      "fileContains": [
+        { "file": "setup.cfg", "includes": ["[mypy]"] },
+        { "file": "pyproject.toml", "includes": ["[tool.mypy]", "[tool.pyright]"] }
+      ],
       "tsconfigStrict": true,
       "languagesPass": {
         "go": "Go has a built-in static type system.",
@@ -155,13 +160,24 @@
       "pillarId": "testing",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": ["jest.config.*", "vitest.config.*", "pytest.ini", "conftest.py"],
+      "anyFiles": [
+        "jest.config.*",
+        "vitest.config.*",
+        "pytest.ini",
+        "conftest.py",
+        "tests/conftest.py",
+        "**/conftest.py"
+      ],
       "anyGlobs": ["**/*_test.go"],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },
-        { "file": "package.json", "includes": ["\"jest\"", "\"vitest\"", "\"mocha\"", "\"ava\""] },
+        {
+          "file": "package.json",
+          "includes": ["\"jest\"", "\"vitest\"", "\"mocha\"", "\"ava\"", "\"node --test\"", "node:test"]
+        },
         { "file": "build.gradle.kts", "includes": ["kotest", "junit", "jupiter", "testImplementation"] },
-        { "file": "build.gradle", "includes": ["junit", "jupiter", "kotest", "testImplementation"] }
+        { "file": "build.gradle", "includes": ["junit", "jupiter", "kotest", "testImplementation"] },
+        { "file": "pom.xml", "includes": ["junit"] }
       ],
       "fail": "No test framework configuration found.",
       "fix": "Configure Jest, Vitest, pytest, or Go testing.",
@@ -250,7 +266,13 @@
       "pillarId": "documentation",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": ["CONTRIBUTING.md", "**/CONTRIBUTING.md", "docs/contributing*", "docs/**/contributing*"],
+      "anyFiles": [
+        "CONTRIBUTING.md",
+        ".github/CONTRIBUTING.md",
+        "**/CONTRIBUTING.md",
+        "docs/contributing*",
+        "docs/**/contributing*"
+      ],
       "fail": "No contributing guide found.",
       "fix": "Add CONTRIBUTING.md with workflow and PR guidelines.",
       "effort": "low"
@@ -374,7 +396,7 @@
       "requiresLLM": false,
       "packageJsonPath": "scripts.dev",
       "makefileTarget": "setup|install",
-      "anyFiles": ["scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
+      "anyFiles": ["Makefile", "scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
       "fail": "No setup script or dev command found.",
       "fix": "Add a Makefile setup target, scripts/setup, or a package.json dev script.",
       "effort": "medium"
@@ -400,6 +422,11 @@
         ".php-version",
         ".swift-version",
         "global.json"
+      ],
+      "fileContains": [
+        { "file": "pyproject.toml", "includes": ["requires-python"] },
+        { "file": "package.json", "includes": ["\"engines\"", "\"packageManager\""] },
+        { "file": "Cargo.toml", "includes": ["rust-version"] }
       ],
       "fail": "No runtime version pin found.",
       "fix": "Add .nvmrc, .python-version, .tool-versions, or go.mod.",
@@ -554,7 +581,19 @@
       "pillarId": "security",
       "level": 1,
       "requiresLLM": false,
-      "anyFiles": ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md", "LICENCE.txt"],
+      "anyFiles": [
+        "LICENSE",
+        "LICENSE.md",
+        "LICENSE.txt",
+        "LICENCE",
+        "LICENCE.md",
+        "LICENCE.txt",
+        "LICENSE-MIT",
+        "LICENSE-*",
+        "COPYING",
+        "COPYING.md",
+        "UNLICENSE"
+      ],
       "fail": "No license file found.",
       "fix": "Add a LICENSE file at the repository root.",
       "effort": "low"
