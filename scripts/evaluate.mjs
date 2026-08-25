@@ -1,0 +1,331 @@
+import fs from "node:fs";
+import path from "node:path";
+import { LEVEL_THRESHOLD } from "./constants.mjs";
+import {
+  ciFiles,
+  detectLanguages,
+  findMatches,
+  globMatch,
+  packageJson,
+  packageJsonHas,
+  parseTsconfigStrict,
+  readText,
+  testFiles,
+  walkFiles,
+} from "./walk.mjs";
+import { catalogPath, loadCatalog } from "./catalog.mjs";
+
+const LOCK_FILES = [
+  "package-lock.json",
+  "bun.lockb",
+  "bun.lock",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+  "poetry.lock",
+  "Pipfile.lock",
+  "go.sum",
+  "Cargo.lock",
+  "gradle.lockfile",
+  "packages.lock.json",
+  "Gemfile.lock",
+  "composer.lock",
+  "Package.resolved",
+];
+
+function hit(message, details) {
+  return { pass: true, skipped: false, message, details };
+}
+
+function miss(message, details) {
+  return { pass: false, skipped: false, message, details };
+}
+
+function skip(message) {
+  return { pass: false, skipped: true, message };
+}
+
+function evalAnyFiles(repoRoot, files, patterns) {
+  if (!patterns?.length) return [];
+  const hits = [];
+  for (const pattern of patterns) {
+    if (!/[*?]/.test(pattern)) {
+      if (fs.existsSync(path.join(repoRoot, pattern))) hits.push(pattern);
+      continue;
+    }
+    hits.push(...findMatches(files, [pattern]));
+  }
+  return hits;
+}
+
+function evalFileContains(repoRoot, files, rules) {
+  if (!rules?.length) return null;
+  for (const rule of rules) {
+    const matches = files.filter(
+      (file) => file === rule.file || globMatch(file, rule.file),
+    );
+    for (const file of matches) {
+      const content = readText(repoRoot, file) ?? "";
+      const needle = (rule.includes ?? []).find((token) => content.includes(token));
+      if (needle) return { file, needle };
+    }
+  }
+  return null;
+}
+
+function evalFileRegex(repoRoot, rules) {
+  if (!rules?.length) return null;
+  for (const rule of rules) {
+    const content = readText(repoRoot, rule.file);
+    if (!content) continue;
+    if (new RegExp(rule.pattern, "i").test(content)) return rule.file;
+  }
+  return null;
+}
+
+function makefileHasTarget(repoRoot, spec) {
+  if (!spec) return false;
+  const makefile = readText(repoRoot, "Makefile");
+  if (!makefile) return false;
+  const rx = new RegExp(`^(${spec})\\s*:`, "m");
+  return rx.test(makefile);
+}
+
+function evalCiGrep(repoRoot, files, pattern) {
+  if (!pattern) return { configs: [], hit: null };
+  const configs = ciFiles(files);
+  const rx = new RegExp(pattern, "i");
+  for (const file of configs) {
+    const content = readText(repoRoot, file) ?? "";
+    if (rx.test(content)) return { configs, hit: file };
+  }
+  return { configs, hit: null };
+}
+
+function lockFresh(repoRoot, files, days) {
+  const found = LOCK_FILES.filter((name) => files.includes(name));
+  if (found.length === 0) return { ok: false, reason: "no lock file" };
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  for (const name of found) {
+    try {
+      const mtime = fs.statSync(path.join(repoRoot, name)).mtimeMs;
+      if (mtime >= cutoff) return { ok: true, file: name };
+    } catch {
+      continue;
+    }
+  }
+  return { ok: false, reason: "lock file older than 6 months", file: found[0] };
+}
+
+function evalCriterion(criterion, ctx) {
+  if (criterion.requiresLLM) {
+    return skip("Skipped. v1 does not run L5 quality checks.");
+  }
+
+  const langPass = criterion.languagesPass;
+  if (langPass) {
+    for (const [lang, message] of Object.entries(langPass)) {
+      if (ctx.languages.has(lang)) return hit(message);
+    }
+  }
+
+  if (criterion.tsconfigStrict) {
+    const raw = readText(ctx.repoRoot, "tsconfig.json");
+    if (parseTsconfigStrict(raw)) {
+      return hit("TypeScript configured with strict mode in tsconfig.json");
+    }
+  }
+
+  if (criterion.minBytes) {
+    const candidates = evalAnyFiles(ctx.repoRoot, ctx.files, criterion.anyFiles ?? []);
+    for (const file of candidates) {
+      const content = readText(ctx.repoRoot, file) ?? "";
+      if (content.length >= criterion.minBytes) {
+        return hit(`${file} found with ${content.length} characters`);
+      }
+    }
+    return miss(criterion.fail);
+  }
+
+  if (criterion.testFiles) {
+    const found = testFiles(ctx.files);
+    if (found.length > 0) {
+      return hit(`Found ${found.length} test file(s)`, found.slice(0, 8).join(", "));
+    }
+    return miss(criterion.fail);
+  }
+
+  if (criterion.ciFiles) {
+    const found = ciFiles(ctx.files);
+    if (found.length > 0) return hit(`CI configuration found: ${found[0]}`);
+    return miss(criterion.fail);
+  }
+
+  if (criterion.lockFileFreshDays) {
+    const result = lockFresh(ctx.repoRoot, ctx.files, criterion.lockFileFreshDays);
+    if (result.ok) return hit(`Lock file ${result.file} modified within 6 months`);
+    return miss(criterion.fail);
+  }
+
+  const fileHits = evalAnyFiles(ctx.repoRoot, ctx.files, [
+    ...(criterion.anyFiles ?? []),
+    ...(criterion.anyGlobs ?? []),
+  ]);
+  if (fileHits.length > 0) {
+    return hit(`Found ${fileHits[0]}`);
+  }
+
+  if (criterion.packageJsonPath && packageJsonHas(ctx.pkg, criterion.packageJsonPath)) {
+    return hit(`${criterion.packageJsonPath} found in package.json`);
+  }
+
+  if (makefileHasTarget(ctx.repoRoot, criterion.makefileTarget)) {
+    return hit(`Makefile target matched: ${criterion.makefileTarget}`);
+  }
+
+  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains);
+  if (contains) {
+    return hit(`${contains.file} contains ${contains.needle}`);
+  }
+
+  const regexHit = evalFileRegex(ctx.repoRoot, criterion.fileRegex);
+  if (regexHit) return hit(`${regexHit} documents the check`);
+
+  if (criterion.ciGrep) {
+    const { configs, hit: file } = evalCiGrep(ctx.repoRoot, ctx.files, criterion.ciGrep);
+    if (file) return hit(`CI config matched in ${file}`);
+    if (configs.length === 0 && !criterion.anyFiles && !criterion.packageJsonPath) {
+      return miss("No CI configuration found to check.");
+    }
+    if (file == null && configs.length > 0 && !criterion.packageJsonPath && !criterion.makefileTarget) {
+      return miss(criterion.fail);
+    }
+  }
+
+  return miss(criterion.fail);
+}
+
+export function evaluateRepo(repoRoot) {
+  const catalog = loadCatalog();
+  const files = walkFiles(repoRoot);
+  const ctx = {
+    repoRoot,
+    files,
+    languages: detectLanguages(files),
+    pkg: packageJson(repoRoot),
+    catalogPath: catalogPath(),
+  };
+  const results = [];
+  for (const criterion of catalog.criteria) {
+    const outcome = evalCriterion(criterion, ctx);
+    results.push({
+      criterionId: criterion.id,
+      name: criterion.name,
+      pillarId: criterion.pillarId,
+      level: criterion.level,
+      requiresLLM: Boolean(criterion.requiresLLM),
+      pass: outcome.pass,
+      skipped: outcome.skipped,
+      message: outcome.message,
+      details: outcome.details,
+      fix: criterion.fix,
+      effort: criterion.effort ?? "medium",
+    });
+  }
+  return { catalog, files, languages: [...ctx.languages], results };
+}
+
+export function scoreResults(catalog, results) {
+  const byPillar = new Map(catalog.pillars.map((p) => [p.id, []]));
+  for (const row of results) {
+    const list = byPillar.get(row.pillarId) ?? [];
+    list.push(row);
+    byPillar.set(row.pillarId, list);
+  }
+  const pillarScores = catalog.pillars.map((pillar) => {
+    const rows = (byPillar.get(pillar.id) ?? []).filter((row) => !row.skipped);
+    const passed = rows.filter((row) => row.pass).length;
+    const total = rows.length;
+    const percentage = total > 0 ? Math.round((passed / total) * 100) : 0;
+    return {
+      pillarId: pillar.id,
+      name: pillar.name,
+      passed,
+      total,
+      percentage,
+    };
+  });
+
+  const counted = results.filter((row) => !row.skipped);
+  let highestPassed = 1;
+  for (const level of [1, 2, 3, 4, 5]) {
+    const atLevel = counted.filter((row) => row.level === level);
+    if (atLevel.length === 0) {
+      highestPassed = level;
+      continue;
+    }
+    const passedCount = atLevel.filter((row) => row.pass).length;
+    if (passedCount / atLevel.length >= LEVEL_THRESHOLD) highestPassed = level;
+    else break;
+  }
+
+  const nextLevel = highestPassed < 5 ? highestPassed + 1 : null;
+  let current = 0;
+  let needed = 0;
+  let remaining = 0;
+  if (nextLevel != null) {
+    const nextRows = counted.filter((row) => row.level === nextLevel);
+    current = nextRows.filter((row) => row.pass).length;
+    needed = Math.ceil(nextRows.length * LEVEL_THRESHOLD);
+    remaining = Math.max(0, needed - current);
+  }
+
+  const totalPassed = pillarScores.reduce((sum, s) => sum + s.passed, 0);
+  const totalCriteria = pillarScores.reduce((sum, s) => sum + s.total, 0);
+  const scorePercent =
+    totalCriteria === 0 ? 0 : Math.round((totalPassed / totalCriteria) * 100);
+
+  return {
+    level: highestPassed,
+    scorePercent,
+    pillarScores,
+    nextLevelProgress: {
+      current,
+      needed,
+      remaining,
+      nextLevel,
+    },
+  };
+}
+
+const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
+const EFFORT_ORDER = { low: 0, medium: 1, high: 2 };
+
+export function recommend(results, level) {
+  const nextLevel = level + 1;
+  const failed = results.filter((row) => !row.pass && !row.skipped);
+  const recs = failed.map((row) => {
+    let impact = "low";
+    if (row.level === nextLevel) impact = "high";
+    else if (row.level === nextLevel + 1) impact = "medium";
+    return {
+      id: row.criterionId,
+      title: row.name,
+      description: row.fix,
+      reason: row.message,
+      effort: row.effort ?? "medium",
+      impact,
+      pillarId: row.pillarId,
+      criterionId: row.criterionId,
+      criterionLevel: row.level,
+    };
+  });
+  recs.sort((a, b) => {
+    const aNext = a.criterionLevel === nextLevel ? 0 : 1;
+    const bNext = b.criterionLevel === nextLevel ? 0 : 1;
+    if (aNext !== bNext) return aNext - bNext;
+    const impact = IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact];
+    if (impact !== 0) return impact;
+    return EFFORT_ORDER[a.effort] - EFFORT_ORDER[b.effort];
+  });
+  return recs.slice(0, 5).map(({ criterionLevel: _level, ...rest }) => rest);
+}

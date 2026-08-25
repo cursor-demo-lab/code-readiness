@@ -1,0 +1,605 @@
+{
+  "id": "code-readiness-fs",
+  "scope": "repository root only",
+  "levelThreshold": 0.8,
+  "minLevel": 1,
+  "v1SkipLLM": true,
+  "aiContextDoesNotCheck": ["AGENTS.md"],
+  "pillars": [
+    {
+      "id": "style-linting",
+      "name": "Style & Linting"
+    },
+    {
+      "id": "testing",
+      "name": "Testing"
+    },
+    {
+      "id": "documentation",
+      "name": "Documentation"
+    },
+    {
+      "id": "dev-environment",
+      "name": "Developer Environment"
+    },
+    {
+      "id": "ci-cd",
+      "name": "CI/CD"
+    },
+    {
+      "id": "code-health",
+      "name": "Code Health"
+    },
+    {
+      "id": "security",
+      "name": "Security"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "editorconfig",
+      "name": "EditorConfig present",
+      "pillarId": "style-linting",
+      "level": 1,
+      "requiresLLM": false,
+      "anyFiles": [".editorconfig"],
+      "fail": "No .editorconfig found.",
+      "fix": "Add an .editorconfig to standardize indentation and file encoding.",
+      "effort": "low"
+    },
+    {
+      "id": "linter",
+      "name": "Linter configured",
+      "pillarId": "style-linting",
+      "level": 2,
+      "requiresLLM": false,
+      "anyFiles": [
+        ".eslintrc",
+        ".eslintrc.*",
+        "eslint.config.*",
+        "biome.json",
+        "biome.jsonc",
+        ".ruff.toml",
+        "ruff.toml",
+        ".golangci.yml",
+        ".golangci.yaml",
+        "detekt.yml",
+        ".detekt.yml",
+        "stylecop.json",
+        ".rubocop.yml",
+        "phpstan.neon",
+        "phpstan.neon.dist",
+        "psalm.xml",
+        "phpcs.xml",
+        ".swiftlint.yml",
+        "checkstyle.xml",
+        "pmd.xml"
+      ],
+      "fileContains": [
+        { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
+        { "file": "build.gradle", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
+        { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs"] },
+        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\""] }
+      ],
+      "fail": "No linter configuration found.",
+      "fix": "Add a linter config such as ESLint, Biome, Ruff, or golangci-lint.",
+      "effort": "medium"
+    },
+    {
+      "id": "formatter",
+      "name": "Formatter configured",
+      "pillarId": "style-linting",
+      "level": 2,
+      "requiresLLM": false,
+      "anyFiles": [".prettierrc", ".prettierrc.*", "prettier.config.*", "rustfmt.toml", ".rustfmt.toml", ".rubocop.yml"],
+      "fileContains": [
+        { "file": "biome.json", "includes": ["formatter"] },
+        { "file": "biome.jsonc", "includes": ["formatter"] },
+        { "file": "pyproject.toml", "includes": ["[tool.black]", "[tool.ruff"] },
+        { "file": "package.json", "includes": ["\"prettier\""] }
+      ],
+      "languagesPass": {
+        "go": "Go has built-in formatting via gofmt.",
+        "rust": "Rust formatting is built-in via cargo fmt.",
+        "csharp": "C# formatting is built-in via dotnet format."
+      },
+      "fail": "No formatter configuration found.",
+      "fix": "Add Prettier, Biome, Black, or Ruff format config.",
+      "effort": "medium"
+    },
+    {
+      "id": "type-checker",
+      "name": "Type checker configured",
+      "pillarId": "style-linting",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": ["mypy.ini", ".mypy.ini", "pyrightconfig.json"],
+      "fileContains": [{ "file": "setup.cfg", "includes": ["[mypy]"] }],
+      "tsconfigStrict": true,
+      "languagesPass": {
+        "go": "Go has a built-in static type system.",
+        "kotlin": "Kotlin has a built-in static type system.",
+        "java": "Java has a built-in static type system.",
+        "rust": "Rust has a built-in static type system.",
+        "csharp": "C# has a built-in static type system.",
+        "swift": "Swift has a built-in static type system."
+      },
+      "fail": "No type checker with strict mode found.",
+      "fix": "Enable TypeScript strict mode, or add mypy or pyright.",
+      "effort": "medium"
+    },
+    {
+      "id": "pre-commit-hooks",
+      "name": "Pre-commit hooks configured",
+      "pillarId": "style-linting",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": [".husky", ".lefthook.yml", "lefthook.yml", ".pre-commit-config.yaml"],
+      "fail": "No pre-commit hooks found.",
+      "fix": "Add Husky, Lefthook, or pre-commit hooks.",
+      "effort": "medium"
+    },
+    {
+      "id": "naming-conventions",
+      "name": "Naming conventions",
+      "pillarId": "style-linting",
+      "level": 5,
+      "requiresLLM": true,
+      "fail": "Skipped. v1 does not run L5 quality checks.",
+      "fix": "Document naming conventions for files, functions, and variables.",
+      "effort": "medium"
+    },
+    {
+      "id": "test-framework",
+      "name": "Test framework configured",
+      "pillarId": "testing",
+      "level": 2,
+      "requiresLLM": false,
+      "anyFiles": ["jest.config.*", "vitest.config.*", "pytest.ini", "conftest.py"],
+      "anyGlobs": ["**/*_test.go"],
+      "fileContains": [
+        { "file": "pyproject.toml", "includes": ["[tool.pytest"] },
+        { "file": "package.json", "includes": ["\"jest\"", "\"vitest\"", "\"mocha\"", "\"ava\""] },
+        { "file": "build.gradle.kts", "includes": ["kotest", "junit", "jupiter", "testImplementation"] },
+        { "file": "build.gradle", "includes": ["junit", "jupiter", "kotest", "testImplementation"] }
+      ],
+      "fail": "No test framework configuration found.",
+      "fix": "Configure Jest, Vitest, pytest, or Go testing.",
+      "effort": "medium"
+    },
+    {
+      "id": "test-files-exist",
+      "name": "Test files exist",
+      "pillarId": "testing",
+      "level": 2,
+      "requiresLLM": false,
+      "testFiles": true,
+      "fail": "No test files found.",
+      "fix": "Add test files using *.test.*, *.spec.*, test_*.py, or *_test.go.",
+      "effort": "medium"
+    },
+    {
+      "id": "test-script",
+      "name": "Test script defined",
+      "pillarId": "testing",
+      "level": 2,
+      "requiresLLM": false,
+      "packageJsonPath": "scripts.test",
+      "makefileTarget": "test",
+      "anyFiles": ["gradlew", "build.gradle.kts", "build.gradle", "mvnw", "pom.xml", "Cargo.toml", "*.sln", "*.csproj", "Rakefile"],
+      "fail": "No test script or test target found.",
+      "fix": "Add a test script in package.json or a test target in the Makefile.",
+      "effort": "medium"
+    },
+    {
+      "id": "coverage-config",
+      "name": "Coverage configured",
+      "pillarId": "testing",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": [".coveragerc", ".nycrc", ".nycrc.*"],
+      "fileContains": [
+        { "file": "jest.config.js", "includes": ["coverage"] },
+        { "file": "jest.config.ts", "includes": ["coverage"] },
+        { "file": "jest.config.mjs", "includes": ["coverage"] },
+        { "file": "vitest.config.ts", "includes": ["coverage"] },
+        { "file": "vitest.config.js", "includes": ["coverage"] },
+        { "file": "pyproject.toml", "includes": ["[tool.coverage", "cov"] },
+        { "file": "package.json", "includes": ["\"coverage\""] }
+      ],
+      "fail": "No coverage configuration found.",
+      "fix": "Configure coverage in the test runner or add .coveragerc / .nycrc.",
+      "effort": "high"
+    },
+    {
+      "id": "e2e-tests",
+      "name": "E2E / integration tests",
+      "pillarId": "testing",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": ["playwright.config.*", "cypress.config.*", "cypress", "e2e", "tests/e2e", "integration"],
+      "fail": "No E2E or integration test setup found.",
+      "fix": "Add Playwright, Cypress, or an e2e directory.",
+      "effort": "high"
+    },
+    {
+      "id": "test-quality",
+      "name": "Test quality",
+      "pillarId": "testing",
+      "level": 5,
+      "requiresLLM": true,
+      "fail": "Skipped. v1 does not run L5 quality checks.",
+      "fix": "Improve test names, edge cases, and behavior coverage.",
+      "effort": "high"
+    },
+    {
+      "id": "readme",
+      "name": "README with substance",
+      "pillarId": "documentation",
+      "level": 1,
+      "requiresLLM": false,
+      "anyFiles": ["README.md", "readme.md", "Readme.md"],
+      "minBytes": 500,
+      "fail": "No README.md with at least 500 characters.",
+      "fix": "Add a README with project overview and setup.",
+      "effort": "low"
+    },
+    {
+      "id": "contributing",
+      "name": "Contributing guide",
+      "pillarId": "documentation",
+      "level": 2,
+      "requiresLLM": false,
+      "anyFiles": ["CONTRIBUTING.md", "docs/contributing*"],
+      "fail": "No contributing guide found.",
+      "fix": "Add CONTRIBUTING.md with workflow and PR guidelines.",
+      "effort": "low"
+    },
+    {
+      "id": "api-docs",
+      "name": "API documentation",
+      "pillarId": "documentation",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": ["openapi.*", "swagger.*", "docs/api*", "jsdoc.json", "typedoc.json"],
+      "fail": "No API documentation found.",
+      "fix": "Add OpenAPI specs, TypeDoc, or docs/api.",
+      "effort": "medium"
+    },
+    {
+      "id": "codeowners",
+      "name": "CODEOWNERS defined",
+      "pillarId": "documentation",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": ["CODEOWNERS", ".github/CODEOWNERS"],
+      "fail": "No CODEOWNERS file found.",
+      "fix": "Add a CODEOWNERS file.",
+      "effort": "low"
+    },
+    {
+      "id": "ai-context",
+      "name": "AI context files",
+      "pillarId": "documentation",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": ["CLAUDE.md", ".cursor/rules", ".cursorrules", ".github/copilot-instructions.md"],
+      "fail": "No AI context files found.",
+      "fix": "Add CLAUDE.md, .cursor/rules, .cursorrules, or .github/copilot-instructions.md. This check does not look for AGENTS.md.",
+      "effort": "low"
+    },
+    {
+      "id": "architecture-docs",
+      "name": "Architecture documentation",
+      "pillarId": "documentation",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": ["docs/architecture*", "docs/adr/*", "ARCHITECTURE.md"],
+      "fail": "No architecture documentation found.",
+      "fix": "Add ARCHITECTURE.md or docs/adr.",
+      "effort": "high"
+    },
+    {
+      "id": "readme-quality",
+      "name": "README quality",
+      "pillarId": "documentation",
+      "level": 5,
+      "requiresLLM": true,
+      "fail": "Skipped. v1 does not run L5 quality checks.",
+      "fix": "Improve README sections for install, usage, and contributing.",
+      "effort": "high"
+    },
+    {
+      "id": "docs-agent-friendliness",
+      "name": "Documentation agent-friendliness",
+      "pillarId": "documentation",
+      "level": 5,
+      "requiresLLM": true,
+      "fail": "Skipped. v1 does not run L5 quality checks.",
+      "fix": "Document structure, conventions, and how to test.",
+      "effort": "high"
+    },
+    {
+      "id": "lock-file",
+      "name": "Lock file present",
+      "pillarId": "dev-environment",
+      "level": 1,
+      "requiresLLM": false,
+      "anyFiles": [
+        "package-lock.json",
+        "bun.lockb",
+        "bun.lock",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "poetry.lock",
+        "Pipfile.lock",
+        "go.sum",
+        "Cargo.lock",
+        "gradle.lockfile",
+        "packages.lock.json",
+        "Gemfile.lock",
+        "composer.lock",
+        "Package.resolved"
+      ],
+      "fail": "No dependency lock file found.",
+      "fix": "Commit a lock file for the package manager.",
+      "effort": "low"
+    },
+    {
+      "id": "env-documentation",
+      "name": "Environment variables documented",
+      "pillarId": "dev-environment",
+      "level": 2,
+      "requiresLLM": false,
+      "anyFiles": [".env.example", ".env.template", ".env.sample"],
+      "fail": "No .env.example or similar found.",
+      "fix": "Add .env.example documenting required variables.",
+      "effort": "low"
+    },
+    {
+      "id": "setup-script",
+      "name": "Setup script or dev command",
+      "pillarId": "dev-environment",
+      "level": 2,
+      "requiresLLM": false,
+      "packageJsonPath": "scripts.dev",
+      "makefileTarget": "setup|install",
+      "anyFiles": ["scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
+      "fail": "No setup script or dev command found.",
+      "fix": "Add a Makefile setup target, scripts/setup, or a package.json dev script.",
+      "effort": "medium"
+    },
+    {
+      "id": "version-pinned",
+      "name": "Runtime version pinned",
+      "pillarId": "dev-environment",
+      "level": 2,
+      "requiresLLM": false,
+      "anyFiles": [
+        ".nvmrc",
+        ".node-version",
+        ".python-version",
+        ".tool-versions",
+        ".mise.toml",
+        "go.mod",
+        ".sdkmanrc",
+        ".java-version",
+        "rust-toolchain.toml",
+        "rust-toolchain",
+        ".ruby-version",
+        ".php-version",
+        ".swift-version",
+        "global.json"
+      ],
+      "fail": "No runtime version pin found.",
+      "fix": "Add .nvmrc, .python-version, .tool-versions, or go.mod.",
+      "effort": "low"
+    },
+    {
+      "id": "containerization",
+      "name": "Containerization",
+      "pillarId": "dev-environment",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": [
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        ".devcontainer",
+        "**/Dockerfile",
+        "docker/Dockerfile",
+        "deploy/Dockerfile",
+        ".devcontainer/devcontainer.json"
+      ],
+      "fail": "No container configuration found.",
+      "fix": "Add a Dockerfile, docker-compose, or .devcontainer.",
+      "effort": "high"
+    },
+    {
+      "id": "ci-config",
+      "name": "CI configuration present",
+      "pillarId": "ci-cd",
+      "level": 2,
+      "requiresLLM": false,
+      "ciFiles": true,
+      "fail": "No CI configuration found.",
+      "fix": "Add GitHub Actions, GitLab CI, CircleCI, Jenkins, or Travis config.",
+      "effort": "medium"
+    },
+    {
+      "id": "ci-runs-tests",
+      "name": "CI runs tests",
+      "pillarId": "ci-cd",
+      "level": 3,
+      "requiresLLM": false,
+      "ciGrep": "\\b(npm\\s+test|yarn\\s+test|pnpm\\s+test|bun\\s+test|jest|vitest|pytest|go\\s+test|make\\s+test|npm\\s+run\\s+test|gradle\\s+test|gradlew\\s+test|mvn\\s+test|cargo\\s+test|dotnet\\s+test|phpunit|swift\\s+test)\\b",
+      "fail": "CI configuration found but no test execution detected.",
+      "fix": "Add a test step to CI. Do not run the test suite as part of this skill.",
+      "effort": "medium"
+    },
+    {
+      "id": "ci-runs-linters",
+      "name": "CI runs linters",
+      "pillarId": "ci-cd",
+      "level": 3,
+      "requiresLLM": false,
+      "ciGrep": "\\b(npm\\s+run\\s+lint|yarn\\s+lint|pnpm\\s+lint|eslint|biome\\s+check|biome\\s+lint|ruff\\s+check|golangci-lint|make\\s+lint|cargo\\s+clippy|dotnet\\s+format|rubocop|phpstan|swiftlint)\\b",
+      "fail": "CI configuration found but no linter execution detected.",
+      "fix": "Add a lint step to CI. Do not run the linter as part of this skill.",
+      "effort": "medium"
+    },
+    {
+      "id": "build-automated",
+      "name": "Build automated",
+      "pillarId": "ci-cd",
+      "level": 3,
+      "requiresLLM": false,
+      "packageJsonPath": "scripts.build",
+      "makefileTarget": "build",
+      "ciGrep": "\\b(npm\\s+run\\s+build|yarn\\s+build|pnpm\\s+build|make\\s+build|go\\s+build|cargo\\s+build|docker\\s+build|gradle\\s+build|mvn\\s+package|dotnet\\s+build|swift\\s+build)\\b",
+      "fail": "No automated build process found.",
+      "fix": "Add a build script or CI build step. Do not run the build as part of this skill.",
+      "effort": "medium"
+    },
+    {
+      "id": "deploy-pipeline",
+      "name": "Deploy pipeline",
+      "pillarId": "ci-cd",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": [
+        "vercel.json",
+        "netlify.toml",
+        "fly.toml",
+        "railway.json",
+        "render.yaml",
+        "app.yaml",
+        "serverless.yml",
+        "serverless.yaml",
+        "terraform",
+        "pulumi"
+      ],
+      "ciGrep": "\\b(deploy|deployment|publish|release)\\b",
+      "fail": "No deploy pipeline found.",
+      "fix": "Add a deploy stage or platform config.",
+      "effort": "high"
+    },
+    {
+      "id": "branch-protection",
+      "name": "Branch protection awareness",
+      "pillarId": "ci-cd",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": [".github/branch-protection*", ".github/settings.yml", ".github/settings.yaml"],
+      "fileRegex": [
+        { "file": "CONTRIBUTING.md", "pattern": "branch.?protection|protected.?branch|required review" }
+      ],
+      "fail": "No branch protection rules documented or configured.",
+      "fix": "Document branch protection in CONTRIBUTING.md or .github/settings.yml.",
+      "effort": "medium"
+    },
+    {
+      "id": "no-outdated-deps",
+      "name": "Dependencies recently updated",
+      "pillarId": "code-health",
+      "level": 3,
+      "requiresLLM": false,
+      "lockFileFreshDays": 180,
+      "fail": "No lock file, or lock file mtime is older than 6 months.",
+      "fix": "Commit a lock file and keep dependencies current. This check only reads mtime, it does not run npm or pip.",
+      "effort": "medium"
+    },
+    {
+      "id": "dead-code-detection",
+      "name": "Dead code detection configured",
+      "pillarId": "code-health",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": ["knip.json", "knip.ts", "knip.config.ts", ".knip.json", ".deadcode*"],
+      "fileContains": [{ "file": "package.json", "includes": ["\"knip\"", "unused-exports", "ts-prune"] }],
+      "fail": "No dead code detection tool found.",
+      "fix": "Add knip or similar unused-export config.",
+      "effort": "medium"
+    },
+    {
+      "id": "bundle-analysis",
+      "name": "Bundle analysis configured",
+      "pillarId": "code-health",
+      "level": 5,
+      "requiresLLM": false,
+      "anyFiles": [".size-limit.json", ".size-limit.js", ".size-limit.cjs"],
+      "fileContains": [
+        {
+          "file": "package.json",
+          "includes": ["webpack-bundle-analyzer", "@next/bundle-analyzer", "size-limit"]
+        }
+      ],
+      "fail": "No bundle analysis configuration found.",
+      "fix": "Add size-limit or a bundle analyzer config.",
+      "effort": "high"
+    },
+    {
+      "id": "license",
+      "name": "License file present",
+      "pillarId": "security",
+      "level": 1,
+      "requiresLLM": false,
+      "anyFiles": ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md", "LICENCE.txt"],
+      "fail": "No license file found.",
+      "fix": "Add a LICENSE file at the repository root.",
+      "effort": "low"
+    },
+    {
+      "id": "security-policy",
+      "name": "Security policy",
+      "pillarId": "security",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": ["SECURITY.md", ".github/SECURITY.md"],
+      "fail": "No security policy found.",
+      "fix": "Add SECURITY.md describing how to report vulnerabilities.",
+      "effort": "low"
+    },
+    {
+      "id": "dep-update-automation",
+      "name": "Dependency update automation",
+      "pillarId": "security",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": [
+        ".github/dependabot.yml",
+        ".github/dependabot.yaml",
+        "renovate.json",
+        ".renovaterc",
+        ".renovaterc.json"
+      ],
+      "fail": "No dependency update automation found.",
+      "fix": "Add Dependabot or Renovate config.",
+      "effort": "medium"
+    },
+    {
+      "id": "security-scanning",
+      "name": "Security scanning in CI",
+      "pillarId": "security",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": [".snyk"],
+      "ciGrep": "\\b(codeql|snyk|trivy|semgrep|owasp|cargo-audit|brakeman)\\b",
+      "fail": "No security scanning configured in CI.",
+      "fix": "Add CodeQL, Snyk, Trivy, or Semgrep to CI config. Do not run those tools here.",
+      "effort": "high"
+    },
+    {
+      "id": "secrets-detection",
+      "name": "Secrets detection configured",
+      "pillarId": "security",
+      "level": 4,
+      "requiresLLM": false,
+      "anyFiles": [".gitleaks.toml"],
+      "ciGrep": "\\b(gitleaks|detect-secrets|trufflehog|gitguardian)\\b",
+      "fail": "No secrets detection tool configured.",
+      "fix": "Add gitleaks or detect-secrets config.",
+      "effort": "medium"
+    }
+  ]
+}

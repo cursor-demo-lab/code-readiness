@@ -1,0 +1,41 @@
+{
+  "engine": "checks/catalog.json",
+  "note": "16 core filesystem checks for fixture agreement. IDs are catalog criterion ids. Presence means the files or configs the catalog lists. Do not score against a Kodus JSON dump.",
+  "ids": [
+    "license",
+    "readme",
+    "lock-file",
+    "editorconfig",
+    "linter",
+    "formatter",
+    "test-files-exist",
+    "test-script",
+    "contributing",
+    "ci-config",
+    "pre-commit-hooks",
+    "codeowners",
+    "ai-context",
+    "dep-update-automation",
+    "ci-runs-tests",
+    "type-checker"
+  ],
+  "ai_context_files": [
+    "CLAUDE.md",
+    ".cursor/rules",
+    ".cursorrules",
+    ".github/copilot-instructions.md"
+  ],
+  "ai_context_does_not_check": ["AGENTS.md"],
+  "canvas_required_regions": [
+    "repo_identity",
+    "maturity_level",
+    "pillar_scores",
+    "criterion_results",
+    "remediations",
+    "run_metadata"
+  ],
+  "run_metadata_required": {
+    "check_count": "number",
+    "llm_calls": 0
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "code-readiness",
+  "private": true,
+  "type": "module",
+  "description": "Cursor skill: filesystem agent-readiness heuristics plus a canvas.",
+  "scripts": {
+    "code-readiness": "node scripts/code-readiness.mjs",
+    "test": "node scripts/evaluate.test.mjs"
+  }
+}
