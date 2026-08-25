@@ -9,7 +9,8 @@ Keep the sequential gate for levels 2–5 at `LEVEL_THRESHOLD` (0.8). Change onl
 - **`lock-file` is language-aware.** Catalog `anyFiles` and `LOCK_FILES` stay identical and include `uv.lock`, `pdm.lock`, and `npm-shrinkwrap.json`. Missing lock files skip (drop from the L1 denominator) when `detectLanguages` says Java, C, C++, or Haskell. Otherwise fail as before.
 - **`env-documentation` skips empty trees.** Skip when there is no `.env.example` / `.env.template` / `.env.sample` and also no `.env`, `.env.*`, `docker-compose*.yml`, `compose*.yml`, or `.envrc` / `direnv`. Fail only when those env/compose files exist without an example.
 - **Path truth.** `contributing` matches `**/CONTRIBUTING.md`, `.github/CONTRIBUTING.md`, and `docs/**/contributing*` (cli/cli and FastAPI-style guides). `ai-context` accepts `AGENTS.md` and `.github/AGENTS.md`. `license` also matches `LICENSE-*`, `LICENSE-MIT`, `COPYING`, `COPYING.md`, and `UNLICENSE`. Keep `v1SkipLLM`.
-- **Python config in pyproject/setup.cfg.** `linter` and `type-checker` read `pyproject.toml` and `setup.cfg` (`[tool.ruff]`, `[tool.mypy]`, `[tool.pyright]`, `[flake8]`). `formatter` already read `[tool.ruff]` / `[tool.black]` in pyproject; it now reads `setup.cfg` too. Ruff counts as both linter and formatter.
+- **Python config in pyproject/setup.cfg.** `linter` and `type-checker` read `pyproject.toml` and `setup.cfg` (`[tool.ruff]`, `[tool.ruff.lint]`, `[tool.mypy]`, `[tool.pyright]`, `[flake8]`). `formatter` already read `[tool.ruff]` / `[tool.black]` in pyproject; it now reads `setup.cfg` too. Ruff counts as both linter and formatter.
+- **Library-native paths.** `test-framework` matches `tests/conftest.py` and `**/conftest.py`. `version-pinned` passes on `requires-python` in `pyproject.toml`. `setup-script` passes when a root `Makefile` exists (keep `setup|install`).
 
 ## 18-repo evidence
 
@@ -19,6 +20,7 @@ The band was a lie: 16/18 repos stuck at L1.
 - `env-documentation` failed 18/18, including libraries with nothing to document.
 - Flask, FastAPI, and httpx failed L1 `lock-file` despite `uv.lock`.
 - FastAPI configures ruff and mypy in `pyproject.toml` but failed `linter` and `type-checker` (formatter already passed on `[tool.ruff]`).
+- huggingface/diffusers (scored, not cloned) fails `linter` with only `[tool.ruff]` / `[tool.ruff.lint]` / `[tool.ruff.format]` in pyproject, fails `test-framework` with `tests/conftest.py`, fails `version-pinned` despite `requires-python`, and fails `setup-script` despite a root Makefile.
 - ripgrep has `LICENSE-MIT` / `COPYING` / `UNLICENSE` and still failed `license`; jq has `COPYING`.
 - `cli/cli` has `.github/CONTRIBUTING.md` and still failed `contributing`.
 - Gson, JUnit, jq, and shellcheck failed `lock-file` in languages with no conventional committed lockfile.

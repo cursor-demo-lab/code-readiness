@@ -161,7 +161,7 @@
       "pillarId": "testing",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": ["jest.config.*", "vitest.config.*", "pytest.ini", "conftest.py"],
+      "anyFiles": ["jest.config.*", "vitest.config.*", "pytest.ini", "conftest.py", "tests/conftest.py", "**/conftest.py"],
       "anyGlobs": ["**/*_test.go"],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },
@@ -386,7 +386,7 @@
       "requiresLLM": false,
       "packageJsonPath": "scripts.dev",
       "makefileTarget": "setup|install",
-      "anyFiles": ["scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
+      "anyFiles": ["Makefile", "scripts/setup*", "gradlew", "mvnw", "*.sln", "Rakefile"],
       "fail": "No setup script or dev command found.",
       "fix": "Add a Makefile setup target, scripts/setup, or a package.json dev script.",
       "effort": "medium"
@@ -413,6 +413,7 @@
         ".swift-version",
         "global.json"
       ],
+      "fileContains": [{ "file": "pyproject.toml", "includes": ["requires-python"] }],
       "fail": "No runtime version pin found.",
       "fix": "Add .nvmrc, .python-version, .tool-versions, or go.mod.",
       "effort": "low"

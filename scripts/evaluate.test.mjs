@@ -103,6 +103,20 @@ assert.equal(globMatch("docs/en/docs/CONTRIBUTING.md", "**/CONTRIBUTING.md"), tr
 assert.equal(globMatch(".github/CONTRIBUTING.md", "**/CONTRIBUTING.md"), true);
 assert.equal(globMatch("LICENSE-MIT", "LICENSE-*"), true);
 assert.equal(globMatch("UNLICENSE", "LICENSE-*"), false);
+assert.equal(globMatch("tests/conftest.py", "**/conftest.py"), true);
+assert.equal(globMatch("tests/conftest.py", "conftest.py"), false);
+
+const testFramework = catalog.criteria.find((row) => row.id === "test-framework");
+assert.ok(testFramework.anyFiles.includes("**/conftest.py"));
+assert.ok(testFramework.anyFiles.includes("tests/conftest.py"));
+assert.ok(testFramework.fileContains.some((rule) => rule.includes?.some((token) => token.includes("[tool.pytest"))));
+
+const versionPinned = catalog.criteria.find((row) => row.id === "version-pinned");
+assert.ok(versionPinned.fileContains?.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
+
+const setupScript = catalog.criteria.find((row) => row.id === "setup-script");
+assert.ok(setupScript.anyFiles.includes("Makefile"));
+assert.equal(setupScript.makefileTarget, "setup|install");
 
 function resultById(evaluation) {
   return Object.fromEntries(evaluation.results.map((row) => [row.criterionId, row]));
@@ -303,13 +317,44 @@ for (const name of ["LICENSE-MIT", "COPYING", "UNLICENSE", "COPYING.md"]) {
 const ruffRoot = tmp("code-readiness-ruff-");
 fs.writeFileSync(
   path.join(ruffRoot, "pyproject.toml"),
-  "[project]\nname = \"x\"\nversion = \"0.1.0\"\n\n[tool.ruff]\nline-length = 88\n",
+  "[project]\nname = \"x\"\nversion = \"0.1.0\"\n\n[tool.ruff]\nline-length = 88\n\n[tool.ruff.lint]\nselect = [\"E\"]\n\n[tool.ruff.format]\nquote-style = \"double\"\n",
 );
 const ruffEval = evaluateRepo(ruffRoot);
 const ruffById = resultById(ruffEval);
 assert.equal(ruffById.linter.pass, true, ruffById.linter.message);
 assert.equal(ruffById.formatter.pass, true, ruffById.formatter.message);
 assert.equal(ruffById["type-checker"].pass, false);
+
+const conftestRoot = tmp("code-readiness-conftest-");
+fs.mkdirSync(path.join(conftestRoot, "tests"), { recursive: true });
+fs.writeFileSync(path.join(conftestRoot, "tests", "conftest.py"), "import pytest\n");
+const conftestEval = evaluateRepo(conftestRoot);
+const conftestById = resultById(conftestEval);
+assert.equal(conftestById["test-framework"].pass, true, conftestById["test-framework"].message);
+assert.match(conftestById["test-framework"].message, /tests\/conftest\.py/);
+
+const pinRoot = tmp("code-readiness-requires-python-");
+fs.writeFileSync(
+  path.join(pinRoot, "pyproject.toml"),
+  "[project]\nname = \"x\"\nversion = \"0.1.0\"\nrequires-python = \">=3.8\"\n",
+);
+const pinEval = evaluateRepo(pinRoot);
+const pinById = resultById(pinEval);
+assert.equal(pinById["version-pinned"].pass, true, pinById["version-pinned"].message);
+assert.match(pinById["version-pinned"].message, /requires-python/);
+
+const makeRoot = tmp("code-readiness-makefile-");
+fs.writeFileSync(path.join(makeRoot, "Makefile"), ".PHONY: help\nhelp:\n\t@echo help\n");
+const makeEval = evaluateRepo(makeRoot);
+const makeById = resultById(makeEval);
+assert.equal(makeById["setup-script"].pass, true, makeById["setup-script"].message);
+assert.match(makeById["setup-script"].message, /Makefile/);
+
+const agentsOnlyRoot = tmp("code-readiness-agents-");
+fs.writeFileSync(path.join(agentsOnlyRoot, "AGENTS.md"), "# agents\n");
+const agentsOnlyEval = evaluateRepo(agentsOnlyRoot);
+const agentsOnlyById = resultById(agentsOnlyEval);
+assert.equal(agentsOnlyById["ai-context"].pass, true, agentsOnlyById["ai-context"].message);
 
 const mypyRoot = tmp("code-readiness-mypy-");
 fs.writeFileSync(
