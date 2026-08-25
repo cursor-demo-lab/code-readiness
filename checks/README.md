@@ -16,7 +16,7 @@ v1 skips `requiresLLM` criteria. Those are a third state: skipped, excluded from
 
 Go, Rust, Java, Kotlin, C#, and Swift auto-pass `type-checker`. Go, Rust, and C# auto-pass `formatter`. That is a language default, not a subprocess.
 
-`lock-file` also accepts `uv.lock`, `pdm.lock`, and `npm-shrinkwrap.json`. If none of the listed lock files exist and `detectLanguages` says Java, C, C++, or Haskell, skip the check (drop it from the L1 denominator). Otherwise fail.
+`lock-file` also accepts `uv.lock`, `pdm.lock`, and `npm-shrinkwrap.json`. If none of the listed lock files exist and `detectLanguages` says Java, C, C++, Haskell, or Python, skip the check (drop it from the L1 denominator). Python libraries without a committed lock are skipped, not failed; a committed `uv.lock` still counts. `pyproject.toml` is not a lockfile. Otherwise fail.
 
 `env-documentation` skips when there is no `.env.example` / `.env.template` / `.env.sample` and the tree also has no `.env`, `.env.*`, `docker-compose*.yml`, `compose*.yml`, or `.envrc` / `direnv`. Fail only when those env or compose files exist without an example.
 

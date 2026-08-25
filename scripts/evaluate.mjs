@@ -35,7 +35,7 @@ export const LOCK_FILES = [
   "Package.resolved",
 ];
 
-const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set(["java", "c", "cpp", "haskell"]);
+const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set(["java", "c", "cpp", "haskell", "python"]);
 
 function hit(message, details) {
   return { pass: true, skipped: false, message, details };

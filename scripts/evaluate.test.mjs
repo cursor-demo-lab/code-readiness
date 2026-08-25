@@ -288,6 +288,30 @@ assert.equal(uvById["lock-file"].pass, true, uvById["lock-file"].message);
 assert.equal(uvById["lock-file"].skipped, false);
 assert.match(uvById["lock-file"].message, /uv\.lock/);
 
+const pyNoLockRoot = tmp("code-readiness-py-nolock-");
+fs.writeFileSync(
+  path.join(pyNoLockRoot, "pyproject.toml"),
+  "[project]\nname = \"x\"\nversion = \"0.1.0\"\n",
+);
+const pyNoLockEval = evaluateRepo(pyNoLockRoot);
+const pyNoLockById = resultById(pyNoLockEval);
+assert.equal(pyNoLockById["lock-file"].skipped, true, pyNoLockById["lock-file"].message);
+assert.match(pyNoLockById["lock-file"].message, /no conventional committed lockfile/i);
+assert.equal(pyNoLockById["lock-file"].pass, false);
+assert.equal(/pyproject\.toml/i.test(pyNoLockById["lock-file"].message), false);
+
+const pyJsLockRoot = tmp("code-readiness-pyjs-lock-");
+fs.writeFileSync(
+  path.join(pyJsLockRoot, "pyproject.toml"),
+  "[project]\nname = \"x\"\nversion = \"0.1.0\"\n",
+);
+fs.writeFileSync(path.join(pyJsLockRoot, "package.json"), "{}\n");
+fs.writeFileSync(path.join(pyJsLockRoot, "package-lock.json"), "{}\n");
+const pyJsLockById = resultById(evaluateRepo(pyJsLockRoot));
+assert.equal(pyJsLockById["lock-file"].pass, true, pyJsLockById["lock-file"].message);
+assert.equal(pyJsLockById["lock-file"].skipped, false);
+assert.match(pyJsLockById["lock-file"].message, /package-lock\.json/);
+
 const envSkipRoot = tmp("code-readiness-env-skip-");
 fs.writeFileSync(path.join(envSkipRoot, "index.js"), "export default {}\n");
 const envSkipEval = evaluateRepo(envSkipRoot);
