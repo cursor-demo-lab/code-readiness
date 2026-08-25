@@ -838,10 +838,22 @@ assert.equal(/Foundational|Guided/.test(canvasTemplate), false);
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
 assert.match(skillMd, /would be L2 except/);
+assert.match(skillMd, /L2 fail ids/);
+assert.match(skillMd, /not `l1CapReasons`/);
+assert.match(skillMd, /only for when `l1Capped` is true/);
+assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
+assert.equal(
+  /failing L1 ids \(`l1CapReasons`\)/.test(skillMd),
+  false,
+  "would be L2 except must name L2 fail ids, not l1CapReasons",
+);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.match(checksReadme, /would be L2 except/);
+assert.match(checksReadme, /L2 fail ids/);
+assert.match(checksReadme, /not `l1CapReasons`/);
+assert.match(checksReadme, /Do not dummy `\.editorconfig`/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
