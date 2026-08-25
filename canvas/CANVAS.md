@@ -88,13 +88,13 @@ Dark hosts resolve through `useHostTheme()` the same way. Do not fork a light-on
 
 ## Layout
 
-Thesis-first. The job is what band, what unblocks the next sequential gate, and which files. Callout names remaining fail ids for that gate (would be Documented except editorconfig, ai-context). `l1CapReasons` only when `l1Capped`. `TodoListCard` ranks 3–5 items by gate impact: `nextLevel` fails first, then other fails. Each line is criterion id plus a concrete path from `OPEN_BY_ID` / `CONCRETE_PATHS`.
+Thesis-first. The job is what band, what unblocks the next sequential gate, which files, and why each gap helps coding agents. Callout names remaining fail ids for that gate (would be Documented except editorconfig, ai-context). `l1CapReasons` only when `l1Capped`. `TodoListCard` ranks 3–5 items by gate impact: `nextLevel` fails first, then other fails. Each line is criterion id plus a concrete path from `OPEN_BY_ID` / `CONCRETE_PATHS`. The seven pillar Cards are the category breakdown: remaining counted fails, fix, and why agents care.
 
 - Open header: eyebrow `/CODE-READINESS`, `H1` plus `Row` / `Spacer` / level `Pill`, second `Pill` when `l1Capped` (most important visual), five L1–L5 `Pill`s with the current level `active`, two Stats, counted `UsageBar` (`22 / 35 counted`), thesis, tertiary source line. `Link` the repo name in header `Text` only when `repo_identity` has a URL.
 - One `Callout`: L1 cap when present (`l1CapReasons` only then), else Level 5 disclaimer, else would-be-except naming remaining fail ids at `nextLevel`
 - `TodoListCard` of the top 3 to 5 gate-ranked fails (criterion id + file); `Button` + `useCanvasAction` `openFile` when `OPEN_BY_ID` / `CONCRETE_PATHS` names a path
 - Donut + swatch legend
-- `Grid` of seven pillar Cards: `CardHeader` is the pillar name, `CardBody` is that pillar's `UsageBar` plus a small percent. Named-entity board, not a metric-card wall
+- `Grid` of seven pillar Cards: `CardHeader` is the pillar name plus percent, `CardBody` is that pillar's `UsageBar` then each counted fail (criterion id + file, then why agents care). Empty pillar: `No counted gaps.` Named-entity board, not a metric-card wall
 - Sequential L1–L5 `computeDAGLayout` SVG, `LineChart` of pillar percentages, horizontal `BarChart` of remaining fails per sequential level
 - `Select` + `Toggle` + `TextInput` fail search + `Checkbox` L1-capped then `CollapsibleSection` + `Table` under `H2` / `H3`. Criterion id in `Code`, level in `Pill`. Tables are not inside Cards
 

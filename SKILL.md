@@ -54,6 +54,8 @@ Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. E
 
 Print engine labels (Functional / Documented / Standardized / Optimized / Autonomous). For a single repo short of the next sequential gate, the Callout names remaining fail ids from `criterion_results` at `maturity_level.nextLevel`: would be Documented except editorconfig, ai-context. Rank `TodoListCard` items the same way: remaining fails at `nextLevel` first, then other fails. Never lead with a fail that is not on the current gate if gate fails exist. `l1CapReasons` only for when `l1Capped` is true. Do not dummy `.editorconfig`.
 
+The canvas owns the category breakdown. Each of the seven pillar Cards lists remaining counted fails with a fix (criterion id + file) and why it helps agents. Do not dump that breakdown in chat. The 27-repo eval is the honesty gate, not the user-facing report.
+
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
 `ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` counts. Do not add LLM scoring.

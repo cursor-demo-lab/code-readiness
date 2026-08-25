@@ -908,6 +908,16 @@ assert.equal(
   false,
   "OPEN_BY_ID must not map type-checker to tsconfig.json",
 );
+assert.match(canvasTemplate, /const WHY_FOR_AGENTS/);
+assert.match(canvasTemplate, /Why agents care/);
+assert.match(canvasTemplate, /No counted gaps\./);
+assert.match(canvasTemplate, /countedPillarFails/);
+assert.match(canvasTemplate, /Category breakdown/);
+assert.match(
+  canvasTemplate,
+  /Agents guess indent and charset/,
+  "pillar Cards must render a technical why-for-agents sentence",
+);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
@@ -916,6 +926,8 @@ assert.match(skillMd, /honesty gate/);
 assert.match(skillMd, /would be Documented except/);
 assert.match(skillMd, /gate-ranked/);
 assert.match(skillMd, /remaining fails at `nextLevel` first/);
+assert.match(skillMd, /category breakdown/);
+assert.match(skillMd, /why it helps agents/);
 assert.match(skillMd, /only for when `l1Capped` is true/);
 assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
@@ -927,9 +939,11 @@ assert.equal(
 );
 
 const canvasMd = fs.readFileSync(path.join(skillRoot(), "canvas", "CANVAS.md"), "utf8");
-assert.match(canvasMd, /what band, what unblocks the next sequential gate, and which files/);
+assert.match(canvasMd, /what band, what unblocks the next sequential gate, which files/);
+assert.match(canvasMd, /why each gap helps coding agents/);
 assert.match(canvasMd, /would be Documented except/);
 assert.match(canvasMd, /`nextLevel` fails first/);
+assert.match(canvasMd, /category breakdown/);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.match(checksReadme, /would be L2 except/);

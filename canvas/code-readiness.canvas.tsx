@@ -137,6 +137,60 @@ const OPEN_BY_ID: Record<string, string> = {
   "architecture-docs": "ARCHITECTURE.md",
 };
 
+const WHY_FOR_AGENTS: Record<string, string> = {
+  editorconfig:
+    "Agents guess indent and charset. .editorconfig is a machine-readable contract so patches match the repo without a style fight in review.",
+  linter:
+    "Agents generate code that looks right. A linter is a cheap local oracle they can loop on after each edit.",
+  formatter:
+    "Without a formatter, agent diffs are mostly whitespace. Format-on-write keeps the real change visible.",
+  "type-checker":
+    "Agents hallucinate APIs. tsconfig or mypy is a local proof they can rerun without starting the app.",
+  "pre-commit-hooks":
+    "Agents skip the human lint step. Hooks make the default commit path the same as CI.",
+  "test-framework":
+    "Agents need a named runner. A configured framework tells them how to verify a change in one command.",
+  "test-files-exist":
+    "A test file is a fixture the agent can extend instead of inventing coverage from scratch.",
+  "test-script":
+    "scripts.test or make test is the one command an agent will actually run.",
+  "ai-context":
+    "AGENTS.md is onboarding. Without it, agents scrape the README and invent conventions and how to run one test.",
+  contributing:
+    "PR title, commit, and review rules. Agents otherwise open PRs that bounce on process, not code.",
+  readme:
+    "The README is the first file an agent reads. Substance here is the difference between a useful first patch and a wrong one.",
+  "env-documentation":
+    "Agents invent .env values or commit secrets. An example file is the schema for local boot.",
+  "lock-file":
+    "Agents resolve different versions than CI. A lockfile makes install reproducible.",
+  "version-pinned":
+    "Agents pick Node or Python from the host. engines / python_requires / go.mod tell them which toolchain to assume.",
+  "setup-script":
+    "Agents need how to run this. scripts.dev, Makefile, or setup.py is that answer.",
+  "ci-config":
+    "CI is the remote oracle. Workflow files tell the agent what green means.",
+  "api-docs":
+    "Agents guess the public surface. OpenAPI or TypeDoc is a typed map of what callers expect.",
+  codeowners:
+    "Agents do not know who can review a path. CODEOWNERS routes the PR and names the expert.",
+  "architecture-docs":
+    "Agents change the wrong layer. ADRs tell them the intended seams.",
+  containerization:
+    "A Dockerfile or devcontainer is a known-good environment. Agents stop improvising local setup.",
+  "branch-protection":
+    "Documented branch rules stop agents from pushing around review.",
+  "dead-code-detection":
+    "Agents add files and rarely delete. Unused-export checks keep generated code from rotting.",
+  "secrets-detection":
+    "Agents paste keys into examples. A detector is the last gate before that lands on main.",
+  license:
+    "Agents need to know what they can copy. A LICENSE at root is the legal context for generated code.",
+};
+
+const WHY_FOR_AGENTS_FALLBACK =
+  "This file is a machine-readable signal agents can follow without guessing.";
+
 const CONCRETE_PATHS = [
   ".github/CODEOWNERS",
   ".pre-commit-config.yaml",
@@ -210,6 +264,19 @@ function todoLine(row: CriterionRow): string {
   if (file) return `${row.criterionId} — add ${file}`;
   const hint = row.fix || row.message;
   return hint ? `${row.criterionId} — ${hint}` : row.criterionId;
+}
+
+function whyForAgents(criterionId: string): string {
+  return WHY_FOR_AGENTS[criterionId] ?? WHY_FOR_AGENTS_FALLBACK;
+}
+
+function countedPillarFails(
+  report: Report,
+  pillarId: string,
+): CriterionRow[] {
+  return report.criterion_results.filter(
+    (row) => row.pillarId === pillarId && !row.skipped && !row.pass,
+  );
 }
 
 function nextGateCallout(
@@ -579,38 +646,62 @@ export default function CodeReadinessCanvas() {
 
       {report.pillar_scores.length > 0 ? (
         <Stack gap={12}>
-          <H2>Pillars</H2>
+          <H2>Category breakdown</H2>
+          <Text size="small" tone="tertiary">
+            Remaining counted fails in each pillar: the file to add, and why
+            agents care.
+          </Text>
           <Grid columns={2} gap={16}>
-            {report.pillar_scores.map((pillar) => (
-              <Card key={pillar.pillarId}>
-                <CardHeader>{pillar.name}</CardHeader>
-                <CardBody>
-                  <Stack gap={8}>
-                    {pillar.total > 0 ? (
-                      <UsageBar
-                        total={pillar.total}
-                        topLeftLabel={`${pillar.passed} / ${pillar.total}`}
-                        segments={[
-                          { id: "passed", value: pillar.passed, color: "green" },
-                          {
-                            id: "failed",
-                            value: pillar.total - pillar.passed,
-                            color: "red",
-                          },
-                        ]}
-                      />
-                    ) : (
-                      <Text size="small" tone="tertiary">
-                        No counted checks
-                      </Text>
-                    )}
-                    <Text size="small" tone="tertiary">
-                      {`${pillar.percentage}%`}
-                    </Text>
-                  </Stack>
-                </CardBody>
-              </Card>
-            ))}
+            {report.pillar_scores.map((pillar) => {
+              const fails = countedPillarFails(report, pillar.pillarId);
+              return (
+                <Card key={pillar.pillarId}>
+                  <CardHeader
+                    trailing={<Pill size="sm">{`${pillar.percentage}%`}</Pill>}
+                  >
+                    {pillar.name}
+                  </CardHeader>
+                  <CardBody>
+                    <Stack gap={12}>
+                      {pillar.total > 0 ? (
+                        <UsageBar
+                          total={pillar.total}
+                          topLeftLabel={`${pillar.passed} / ${pillar.total}`}
+                          segments={[
+                            { id: "passed", value: pillar.passed, color: "green" },
+                            {
+                              id: "failed",
+                              value: pillar.total - pillar.passed,
+                              color: "red",
+                            },
+                          ]}
+                        />
+                      ) : null}
+                      {fails.length === 0 ? (
+                        <Text size="small" tone="tertiary">
+                          No counted gaps.
+                        </Text>
+                      ) : (
+                        fails.map((row) => {
+                          const file = failOpenPath(row);
+                          return (
+                            <Stack key={row.criterionId} gap={4}>
+                              <Text>
+                                <Code>{row.criterionId}</Code>
+                                {` — ${file ? `add ${file}` : row.fix || row.message}`}
+                              </Text>
+                              <Text size="small" tone="tertiary">
+                                {`Why agents care: ${whyForAgents(row.criterionId)}`}
+                              </Text>
+                            </Stack>
+                          );
+                        })
+                      )}
+                    </Stack>
+                  </CardBody>
+                </Card>
+              );
+            })}
           </Grid>
         </Stack>
       ) : null}
