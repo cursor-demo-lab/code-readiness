@@ -115,7 +115,7 @@
       "pillarId": "style-linting",
       "level": 1,
       "requiresLLM": false,
-      "anyFiles": ["mypy.ini", ".mypy.ini", "pyrightconfig.json"],
+      "anyFiles": ["tsconfig.json", "mypy.ini", ".mypy.ini", "pyrightconfig.json"],
       "fileContains": [
         { "file": "setup.cfg", "includes": ["[mypy]"] },
         { "file": "pyproject.toml", "includes": ["[tool.mypy]", "[tool.pyright]"] }
@@ -129,8 +129,8 @@
         "csharp": "C# has a built-in static type system.",
         "swift": "Swift has a built-in static type system."
       },
-      "fail": "No type checker with strict mode found.",
-      "fix": "Enable TypeScript strict mode, or add mypy or pyright.",
+      "fail": "No type checker configured.",
+      "fix": "Add a root tsconfig.json, or add mypy or pyright.",
       "effort": "medium"
     },
     {
