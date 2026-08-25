@@ -2,20 +2,14 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import {
   CACHE_TTL_MS,
   CANVAS_FILENAME,
   SIDECAR_FILENAME,
-  CONFIG_FILENAMES,
-  FLAG_SET,
-  KODUS_VERSION,
 } from "./constants.mjs";
+import { hashCatalog, skillRoot } from "./catalog.mjs";
 
-export function skillRoot() {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-}
+export { skillRoot };
 
 export function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -26,72 +20,52 @@ export function resolveRepoRoot(inputPath) {
   if (!fs.existsSync(resolved)) {
     throw new Error(`Repository path does not exist: ${resolved}`);
   }
-  try {
-    const top = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      cwd: resolved,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return top;
-  } catch {
-    return resolved;
+  let current = resolved;
+  while (true) {
+    if (fs.existsSync(path.join(current, ".git"))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return resolved;
+    current = parent;
   }
 }
 
-export function gitHead(repoRoot) {
-  try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return null;
+export function readGitHead(repoRoot) {
+  const gitDir = path.join(repoRoot, ".git");
+  if (!fs.existsSync(gitDir)) return null;
+  let headFile = path.join(gitDir, "HEAD");
+  if (fs.existsSync(gitDir) && fs.statSync(gitDir).isFile()) {
+    const pointer = fs.readFileSync(gitDir, "utf8").trim();
+    const match = pointer.match(/gitdir:\s*(.+)/i);
+    if (!match) return null;
+    const linked = path.resolve(repoRoot, match[1]);
+    headFile = path.join(linked, "HEAD");
   }
-}
-
-export function gitPorcelain(repoRoot) {
-  try {
-    return execFileSync("git", ["status", "--porcelain"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-  } catch {
-    return "not-a-git-repo\n";
-  }
-}
-
-export function findConfigPath(repoRoot) {
-  for (const name of CONFIG_FILENAMES) {
-    const candidate = path.join(repoRoot, name);
-    if (fs.existsSync(candidate)) return candidate;
+  if (!fs.existsSync(headFile)) return null;
+  const raw = fs.readFileSync(headFile, "utf8").trim();
+  if (/^[0-9a-f]{40,}$/i.test(raw)) return raw;
+  const refMatch = raw.match(/^ref:\s*(.+)$/);
+  if (!refMatch) return null;
+  const refRel = refMatch[1];
+  const gitRoot = path.dirname(headFile);
+  const refPath = path.join(gitRoot, refRel);
+  if (fs.existsSync(refPath)) return fs.readFileSync(refPath, "utf8").trim();
+  const packed = path.join(gitRoot, "packed-refs");
+  if (!fs.existsSync(packed)) return null;
+  const needle = ` ${refRel}`;
+  for (const line of fs.readFileSync(packed, "utf8").split("\n")) {
+    if (!line || line.startsWith("#") || line.startsWith("^")) continue;
+    if (line.endsWith(needle)) return line.split(" ")[0];
   }
   return null;
 }
 
-export function configHash(repoRoot) {
-  const configPath = findConfigPath(repoRoot);
-  if (!configPath) return "noconfig";
-  return sha256(fs.readFileSync(configPath));
+export function cacheDir(repoRoot) {
+  return path.join(repoRoot, ".cursor", "cache", "readiness");
 }
 
 export function cacheKey(repoRoot) {
-  const head = gitHead(repoRoot) ?? "not-a-git-repo";
-  const porcelain = gitPorcelain(repoRoot);
-  const parts = [
-    path.resolve(repoRoot),
-    KODUS_VERSION,
-    FLAG_SET,
-    configHash(repoRoot),
-    head,
-    porcelain,
-  ];
-  return sha256(parts.join("\n"));
-}
-
-export function cacheDir(repoRoot) {
-  return path.join(repoRoot, ".cursor", "cache", "readiness");
+  const head = readGitHead(repoRoot) ?? "no-git-head";
+  return sha256([path.resolve(repoRoot), hashCatalog(), head].join("\n"));
 }
 
 export function cachePath(repoRoot) {
@@ -110,37 +84,10 @@ export function readCache(repoRoot) {
   }
 }
 
-export function writeCache(repoRoot, kodusJson) {
+export function writeCache(repoRoot, payload) {
   const dir = cacheDir(repoRoot);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(cachePath(repoRoot), `${JSON.stringify(kodusJson, null, 2)}\n`);
-}
-
-export function childEnvWithoutAiKeys() {
-  const env = { ...process.env };
-  for (const key of ["OPENAI_API_KEY", "KODUS_API_KEY"]) {
-    delete env[key];
-  }
-  env.CI = env.CI || "true";
-  env.NO_UPDATE_NOTIFIER = "1";
-  env.npm_config_update_notifier = "false";
-  env.npm_config_fund = "false";
-  env.npm_config_audit = "false";
-  return env;
-}
-
-export function withAiForcedOff(repoRoot, fn) {
-  const configPath = findConfigPath(repoRoot);
-  if (!configPath) return fn();
-  const original = fs.readFileSync(configPath, "utf8");
-  if (!/aiEnabled:\s*true/.test(original)) return fn();
-  const patched = original.replace(/aiEnabled:\s*true/g, "aiEnabled: false");
-  fs.writeFileSync(configPath, patched);
-  try {
-    return fn();
-  } finally {
-    fs.writeFileSync(configPath, original);
-  }
+  fs.writeFileSync(cachePath(repoRoot), `${JSON.stringify(payload, null, 2)}\n`);
 }
 
 export function isCloudAgent() {
@@ -177,6 +124,32 @@ function resolveProjectSlug(projectsRoot, repoRoot) {
   );
 }
 
+function findPromotedCanvas(store) {
+  const canvases = path.join(store, "canvases");
+  if (!fs.existsSync(canvases)) return null;
+  let entries;
+  try {
+    entries = fs.readdirSync(canvases, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name === "new") continue;
+    const source = path.join(canvases, entry.name, "source.canvas.tsx");
+    if (!fs.existsSync(source)) continue;
+    const text = fs.readFileSync(source, "utf8");
+    if (text.includes("CodeReadinessCanvas") || text.includes("/CODE-READINESS")) {
+      return {
+        dir: path.join(canvases, entry.name),
+        canvasPath: source,
+        sidecarPath: path.join(canvases, entry.name, "source.canvas.data.json"),
+        promotedId: entry.name,
+      };
+    }
+  }
+  return null;
+}
+
 export function resolveManagedCanvasDir(repoRoot) {
   if (process.env.CODE_READINESS_CANVAS_DIR) {
     return process.env.CODE_READINESS_CANVAS_DIR;
@@ -197,6 +170,11 @@ export function resolveManagedCanvasDir(repoRoot) {
 }
 
 export function canvasPaths(repoRoot) {
+  if (!process.env.CODE_READINESS_CANVAS_DIR && isCloudAgent()) {
+    const store = userStorePath();
+    const promoted = store ? findPromotedCanvas(store) : null;
+    if (promoted) return promoted;
+  }
   const dir = resolveManagedCanvasDir(repoRoot);
   return {
     dir,
@@ -207,12 +185,11 @@ export function canvasPaths(repoRoot) {
 
 export function canvasLink(canvasPath) {
   if (isCloudAgent()) {
-    const store = userStorePath();
-    const storeId = store ? path.basename(path.resolve(store)) : "self";
     return {
       kind: "cloud",
-      markdown: `https://cursor.com/canvas/${storeId}/code-readiness`,
+      markdown: null,
       file: canvasPath,
+      note: "Link only the write-tool save-result URL. Never invent a URL. After promote, edit canvases/<uuid>/source.canvas.tsx only.",
     };
   }
   return {

@@ -12,6 +12,8 @@ import {
   Text,
   TodoListCard,
   useCanvasState,
+  type TableRowTone,
+  type TodoItem,
 } from "cursor/canvas";
 
 type CriterionRow = {
@@ -69,14 +71,13 @@ type Report = {
   remediations: Remediation[];
   run_metadata: {
     engine: string;
-    kodusVersion: string;
+    catalogHash: string;
     generated_at: string;
     gitSha: string | null;
     check_count: number;
     llm_calls: 0;
     skipped_ai_count: number;
     duration_ms: number;
-    flags: string;
     cacheHit: boolean;
     scope: "repository root only";
   };
@@ -122,7 +123,7 @@ function failingByPillar(report: Report) {
   return groups;
 }
 
-export default function CodeReadinessCanvas(): JSX.Element {
+export default function CodeReadinessCanvas() {
   const [report] = useCanvasState<Report | null>("report", null);
 
   if (report == null) {
@@ -131,19 +132,19 @@ export default function CodeReadinessCanvas(): JSX.Element {
         <Text size="small" tone="tertiary" weight="semibold">
           /CODE-READINESS
         </Text>
-        <H1>Code readiness</H1>
+        <H1>Code Readiness</H1>
         <Text>
-          No Kodus report sidecar yet. Run the /code-readiness skill to score a
-          repository root and write code-readiness.canvas.data.json.
+          No report sidecar yet. Walk checks/catalog.json with /code-readiness
+          and write code-readiness.canvas.data.json.
         </Text>
       </Stack>
     );
   }
 
-  const todos = report.remediations.map((item) => ({
+  const todos: TodoItem[] = report.remediations.map((item) => ({
     id: item.id,
     content: `${item.title}. ${item.description}`,
-    status: "pending" as const,
+    status: "pending",
   }));
   const failGroups = failingByPillar(report);
   const band = report.maturity_level;
@@ -186,7 +187,7 @@ export default function CodeReadinessCanvas(): JSX.Element {
           </Callout>
         ) : null}
         {report.agentsMdNote ? (
-          <Callout tone="info" title="AGENTS.md is outside the Kodus denominator">
+          <Callout tone="info" title="AGENTS.md is outside the 80% denominator">
             {report.agentsMdNote}
           </Callout>
         ) : null}
@@ -212,7 +213,7 @@ export default function CodeReadinessCanvas(): JSX.Element {
             categories={report.pillar_scores.map((pillar) => pillar.name)}
             series={[
               {
-                name: "Kodus pillar score",
+                name: "Pillar score",
                 data: report.pillar_scores.map((pillar) => pillar.percentage),
               },
             ]}
@@ -223,9 +224,10 @@ export default function CodeReadinessCanvas(): JSX.Element {
             height={280}
           />
           <Text size="small" tone="tertiary">
-            Dashed line is the Kodus 80% gate for the current level's non-skipped
-            checks. Scores are Kodus file and config checks on the repository
-            root only. v1 never runs AI.
+            Dashed line is the 80% gate for the current level's non-skipped
+            checks. Scores are local filesystem heuristics on the repository
+            root only. v1 never runs AI. Not Factory. Not /doctor. Not running
+            @kodus/agent-readiness.
           </Text>
         </Stack>
       ) : null}
@@ -234,7 +236,6 @@ export default function CodeReadinessCanvas(): JSX.Element {
 
       {failGroups.map((group, index) => (
         <CollapsibleSection
-          key={group.pillarId}
           title={group.name}
           count={group.rows.length}
           trailing={
@@ -251,7 +252,7 @@ export default function CodeReadinessCanvas(): JSX.Element {
               row.message,
               row.fix || row.details || row.message,
             ])}
-            rowTone={group.rows.map(() => "danger" as const)}
+            rowTone={group.rows.map((): TableRowTone => "danger")}
             striped
           />
         </CollapsibleSection>

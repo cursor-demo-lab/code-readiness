@@ -1,4 +1,4 @@
-# Kodus JSON report cache for /code-readiness. Never commit cache.
+# JSON report cache for /code-readiness. Never commit cache.
 .cursor/cache/
 
 node_modules/

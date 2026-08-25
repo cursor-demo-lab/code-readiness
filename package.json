@@ -2,9 +2,9 @@
   "name": "code-readiness",
   "private": true,
   "type": "module",
-  "description": "Cursor skill: Kodus agent-readiness @0.1.3 plus a Kodus canvas.",
+  "description": "Cursor skill: filesystem agent-readiness heuristics plus a canvas.",
   "scripts": {
     "code-readiness": "node scripts/code-readiness.mjs",
-    "test": "node scripts/map-report.test.mjs"
+    "test": "node scripts/evaluate.test.mjs"
   }
 }

@@ -1,6 +1,6 @@
 {
-  "engine": "@kodus/agent-readiness@0.1.3",
-  "note": "16 core filesystem checks for fixture agreement. IDs are Kodus 0.1.3 criterion ids. Presence means the files or configs Kodus looks for, not a second scorer.",
+  "engine": "checks/catalog.json",
+  "note": "16 core filesystem checks for fixture agreement. IDs are catalog criterion ids. Presence means the files or configs the catalog lists. Do not score against a Kodus JSON dump.",
   "ids": [
     "license",
     "readme",

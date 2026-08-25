@@ -1,7 +1,7 @@
 {
   "frozen_at": "2026-08-25",
-  "kodus_version": "0.1.3",
-  "note": "Default-branch SHAs looked up on frozen_at with the GitHub API. Do not clone these repositories into the skill repo.",
+  "catalog": "checks/catalog.json",
+  "note": "Default-branch SHAs looked up on frozen_at with the GitHub API. Do not clone these repositories into the skill repo. Ground truth is the catalog versus the tree.",
   "hard_ranking": "chat-example < express < fastapi ≈ act",
   "excluded": ["CockroachDB", "kodustech/agent-readiness"],
   "goldens": [
@@ -37,7 +37,7 @@
       "sha": "4f411281417e88660bea1c1a1749aa71ae0bd60f",
       "committed_at": "2026-06-01T03:17:32Z",
       "expected_band": "HIGH",
-      "notes": "Go auto-passes formatter and type-checker in Kodus."
+      "notes": "Go auto-passes formatter and type-checker in this catalog."
     }
   ]
 }
