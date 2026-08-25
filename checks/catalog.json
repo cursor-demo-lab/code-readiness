@@ -2,9 +2,9 @@
   "id": "code-readiness-fs",
   "scope": "repository root only",
   "levelThreshold": 0.8,
+  "level1Threshold": 0.75,
   "minLevel": 1,
   "v1SkipLLM": true,
-  "aiContextDoesNotCheck": ["AGENTS.md"],
   "pillars": [
     {
       "id": "style-linting",
@@ -250,7 +250,7 @@
       "pillarId": "documentation",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": ["CONTRIBUTING.md", "docs/contributing*"],
+      "anyFiles": ["CONTRIBUTING.md", "**/CONTRIBUTING.md", "docs/contributing*", "docs/**/contributing*"],
       "fail": "No contributing guide found.",
       "fix": "Add CONTRIBUTING.md with workflow and PR guidelines.",
       "effort": "low"
@@ -283,9 +283,16 @@
       "pillarId": "documentation",
       "level": 3,
       "requiresLLM": false,
-      "anyFiles": ["CLAUDE.md", ".cursor/rules", ".cursorrules", ".github/copilot-instructions.md"],
+      "anyFiles": [
+        "CLAUDE.md",
+        ".cursor/rules",
+        ".cursorrules",
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        ".github/AGENTS.md"
+      ],
       "fail": "No AI context files found.",
-      "fix": "Add CLAUDE.md, .cursor/rules, .cursorrules, or .github/copilot-instructions.md. This check does not look for AGENTS.md.",
+      "fix": "Add AGENTS.md, CLAUDE.md, .cursor/rules, .cursorrules, or .github/copilot-instructions.md.",
       "effort": "low"
     },
     {
@@ -327,12 +334,15 @@
       "requiresLLM": false,
       "anyFiles": [
         "package-lock.json",
+        "npm-shrinkwrap.json",
         "bun.lockb",
         "bun.lock",
         "yarn.lock",
         "pnpm-lock.yaml",
         "poetry.lock",
         "Pipfile.lock",
+        "uv.lock",
+        "pdm.lock",
         "go.sum",
         "Cargo.lock",
         "gradle.lockfile",

@@ -20,12 +20,13 @@
     "type-checker"
   ],
   "ai_context_files": [
+    "AGENTS.md",
+    ".github/AGENTS.md",
     "CLAUDE.md",
     ".cursor/rules",
     ".cursorrules",
     ".github/copilot-instructions.md"
   ],
-  "ai_context_does_not_check": ["AGENTS.md"],
   "canvas_required_regions": [
     "repo_identity",
     "maturity_level",

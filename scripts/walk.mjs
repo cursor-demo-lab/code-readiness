@@ -114,12 +114,23 @@ export function detectLanguages(files) {
     langs.add("python");
   }
   if (has("package.json") || has("tsconfig.json")) langs.add("node");
-  if (has("pom.xml") || has("build.gradle")) langs.add("java");
+  if (has("pom.xml") || has("build.gradle") || files.some((f) => f.endsWith(".java"))) {
+    langs.add("java");
+  }
   if (has("build.gradle.kts") || files.some((f) => f.endsWith(".kt"))) langs.add("kotlin");
   if (files.some((f) => f.endsWith(".csproj") || f.endsWith(".sln") || f === "global.json")) {
     langs.add("csharp");
   }
   if (has("Package.swift") || files.some((f) => f.endsWith(".swift"))) langs.add("swift");
+  if (files.some((f) => f.endsWith(".c"))) langs.add("c");
+  if (files.some((f) => /\.(cpp|cc|cxx|hpp|hh)$/i.test(f))) langs.add("cpp");
+  if (
+    has("stack.yaml") ||
+    has("cabal.project") ||
+    files.some((f) => f.endsWith(".hs") || f.endsWith(".cabal"))
+  ) {
+    langs.add("haskell");
+  }
   return langs;
 }
 
