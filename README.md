@@ -2,7 +2,7 @@
 
 Cursor skill that scores a repository with **local filesystem heuristics** from `checks/catalog.json` and renders the report on a Cursor `/canvas`.
 
-Inspired by Kodus and Factory Agent Readiness. Not a Factory report. Not `/doctor`. Not running `@kodus/agent-readiness`.
+Not `/doctor`.
 
 ## How to run
 
@@ -14,7 +14,7 @@ Optional helper, Node `fs` only, no package install:
 node scripts/code-readiness.mjs /path/to/repo
 ```
 
-Do not `npx @kodus/agent-readiness`. Do not npm or bun install anything for scoring. Do not call Factory. Do not run tests, linters, or scanners. Reading config files is the whole check.
+Do not npm or bun install anything for scoring. Do not run `npx` or third-party scorers. Do not run tests, linters, or scanners. Reading config files is the whole check.
 
 Useful flags:
 
@@ -30,11 +30,7 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 
 ## Honesty
 
-**This catalog.** Deterministic file and config presence. Seven pillars shaped like Kodus. Five levels: Foundational, Guided, Structured, Optimized, Autonomous. 80% of this level's non-skipped checks, sequential, minimum level 1. Skipped L5 quality checks are a third state and drop out of the denominator. v1 never runs those quality checks.
-
-**Kodus CLI.** Inspiration for pillar names, check ids, and the 80% gate. This skill does not vendor or invoke `@kodus/agent-readiness`.
-
-**Factory Agent Readiness.** Inspiration only. Factory uses unpublished LLM pillars. This skill does not call Factory APIs and must not say "Factory score" or "Factory-compatible".
+**This catalog.** Deterministic file and config presence. Seven pillars. Five levels: Foundational, Guided, Structured, Optimized, Autonomous. 80% of this level's non-skipped checks, sequential, minimum level 1. Skipped L5 quality checks are a third state and drop out of the denominator. v1 never runs those quality checks.
 
 **`/doctor`.** A qualitative Cursor rubric with a different canvas schema. The scores are not comparable.
 

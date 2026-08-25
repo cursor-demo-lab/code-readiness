@@ -1,11 +1,11 @@
 ---
 name: code-readiness
-description: Score how ready a repository is for coding agents using local filesystem heuristics from checks/catalog.json, then render a Cursor canvas. Use when the user types /code-readiness, asks about agent readiness or Kodus, asks "is this repo ready for agents", or wants a canvas readiness report. This is not /doctor, not Factory Agent Readiness, and does not run @kodus/agent-readiness.
+description: Score how ready a repository is for coding agents using local filesystem heuristics from checks/catalog.json, then render a Cursor canvas. Use when the user types /code-readiness, asks about agent readiness, asks "is this repo ready for agents", or wants a canvas readiness report. This is not /doctor.
 ---
 
 # /code-readiness
 
-Score a **repository root** by walking `checks/catalog.json` with Read, glob, and grep. Fill a report JSON. Copy this repo's canvas template and sidecar. Do not install packages. Do not run `npx`. Do not call Factory APIs. Do not run an LLM judge. Do not run tests, linters, or scanners.
+Score a **repository root** by walking `checks/catalog.json` with Read, glob, and grep. Fill a report JSON. Copy this repo's canvas template and sidecar. Do not install packages. Do not run `npx`. Do not call external scoring APIs. Do not run an LLM judge. Do not run tests, linters, or scanners.
 
 `/code-readiness` is a deterministic file and config score from this catalog. `/doctor` is a different Cursor rubric. The scores are not comparable. Do not wrap a Doctor canvas.
 
@@ -15,11 +15,10 @@ This skill owns readiness **content** only. When creating or editing the canvas,
 
 - `/code-readiness`
 - agent readiness
-- Kodus
 - "is this repo ready for agents"
 - canvas readiness report
 
-Do not use this skill for `/doctor`, Factory Agent Readiness, or a qualitative Cursor-health review.
+Do not use this skill for `/doctor` or a qualitative Cursor-health review.
 
 ## Recipe
 
@@ -39,9 +38,9 @@ Optional, same catalog, Node `fs` only, no install:
 node scripts/code-readiness.mjs <repoPath>
 ```
 
-If Kodus-the-CLI or `@kodus/agent-readiness` is on the machine, do not run it.
+Do not run npx or third-party scorers.
 
-Cache the JSON report, not the canvas, under `.cursor/cache/readiness/`. Key is repo root + catalog hash + `.git/HEAD` contents. Optional 24h TTL. Do not key cache on a Kodus version. Do not commit the cache.
+Cache the JSON report, not the canvas, under `.cursor/cache/readiness/`. Key is repo root + catalog hash + `.git/HEAD` contents. Optional 24h TTL. Do not commit the cache.
 
 If you cannot produce real check results, stop. Do not emit a canvas.
 
@@ -55,9 +54,9 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `ai-context` does not check `AGENTS.md`. If that file exists and `ai-context` failed, mention it outside the denominator.
 
-Forbidden UI copy: "Factory score", "Factory-compatible", "Level 3 Standardized", "9 pillars".
+Forbidden UI copy: "Level 3 Standardized", "9 pillars".
 
-Required attribution: local filesystem heuristics inspired by Kodus and Factory Agent Readiness; not a Factory report; not `/doctor`; not running `@kodus/agent-readiness`.
+Required attribution: local filesystem heuristics from checks/catalog.json; not `/doctor`.
 
 ### 4. Copy the template and write the sidecar
 
@@ -65,9 +64,9 @@ Stable filename `code-readiness.canvas.tsx` (kebab-case). Title Case of the stem
 
 Sidecar is the split for this repeatable report: stable TSX plus `{ "report": payload }` and `useCanvasState("report", null)`. Inline data is the managed `/canvas` default. We use a sidecar because the report reruns.
 
-Import only from `"cursor/canvas"`. Invented exports are the most common runtime failure. After writing `.canvas.tsx` with the write-file tool, the footer `Canvas TypeScript check:` is the ship gate. Fix errors and re-save.
+Import only from `"cursor/canvas"`. Call `useHostTheme()`. Invented exports are the most common runtime failure. After writing `.canvas.tsx` with the write-file tool, the footer `Canvas TypeScript check:` is the ship gate. Fix errors and re-save.
 
-V2 slop: 2 or more of gradients, emojis, box-shadow, wall of identical cards, rainbow, giant text, decorative borders means redesign. One H1. No nested scroll. Captions on `Text size="small"`. Defer the rest of design rules to `/canvas`.
+V2 slop: 2 or more of gradients, emojis, box-shadow, wall of identical cards, rainbow, giant text, decorative borders means redesign. One H1. Two Stats max. No nested scroll. Captions on `Text size="small"`. Defer the rest of design rules to `/canvas` and `canvas/CANVAS.md`.
 
 **Local IDE, 3.1.15 or newer.** Write exactly:
 

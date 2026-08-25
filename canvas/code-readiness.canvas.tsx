@@ -5,6 +5,8 @@ import {
   Divider,
   H1,
   H2,
+  H3,
+  Pill,
   Row,
   Stack,
   Stat,
@@ -12,6 +14,8 @@ import {
   Text,
   TodoListCard,
   useCanvasState,
+  useHostTheme,
+  type ChartTone,
   type TableRowTone,
   type TodoItem,
 } from "cursor/canvas";
@@ -87,21 +91,6 @@ type Report = {
   attribution: string;
 };
 
-function bandTone(level: number): "danger" | "warning" | "info" | "success" {
-  if (level <= 1) return "danger";
-  if (level === 2) return "warning";
-  if (level === 3) return "info";
-  if (level === 4) return "success";
-  return "warning";
-}
-
-function scoreTone(percent: number): "danger" | "warning" | "info" | "success" {
-  if (percent >= 80) return "success";
-  if (percent >= 50) return "info";
-  if (percent >= 30) return "warning";
-  return "danger";
-}
-
 function failingByPillar(report: Report) {
   const fails = report.criterion_results.filter((row) => !row.pass && !row.skipped);
   const groups: Array<{
@@ -123,12 +112,18 @@ function failingByPillar(report: Report) {
   return groups;
 }
 
+function pillarChartTone(level: number): ChartTone {
+  return level <= 1 ? "neutral" : "warning";
+}
+
 export default function CodeReadinessCanvas() {
+  const theme = useHostTheme();
   const [report] = useCanvasState<Report | null>("report", null);
+  const pageStyle = { color: theme.text.primary };
 
   if (report == null) {
     return (
-      <Stack gap={24}>
+      <Stack gap={24} style={pageStyle}>
         <Text size="small" tone="tertiary" weight="semibold">
           /CODE-READINESS
         </Text>
@@ -156,24 +151,31 @@ export default function CodeReadinessCanvas() {
     band.nextLevel == null
       ? null
       : `Need ${band.nextLevelRemaining} more Level ${band.nextLevel} ${band.nextLevelLabel} checks to move the needle. Have ${band.nextLevelCurrent}, need ${band.nextLevelNeeded}. Sequential 80% gate. Skipped AI checks are excluded from the denominator.`;
+  const gapCallout = report.level5Disclaimer
+    ? {
+        title: "Level 5 is not Autonomous here",
+        body: report.level5Disclaimer,
+      }
+    : nextGap
+      ? { title: "Next-level gap", body: nextGap }
+      : null;
 
   return (
-    <Stack gap={24}>
+    <Stack gap={24} style={pageStyle}>
       <Stack gap={12}>
-        <Text size="small" tone="tertiary" weight="semibold">
-          /CODE-READINESS
-        </Text>
+        <Row gap={8} align="center">
+          <Text size="small" tone="tertiary" weight="semibold">
+            /CODE-READINESS
+          </Text>
+          <Pill size="sm">not /doctor</Pill>
+        </Row>
         <H1>{report.repo_identity.name}</H1>
         <Row gap={24} align="center">
-          <Stat
-            value={`Level ${band.level}`}
-            label={band.label}
-            tone={bandTone(band.level)}
-          />
+          <Stat value={`Level ${band.level}`} label={band.label} />
           <Stat
             value={`${band.scorePercent}%`}
             label="Counted checks"
-            tone={scoreTone(band.scorePercent)}
+            tone={band.scorePercent >= 80 ? "success" : undefined}
           />
         </Row>
         <Text>{report.thesis}</Text>
@@ -181,15 +183,10 @@ export default function CodeReadinessCanvas() {
           {report.attribution} Generated {meta.generated_at}. Git {sha}.{" "}
           {report.repo_identity.scope}. llm_calls={meta.llm_calls}.
         </Text>
-        {report.level5Disclaimer ? (
-          <Callout tone="warning" title="Level 5 is not Autonomous here">
-            {report.level5Disclaimer}
-          </Callout>
-        ) : null}
         {report.agentsMdNote ? (
-          <Callout tone="info" title="AGENTS.md is outside the 80% denominator">
+          <Text size="small" tone="tertiary">
             {report.agentsMdNote}
-          </Callout>
+          </Text>
         ) : null}
       </Stack>
 
@@ -200,9 +197,9 @@ export default function CodeReadinessCanvas() {
         </Stack>
       ) : null}
 
-      {nextGap ? (
-        <Callout tone="warning" title="Next-level gap">
-          {nextGap}
+      {gapCallout ? (
+        <Callout tone="warning" title={gapCallout.title}>
+          {gapCallout.body}
         </Callout>
       ) : null}
 
@@ -215,6 +212,7 @@ export default function CodeReadinessCanvas() {
               {
                 name: "Pillar score",
                 data: report.pillar_scores.map((pillar) => pillar.percentage),
+                tone: pillarChartTone(band.level),
               },
             ]}
             horizontal
@@ -225,38 +223,37 @@ export default function CodeReadinessCanvas() {
           />
           <Text size="small" tone="tertiary">
             Dashed line is the 80% gate for the current level's non-skipped
-            checks. Scores are local filesystem heuristics on the repository
-            root only. v1 never runs AI. Not Factory. Not /doctor. Not running
-            @kodus/agent-readiness.
+            checks. Local filesystem heuristics on the repository root only.
+            v1 never runs AI. Not /doctor.
           </Text>
         </Stack>
       ) : null}
 
-      {failGroups.length > 0 ? <Divider /> : null}
-
-      {failGroups.map((group, index) => (
-        <CollapsibleSection
-          title={group.name}
-          count={group.rows.length}
-          trailing={
-            <Text size="small" tone="tertiary">
-              {group.percentage}%
-            </Text>
-          }
-          defaultOpen={index === 0}
-        >
-          <Table
-            headers={["Check", "Gap", "Fix"]}
-            rows={group.rows.map((row) => [
-              row.name,
-              row.message,
-              row.fix || row.details || row.message,
-            ])}
-            rowTone={group.rows.map((): TableRowTone => "danger")}
-            striped
-          />
-        </CollapsibleSection>
-      ))}
+      {failGroups.length > 0 ? (
+        <Stack gap={16}>
+          <Divider />
+          <H3>Failing checks</H3>
+          {failGroups.map((group, index) => (
+            <CollapsibleSection
+              title={group.name}
+              count={group.rows.length}
+              trailing={<Pill size="sm">{`${group.percentage}%`}</Pill>}
+              defaultOpen={index === 0}
+            >
+              <Table
+                headers={["Check", "Gap", "Fix"]}
+                rows={group.rows.map((row) => [
+                  row.name,
+                  row.message,
+                  row.fix || row.details || row.message,
+                ])}
+                rowTone={group.rows.map((): TableRowTone => "danger")}
+                striped
+              />
+            </CollapsibleSection>
+          ))}
+        </Stack>
+      ) : null}
     </Stack>
   );
 }

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadCatalog } from "./catalog.mjs";
+import { loadCatalog, skillRoot } from "./catalog.mjs";
+import { ATTRIBUTION } from "./constants.mjs";
 import { evaluateRepo, scoreResults } from "./evaluate.mjs";
 import { globMatch } from "./walk.mjs";
 
@@ -125,4 +126,21 @@ fs.rmSync(goRoot, { recursive: true, force: true });
 fs.rmSync(rustRoot, { recursive: true, force: true });
 fs.rmSync(javaRoot, { recursive: true, force: true });
 fs.rmSync(emptyRoot, { recursive: true, force: true });
+
+assert.equal(/factory|kodus/i.test(ATTRIBUTION), false);
+function walkTextFiles(dir, acc = []) {
+  for (const name of fs.readdirSync(dir)) {
+    if (name === ".git" || name === "node_modules") continue;
+    const full = path.join(dir, name);
+    if (fs.statSync(full).isDirectory()) walkTextFiles(full, acc);
+    else if (/\.(md|mjs|tsx|ts|json)$/.test(name)) acc.push(full);
+  }
+  return acc;
+}
+for (const file of walkTextFiles(skillRoot())) {
+  if (file.endsWith(`${path.sep}evaluate.test.mjs`)) continue;
+  const text = fs.readFileSync(file, "utf8").replaceAll("kodustech/agent-readiness", "");
+  assert.equal(/factory|kodus/i.test(text), false, file);
+}
+
 process.stdout.write("evaluate.test.mjs ok\n");

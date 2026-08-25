@@ -4,7 +4,7 @@ Files only. Do not run goldens or Opus in the `/code-readiness` skill PR.
 
 A later Claude Opus 5 CloudAgent judge (`claude-opus-5`) runs this harness. The skill path never calls that model. The judge is **one batched call**, eval-only.
 
-Ground truth is `checks/catalog.json` versus the golden tree. There is no Kodus JSON dump.
+Ground truth is `checks/catalog.json` versus the golden tree.
 
 ## What is automated
 
@@ -20,10 +20,10 @@ Do not clone goldens into this repository. At eval time, clone each repo at the 
 
 ## Goldens
 
-Cheap public roots. Expected bands are ordinal hints for `level_sanity`, not Factory scores.
+Cheap public roots. Expected bands are ordinal hints for `level_sanity`.
 
 1. `socketio/chat-example`, expected LOW
-2. `expressjs/express`, expected LOW-MID. Factory L2 is an ordinal hint only
+2. `expressjs/express`, expected LOW-MID
 3. `fastapi/fastapi`, expected MID-HIGH
 4. `nektos/act`, expected HIGH among these cheap goldens. Go auto-passes formatter and type-checker in this catalog
 
@@ -33,7 +33,7 @@ Excluded on purpose: CockroachDB. `kodustech/agent-readiness`.
 
 ## Skill command under eval
 
-Same as production. Catalog walk only. No npx. No Factory APIs.
+Same as production. Catalog walk only. No npx. No external scoring APIs.
 
 ```bash
 node scripts/code-readiness.mjs <goldenRoot> --force --json

@@ -20,7 +20,7 @@
       "sha": "023767fe9872e029271df1418f73401bff20ff40",
       "committed_at": "2026-08-22T20:59:54Z",
       "expected_band": "LOW-MID",
-      "ordinal_hint": "Factory L2 is an ordinal hint only. Do not assert Factory numerators."
+      "ordinal_hint": "LOW-MID is an ordinal hint for level_sanity only."
     },
     {
       "id": "fastapi",
