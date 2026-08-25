@@ -133,7 +133,63 @@ const OPEN_BY_ID: Record<string, string> = {
   "ai-context": "CLAUDE.md",
   codeowners: "CODEOWNERS",
   "security-policy": "SECURITY.md",
+  "pre-commit-hooks": ".pre-commit-config.yaml",
+  "architecture-docs": "ARCHITECTURE.md",
 };
+
+const WHY_FOR_AGENTS: Record<string, string> = {
+  editorconfig:
+    "Agents guess indent and charset. .editorconfig is a machine-readable contract so patches match the repo without a style fight in review.",
+  linter:
+    "Agents generate code that looks right. A linter is a cheap local oracle they can loop on after each edit.",
+  formatter:
+    "Without a formatter, agent diffs are mostly whitespace. Format-on-write keeps the real change visible.",
+  "type-checker":
+    "Agents hallucinate APIs. tsconfig or mypy is a local proof they can rerun without starting the app.",
+  "pre-commit-hooks":
+    "Agents skip the human lint step. Hooks make the default commit path the same as CI.",
+  "test-framework":
+    "Agents need a named runner. A configured framework tells them how to verify a change in one command.",
+  "test-files-exist":
+    "A test file is a fixture the agent can extend instead of inventing coverage from scratch.",
+  "test-script":
+    "scripts.test or make test is the one command an agent will actually run.",
+  "ai-context":
+    "AGENTS.md is onboarding. Without it, agents scrape the README and invent conventions and how to run one test.",
+  contributing:
+    "PR title, commit, and review rules. Agents otherwise open PRs that bounce on process, not code.",
+  readme:
+    "The README is the first file an agent reads. Substance here is the difference between a useful first patch and a wrong one.",
+  "env-documentation":
+    "Agents invent .env values or commit secrets. An example file is the schema for local boot.",
+  "lock-file":
+    "Agents resolve different versions than CI. A lockfile makes install reproducible.",
+  "version-pinned":
+    "Agents pick Node or Python from the host. engines / python_requires / go.mod tell them which toolchain to assume.",
+  "setup-script":
+    "Agents need how to run this. scripts.dev, Makefile, or setup.py is that answer.",
+  "ci-config":
+    "CI is the remote oracle. Workflow files tell the agent what green means.",
+  "api-docs":
+    "Agents guess the public surface. OpenAPI or TypeDoc is a typed map of what callers expect.",
+  codeowners:
+    "Agents do not know who can review a path. CODEOWNERS routes the PR and names the expert.",
+  "architecture-docs":
+    "Agents change the wrong layer. ADRs tell them the intended seams.",
+  containerization:
+    "A Dockerfile or devcontainer is a known-good environment. Agents stop improvising local setup.",
+  "branch-protection":
+    "Documented branch rules stop agents from pushing around review.",
+  "dead-code-detection":
+    "Agents add files and rarely delete. Unused-export checks keep generated code from rotting.",
+  "secrets-detection":
+    "Agents paste keys into examples. A detector is the last gate before that lands on main.",
+  license:
+    "Agents need to know what they can copy. A LICENSE at root is the legal context for generated code.",
+};
+
+const WHY_FOR_AGENTS_FALLBACK =
+  "This file is a machine-readable signal agents can follow without guessing.";
 
 const CONCRETE_PATHS = [
   ".github/CODEOWNERS",
@@ -162,18 +218,90 @@ function scoreChartTone(percent: number): ChartTone {
   return "danger";
 }
 
-function namedOpenPath(item: Remediation): string | null {
-  const mapped = OPEN_BY_ID[item.criterionId];
-  if (mapped) return mapped;
-  const blob = `${item.title} ${item.description} ${item.reason}`;
-  return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
-}
-
 function failOpenPath(row: CriterionRow): string | null {
   const mapped = OPEN_BY_ID[row.criterionId];
   if (mapped) return mapped;
   const blob = `${row.name} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`;
   return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
+}
+
+function joinIds(ids: string[]): string {
+  return ids.join(", ");
+}
+
+function remainingGateFails(report: Report): CriterionRow[] {
+  const band = report.maturity_level;
+  if (band.l1Capped) {
+    const ids = new Set(band.l1CapReasons);
+    return report.criterion_results.filter((row) => ids.has(row.criterionId));
+  }
+  if (band.nextLevel == null) return [];
+  return report.criterion_results.filter(
+    (row) => row.level === band.nextLevel && !row.skipped && !row.pass,
+  );
+}
+
+function rankedFixRows(report: Report): CriterionRow[] {
+  const gate = remainingGateFails(report);
+  const gateIds = new Set(gate.map((row) => row.criterionId));
+  const rest = report.criterion_results.filter(
+    (row) => !row.pass && !row.skipped && !gateIds.has(row.criterionId),
+  );
+  const byFileThenCatalog = (a: CriterionRow, b: CriterionRow) => {
+    const aFile = failOpenPath(a) == null ? 1 : 0;
+    const bFile = failOpenPath(b) == null ? 1 : 0;
+    if (aFile !== bFile) return aFile - bFile;
+    return 0;
+  };
+  return [
+    ...gate.slice().sort(byFileThenCatalog),
+    ...rest.slice().sort(byFileThenCatalog),
+  ].slice(0, 5);
+}
+
+function todoLine(row: CriterionRow): string {
+  const file = failOpenPath(row);
+  if (file) return `${row.criterionId} — add ${file}`;
+  const hint = row.fix || row.message;
+  return hint ? `${row.criterionId} — ${hint}` : row.criterionId;
+}
+
+function whyForAgents(criterionId: string): string {
+  return WHY_FOR_AGENTS[criterionId] ?? WHY_FOR_AGENTS_FALLBACK;
+}
+
+function countedPillarFails(
+  report: Report,
+  pillarId: string,
+): CriterionRow[] {
+  return report.criterion_results.filter(
+    (row) => row.pillarId === pillarId && !row.skipped && !row.pass,
+  );
+}
+
+function nextGateCallout(
+  report: Report,
+): { title: string; body: string } | null {
+  const band = report.maturity_level;
+  if (band.l1Capped) {
+    return {
+      title: "L1 capped",
+      body: `Passed the L2 gate (${band.l2Passed}/${band.l2Total}) but stuck on ${joinIds(band.l1CapReasons)}. Sequential 80% gate. This cap is why the band stays Functional.`,
+    };
+  }
+  if (report.level5Disclaimer) {
+    return {
+      title: "Level 5 is not Autonomous here",
+      body: report.level5Disclaimer,
+    };
+  }
+  if (band.nextLevel == null || band.nextLevelLabel == null) return null;
+  const ids = remainingGateFails(report).map((row) => row.criterionId);
+  const except = ids.length > 0 ? ` except ${joinIds(ids)}` : "";
+  return {
+    title: `Would be ${band.nextLevelLabel}`,
+    body: `Would be ${band.nextLevelLabel}${except}. Have ${band.nextLevelCurrent}, need ${band.nextLevelNeeded} Level ${band.nextLevel} checks. Sequential 80% gate. Skipped AI checks are excluded from the denominator.`,
+  };
 }
 
 function rowTone(row: CriterionRow): TableRowTone {
@@ -294,40 +422,32 @@ export default function CodeReadinessCanvas() {
   const passedCount = counted.filter((row) => row.pass).length;
   const failedCount = counted.length - passedCount;
   const skippedCount = report.criterion_results.filter((row) => row.skipped).length;
-  const todos: TodoItem[] = report.remediations.map((item) => ({
-    id: item.id,
-    content: `${item.title}. ${item.description}`,
+  const gateRows = remainingGateFails(report);
+  const rankedRows = rankedFixRows(report);
+  const todos: TodoItem[] = rankedRows.map((row) => ({
+    id: row.criterionId,
+    content: todoLine(row),
     status: "pending",
   }));
-  const openable = report.remediations
-    .map((item) => ({ item, path: namedOpenPath(item) }))
-    .filter((entry): entry is { item: Remediation; path: string } => entry.path != null);
-  const topFailPath =
-    report.criterion_results
-      .filter((row) => !row.pass && !row.skipped)
-      .map(failOpenPath)
-      .find((file) => file != null) ?? null;
+  const openable = rankedRows
+    .map((row) => ({ row, path: failOpenPath(row) }))
+    .filter((entry): entry is { row: CriterionRow; path: string } => entry.path != null);
+  const topFailPath = openable[0]?.path ?? null;
+  const unblockFiles = openable.map((entry) => entry.path).slice(0, 3);
   const sha = report.repo_identity.gitSha
     ? report.repo_identity.gitSha.slice(0, 12)
     : "no git sha";
   const repoHref = identityUrl(report.repo_identity);
-  const nextGap =
-    band.nextLevel == null
+  const gapCallout = nextGateCallout(report);
+  const todoHeading = band.l1Capped
+    ? "Clear the L1 cap"
+    : band.nextLevelLabel != null
+      ? `Unblock ${band.nextLevelLabel}`
+      : "Fix these first";
+  const unblockHint =
+    unblockFiles.length === 0 || band.nextLevelLabel == null
       ? null
-      : `Need ${band.nextLevelRemaining} more Level ${band.nextLevel} ${band.nextLevelLabel} checks to move the needle. Have ${band.nextLevelCurrent}, need ${band.nextLevelNeeded}. Sequential 80% gate. Skipped AI checks are excluded from the denominator.`;
-  const gapCallout = band.l1Capped
-    ? {
-        title: "L1 capped",
-        body: `Passed the L2 gate (${band.l2Passed}/${band.l2Total}) but stuck on ${band.l1CapReasons.join(", ")}. Sequential 80% gate. This cap is why the band stays Functional.`,
-      }
-    : report.level5Disclaimer
-      ? {
-          title: "Level 5 is not Autonomous here",
-          body: report.level5Disclaimer,
-        }
-      : nextGap
-        ? { title: "Next-level gap", body: nextGap }
-        : null;
+      : `Add ${joinIds(unblockFiles)} to move toward ${band.nextLevelLabel}.`;
   const pieData = [
     { label: "Pass", value: passedCount, tone: "success" as const },
     { label: "Fail", value: failedCount, tone: "danger" as const },
@@ -448,24 +568,34 @@ export default function CodeReadinessCanvas() {
         </Callout>
       ) : null}
 
-      <Stack gap={8}>
-        <H2>Sequential gate</H2>
-        <SequentialGateDag current={band.level} />
-        <Text size="small" tone="tertiary">
-          L1 to L5 walk. Highlighted node is the current band. The canvas does
-          not recompute the 80% gate.
-        </Text>
-      </Stack>
+      {gateRows.length > 0 ? (
+        <Row gap={8} wrap>
+          {gateRows.map((row) => (
+            <Pill key={row.criterionId} size="sm" tone="warning">
+              {row.criterionId}
+            </Pill>
+          ))}
+        </Row>
+      ) : null}
 
       {todos.length > 0 ? (
         <Stack gap={12}>
-          <H2>Fix these first</H2>
-          <TodoListCard todos={todos} defaultExpanded />
+          <H2>{todoHeading}</H2>
+          {unblockHint ? <Text>{unblockHint}</Text> : null}
+          <TodoListCard
+            todos={todos}
+            defaultExpanded
+            onTodoClick={(todo) => {
+              const row = rankedRows.find((item) => item.criterionId === todo.id);
+              const file = row ? failOpenPath(row) : null;
+              if (file) dispatch({ type: "openFile", path: file });
+            }}
+          />
           {openable.length > 0 ? (
             <Row gap={8} wrap>
               {openable.map((entry) => (
                 <Button
-                  key={entry.item.id}
+                  key={entry.row.criterionId}
                   variant="secondary"
                   onClick={() => dispatch({ type: "openFile", path: entry.path })}
                 >
@@ -516,41 +646,74 @@ export default function CodeReadinessCanvas() {
 
       {report.pillar_scores.length > 0 ? (
         <Stack gap={12}>
-          <H2>Pillars</H2>
+          <H2>Category breakdown</H2>
+          <Text size="small" tone="tertiary">
+            Remaining counted fails in each pillar: the file to add, and why
+            agents care.
+          </Text>
           <Grid columns={2} gap={16}>
-            {report.pillar_scores.map((pillar) => (
-              <Card key={pillar.pillarId}>
-                <CardHeader>{pillar.name}</CardHeader>
-                <CardBody>
-                  <Stack gap={8}>
-                    {pillar.total > 0 ? (
-                      <UsageBar
-                        total={pillar.total}
-                        topLeftLabel={`${pillar.passed} / ${pillar.total}`}
-                        segments={[
-                          { id: "passed", value: pillar.passed, color: "green" },
-                          {
-                            id: "failed",
-                            value: pillar.total - pillar.passed,
-                            color: "red",
-                          },
-                        ]}
-                      />
-                    ) : (
-                      <Text size="small" tone="tertiary">
-                        No counted checks
-                      </Text>
-                    )}
-                    <Text size="small" tone="tertiary">
-                      {`${pillar.percentage}%`}
-                    </Text>
-                  </Stack>
-                </CardBody>
-              </Card>
-            ))}
+            {report.pillar_scores.map((pillar) => {
+              const fails = countedPillarFails(report, pillar.pillarId);
+              return (
+                <Card key={pillar.pillarId}>
+                  <CardHeader
+                    trailing={<Pill size="sm">{`${pillar.percentage}%`}</Pill>}
+                  >
+                    {pillar.name}
+                  </CardHeader>
+                  <CardBody>
+                    <Stack gap={12}>
+                      {pillar.total > 0 ? (
+                        <UsageBar
+                          total={pillar.total}
+                          topLeftLabel={`${pillar.passed} / ${pillar.total}`}
+                          segments={[
+                            { id: "passed", value: pillar.passed, color: "green" },
+                            {
+                              id: "failed",
+                              value: pillar.total - pillar.passed,
+                              color: "red",
+                            },
+                          ]}
+                        />
+                      ) : null}
+                      {fails.length === 0 ? (
+                        <Text size="small" tone="tertiary">
+                          No counted gaps.
+                        </Text>
+                      ) : (
+                        fails.map((row) => {
+                          const file = failOpenPath(row);
+                          return (
+                            <Stack key={row.criterionId} gap={4}>
+                              <Text>
+                                <Code>{row.criterionId}</Code>
+                                {` — ${file ? `add ${file}` : row.fix || row.message}`}
+                              </Text>
+                              <Text size="small" tone="tertiary">
+                                {`Why agents care: ${whyForAgents(row.criterionId)}`}
+                              </Text>
+                            </Stack>
+                          );
+                        })
+                      )}
+                    </Stack>
+                  </CardBody>
+                </Card>
+              );
+            })}
           </Grid>
         </Stack>
       ) : null}
+
+      <Stack gap={8}>
+        <H2>Sequential gate</H2>
+        <SequentialGateDag current={band.level} />
+        <Text size="small" tone="tertiary">
+          L1 to L5 walk. Highlighted node is the current band. The canvas does
+          not recompute the 80% gate.
+        </Text>
+      </Stack>
 
       {report.pillar_scores.length > 0 ? (
         <Stack gap={8}>
@@ -593,9 +756,13 @@ export default function CodeReadinessCanvas() {
         />
         <Text size="small" tone="tertiary">
           Failing counted checks left at each sequential gate
-          {band.nextLevel == null
+          {band.nextLevel == null || band.nextLevelLabel == null
             ? "."
-            : `. Need ${band.nextLevelRemaining} more Level ${band.nextLevel} ${band.nextLevelLabel} checks to move the needle.`}
+            : `. Would be ${band.nextLevelLabel}${
+                gateRows.length > 0
+                  ? ` except ${joinIds(gateRows.map((row) => row.criterionId))}`
+                  : ""
+              }.`}
         </Text>
       </Stack>
 
