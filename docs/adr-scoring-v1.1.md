@@ -34,6 +34,8 @@ Factory L3 examples include FastAPI. The earlier Python-native `test-script` / `
 
 Hill-climb after the v2 27-OSS eval: Factory L1 Functional treats type checker as "a checker exists," not TypeScript `strict: true`. Scoring v2 failed nestjs/nest and colinhacks/zod for a present non-`strict` `tsconfig.json`, and the microsoft/TypeScript stub passed as Go from `tools/*.go` because `languagesPass` ran first and `detectLanguages` treated `*.go` as enough. Existence of root `tsconfig.json` now passes; `languagesPass` requires a manifest; file/config hits precede `languagesPass`. No new ids, no threshold change, no new pillars.
 
+Hill-climb after PR #12: microsoft/TypeScript dropped L2→L1 because Go formatter no longer false-passed from stray `tools/*.go`. The remaining formatter fail is a detector hole — that stub has a root `.dprint.jsonc` and still failed `formatter` with "No formatter configuration found." Catalog `anyFiles` listed Prettier / rustfmt / rubocop; `fileContains` listed biome / black / ruff / package.json `"prettier"`. dprint is a real formatter that repo uses, and `.prettierrc.*` does not match `.dprint.jsonc`. Root `.dprint.json` / `.dprint.jsonc` / `dprint.json` now pass `formatter`. No new ids, no dummy `.editorconfig`, no L1/L2 threshold change (stays 80%; 80% of 12 needs 10; TypeScript was 9/12 and dprint makes that 10/12 Documented honestly), no new pillars.
+
 ## Explicitly refused
 
 - New criterion ids

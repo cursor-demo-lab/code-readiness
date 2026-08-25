@@ -93,7 +93,17 @@
       "pillarId": "style-linting",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": [".prettierrc", ".prettierrc.*", "prettier.config.*", "rustfmt.toml", ".rustfmt.toml", ".rubocop.yml"],
+      "anyFiles": [
+        ".prettierrc",
+        ".prettierrc.*",
+        "prettier.config.*",
+        ".dprint.json",
+        ".dprint.jsonc",
+        "dprint.json",
+        "rustfmt.toml",
+        ".rustfmt.toml",
+        ".rubocop.yml"
+      ],
       "fileContains": [
         { "file": "biome.json", "includes": ["formatter"] },
         { "file": "biome.jsonc", "includes": ["formatter"] },
@@ -106,7 +116,7 @@
         "csharp": "C# formatting is built-in via dotnet format."
       },
       "fail": "No formatter configuration found.",
-      "fix": "Add Prettier, Biome, Black, or Ruff format config.",
+      "fix": "Add Prettier, Biome, dprint, Black, or Ruff format config.",
       "effort": "medium"
     },
     {
