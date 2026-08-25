@@ -250,15 +250,37 @@ assert.equal(
 );
 
 const versionPinned = catalog.criteria.find((row) => row.id === "version-pinned");
-assert.ok(versionPinned.anyFiles.includes(".python-version"));
-assert.ok(versionPinned.anyFiles.includes(".tool-versions"));
 assert.ok(versionPinned.anyFiles.includes("go.mod"));
-assert.ok(versionPinned.anyFiles.includes(".go-version"));
+assert.equal(versionPinned.anyFiles.includes(".tool-versions"), false, "empty .tool-versions must not pass on presence");
+assert.equal(versionPinned.anyFiles.includes(".nvmrc"), false, "empty .nvmrc must not pass on presence");
+assert.equal(versionPinned.anyFiles.includes(".python-version"), false);
+assert.equal(versionPinned.anyFiles.includes(".go-version"), false);
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === ".tool-versions"));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === ".nvmrc"));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === ".python-version"));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === ".go-version"));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "runtime.txt" && rule.includes.includes("python-")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("maven.compiler.source")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("maven.compiler.release")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "build.gradle" && rule.includes.includes("jvmToolchain")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "build.gradle.kts" && rule.includes.includes("sourceCompatibility")));
+assert.ok(
+  versionPinned.fileContains.some(
+    (rule) =>
+      rule.file === "**/*.gradle.kts" &&
+      rule.includes.includes("jvmToolchain") &&
+      rule.includes.includes("JavaLanguageVersion") &&
+      !rule.includes.includes("sourceCompatibility"),
+  ),
+);
+assert.ok(
+  versionPinned.fileContains.some(
+    (rule) =>
+      rule.file === "**/*.gradle" &&
+      rule.includes.includes("jvmToolchain") &&
+      rule.includes.includes("JavaLanguageVersion"),
+  ),
+);
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "setup.py" && rule.includes.includes("python_requires")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"engines\"")));
@@ -1527,6 +1549,35 @@ assertPass("setup-script", { "configure.ac": "AC_INIT([demo],[1.0])\n" }, /confi
 assertPass("version-pinned", { ".go-version": "1.22.0\n" }, /\.go-version/);
 assertPass("version-pinned", { "runtime.txt": "python-3.12.4\n" }, /python-/);
 assertFail("version-pinned", { "runtime.txt": "node-20\n" });
+assertFail("version-pinned", { ".tool-versions": "" });
+assertFail("version-pinned", { "documentation/.tool-versions": "" });
+assertPass("version-pinned", { "documentation/.tool-versions": "nodejs 24.19.0\n" }, /tool-versions/);
+assertPass("version-pinned", { ".tool-versions": "java 21\n" }, /tool-versions/);
+assertPass("version-pinned", { ".tool-versions": "nodejs 20\n" }, /tool-versions/);
+assertPass(
+  "version-pinned",
+  {
+    "gradle/plugins/common/src/main/kotlin/junitbuild.java-toolchain-conventions.gradle.kts":
+      "java { toolchain { languageVersion.set(JavaLanguageVersion.of(25)) } }\n",
+  },
+  /JavaLanguageVersion/,
+);
+assertPass(
+  "version-pinned",
+  {
+    "gradle/plugins/common/src/main/kotlin/junitbuild.java-toolchain-conventions.gradle.kts":
+      "java { jvmToolchain(25) }\n",
+  },
+  /jvmToolchain/,
+);
+assertFail("version-pinned", { "packages/foo/build.gradle.kts": "plugins { java }\n" });
+assertFail("version-pinned", { "convention.gradle.kts": "" });
+assertPass(
+  "version-pinned",
+  { "tokio/Cargo.toml": '[package]\nname = "tokio"\nrust-version = "1.71"\n' },
+  /rust-version/,
+);
+assertFail("version-pinned", { "testdata/go.mod": "module example.com/x\n\ngo 1.22\n" });
 assertPass(
   "version-pinned",
   { "pom.xml": "<project><maven.compiler.source>17</maven.compiler.source></project>\n" },
@@ -1737,6 +1788,8 @@ assert.match(checksReadme, /root `environment\.json` does not count/);
 assert.match(checksReadme, /any walked path with that basename/);
 assert.match(checksReadme, /skip signals stay repository-root only/);
 assert.match(checksReadme, /IGNORE_DIRS/);
+assert.match(checksReadme, /\*\.gradle\.kts/);
+assert.match(checksReadme, /empty asdf\/nvm files do not count/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
