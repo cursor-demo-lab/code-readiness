@@ -536,6 +536,26 @@ assert.ok(
 );
 
 assert.equal(/factory|kodus/i.test(ATTRIBUTION), false);
+
+const canvasTemplate = fs.readFileSync(
+  path.join(skillRoot(), "canvas", "code-readiness.canvas.tsx"),
+  "utf8",
+);
+assert.match(canvasTemplate, /from "cursor\/canvas"/);
+assert.equal(
+  /from ["'](?!cursor\/canvas)/.test(canvasTemplate),
+  false,
+  "canvas must import only from cursor/canvas",
+);
+assert.match(canvasTemplate, /LineChart/);
+assert.match(canvasTemplate, /computeDAGLayout/);
+assert.match(canvasTemplate, /\bLink\b/);
+assert.match(canvasTemplate, /TextInput/);
+assert.match(canvasTemplate, /Checkbox/);
+assert.equal(canvasTemplate.includes("RadarChart"), false);
+assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(canvasTemplate), false);
+assert.equal(/linear-gradient|radial-gradient/.test(canvasTemplate), false);
+
 function walkTextFiles(dir, acc = []) {
   for (const name of fs.readdirSync(dir)) {
     if (name === ".git" || name === "node_modules") continue;
