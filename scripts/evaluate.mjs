@@ -4,6 +4,7 @@ import { thresholdForLevel } from "./constants.mjs";
 import {
   ciFiles,
   detectLanguages,
+  detectManifestLanguages,
   findMatches,
   globMatch,
   packageJson,
@@ -169,17 +170,13 @@ function evalCriterion(criterion, ctx) {
     return skip("Skipped. v1 does not run L5 quality checks.");
   }
 
-  const langPass = criterion.languagesPass;
-  if (langPass) {
-    for (const [lang, message] of Object.entries(langPass)) {
-      if (ctx.languages.has(lang)) return hit(message);
-    }
-  }
-
   if (criterion.tsconfigStrict) {
-    const raw = readText(ctx.repoRoot, "tsconfig.json");
-    if (parseTsconfigStrict(raw)) {
-      return hit("TypeScript configured with strict mode in tsconfig.json");
+    if (fs.existsSync(path.join(ctx.repoRoot, "tsconfig.json"))) {
+      const raw = readText(ctx.repoRoot, "tsconfig.json");
+      if (parseTsconfigStrict(raw)) {
+        return hit("TypeScript configured with strict mode in tsconfig.json");
+      }
+      return hit("Found tsconfig.json");
     }
   }
 
@@ -262,11 +259,16 @@ function evalCriterion(criterion, ctx) {
     }
   }
 
-  if (criterion.id === "type-checker") {
-    const hasTsconfig = fs.existsSync(path.join(ctx.repoRoot, "tsconfig.json"));
-    if (!hasTsconfig) {
-      return skip("This language has no conventional type-checker file.");
+  const langPass = criterion.languagesPass;
+  if (langPass) {
+    const manifests = detectManifestLanguages(ctx.files);
+    for (const [lang, message] of Object.entries(langPass)) {
+      if (manifests.has(lang)) return hit(message);
     }
+  }
+
+  if (criterion.id === "type-checker") {
+    return skip("This language has no conventional type-checker file.");
   }
 
   return miss(criterion.fail);

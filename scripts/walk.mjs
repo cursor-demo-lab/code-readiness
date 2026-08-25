@@ -146,6 +146,23 @@ export function detectLanguages(files) {
   return langs;
 }
 
+const LANGUAGE_PASS_MANIFESTS = {
+  go: (files) => files.includes("go.mod"),
+  rust: (files) => files.includes("Cargo.toml"),
+  java: (files) => files.includes("pom.xml") || files.includes("build.gradle"),
+  kotlin: (files) => files.includes("build.gradle.kts"),
+  csharp: (files) => files.some((file) => file.endsWith(".csproj") || file === "global.json"),
+  swift: (files) => files.includes("Package.swift"),
+};
+
+export function detectManifestLanguages(files) {
+  const langs = new Set();
+  for (const [lang, test] of Object.entries(LANGUAGE_PASS_MANIFESTS)) {
+    if (test(files)) langs.add(lang);
+  }
+  return langs;
+}
+
 export function ciFiles(files) {
   return findMatches(files, CI_GLOBS);
 }

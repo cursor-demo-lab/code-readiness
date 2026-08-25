@@ -116,10 +116,12 @@ assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && r
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff.lint]")));
 
 const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
+assert.ok(typeChecker.anyFiles.includes("tsconfig.json"));
 assert.ok(typeChecker.anyFiles.includes("mypy.ini"));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "setup.cfg" && rule.includes.includes("[mypy]")));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.mypy]")));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pyright]")));
+assert.equal(typeChecker.tsconfigStrict, true);
 
 const testFramework = catalog.criteria.find((row) => row.id === "test-framework");
 assert.ok(testFramework.anyFiles.includes("conftest.py"));
@@ -431,7 +433,8 @@ assert.equal(tsNoLockById["lock-file"].skipped, true, tsNoLockById["lock-file"].
 assert.match(tsNoLockById["lock-file"].message, /no conventional committed lockfile/i);
 assert.equal(tsNoLockById["lock-file"].pass, false);
 assert.equal(tsNoLockById["type-checker"].skipped, false);
-assert.equal(tsNoLockById["type-checker"].pass, false, tsNoLockById["type-checker"].message);
+assert.equal(tsNoLockById["type-checker"].pass, true, tsNoLockById["type-checker"].message);
+assert.match(tsNoLockById["type-checker"].message, /tsconfig\.json/);
 
 const jsLockPassRoot = tmp("code-readiness-js-lock-");
 fs.writeFileSync(path.join(jsLockPassRoot, "package.json"), "{}\n");
@@ -503,6 +506,56 @@ fs.writeFileSync(path.join(mypyRoot, "pyproject.toml"), "[tool.mypy]\nstrict = t
 const mypyById = resultById(evaluateRepo(mypyRoot));
 assert.equal(mypyById["type-checker"].pass, true, mypyById["type-checker"].message);
 assert.match(mypyById["type-checker"].message, /pyproject\.toml/);
+
+const looseTsRoot = tmp("code-readiness-ts-loose-");
+fs.writeFileSync(
+  path.join(looseTsRoot, "tsconfig.json"),
+  JSON.stringify({ compilerOptions: { target: "ES2020" } }),
+);
+const looseTsById = resultById(evaluateRepo(looseTsRoot));
+assert.equal(looseTsById["type-checker"].pass, true, looseTsById["type-checker"].message);
+assert.equal(looseTsById["type-checker"].skipped, false);
+assert.match(looseTsById["type-checker"].message, /tsconfig\.json/);
+assert.equal(/Go has a built-in static type system/.test(looseTsById["type-checker"].message), false);
+
+const nestTsRoot = tmp("code-readiness-ts-nest-");
+fs.writeFileSync(
+  path.join(nestTsRoot, "tsconfig.json"),
+  JSON.stringify({ compilerOptions: { strictNullChecks: true } }),
+);
+const nestTsById = resultById(evaluateRepo(nestTsRoot));
+assert.equal(nestTsById["type-checker"].pass, true, nestTsById["type-checker"].message);
+assert.equal(nestTsById["type-checker"].skipped, false);
+assert.match(nestTsById["type-checker"].message, /tsconfig\.json/);
+assert.equal(/Go has a built-in static type system/.test(nestTsById["type-checker"].message), false);
+
+const strayGoRoot = tmp("code-readiness-stray-go-");
+fs.writeFileSync(path.join(strayGoRoot, "package.json"), "{}\n");
+fs.mkdirSync(path.join(strayGoRoot, "tools"));
+fs.writeFileSync(path.join(strayGoRoot, "tools", "foo.go"), "package tools\n");
+const strayGoById = resultById(evaluateRepo(strayGoRoot));
+assert.equal(strayGoById["type-checker"].skipped, true, strayGoById["type-checker"].message);
+assert.match(strayGoById["type-checker"].message, /no conventional type-checker file/i);
+assert.equal(/Go has a built-in static type system/.test(strayGoById["type-checker"].message), false);
+assert.equal(strayGoById.formatter.pass, false, strayGoById.formatter.message);
+
+const goModOnlyRoot = tmp("code-readiness-gomod-only-");
+fs.writeFileSync(path.join(goModOnlyRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n");
+const goModOnlyById = resultById(evaluateRepo(goModOnlyRoot));
+assert.equal(goModOnlyById["type-checker"].pass, true, goModOnlyById["type-checker"].message);
+assert.equal(goModOnlyById["type-checker"].skipped, false);
+assert.match(goModOnlyById["type-checker"].message, /Go has a built-in static type system/);
+
+const tsShadowRoot = tmp("code-readiness-ts-shadow-");
+fs.writeFileSync(
+  path.join(tsShadowRoot, "tsconfig.json"),
+  JSON.stringify({ compilerOptions: { target: "ES2020" } }),
+);
+fs.writeFileSync(path.join(tsShadowRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n");
+const tsShadowById = resultById(evaluateRepo(tsShadowRoot));
+assert.equal(tsShadowById["type-checker"].pass, true, tsShadowById["type-checker"].message);
+assert.match(tsShadowById["type-checker"].message, /tsconfig\.json/);
+assert.equal(/Go has a built-in static type system/.test(tsShadowById["type-checker"].message), false);
 
 const conftestRoot = tmp("code-readiness-conftest-");
 fs.mkdirSync(path.join(conftestRoot, "tests"), { recursive: true });
