@@ -64,15 +64,35 @@ function skip(message) {
   return { pass: false, skipped: true, message };
 }
 
+function posixBasename(file) {
+  const slash = file.lastIndexOf("/");
+  return slash === -1 ? file : file.slice(slash + 1);
+}
+
+function isGlobPattern(pattern) {
+  return /[*?]/.test(pattern);
+}
+
+function isBasenameOnly(pattern) {
+  return Boolean(pattern) && !pattern.includes("/") && !isGlobPattern(pattern);
+}
+
 function evalAnyFiles(repoRoot, files, patterns) {
   if (!patterns?.length) return [];
   const hits = [];
   for (const pattern of patterns) {
-    if (!/[*?]/.test(pattern)) {
+    if (isGlobPattern(pattern)) {
+      hits.push(...findMatches(files, [pattern]));
+      continue;
+    }
+    if (pattern.includes("/")) {
       if (fs.existsSync(path.join(repoRoot, pattern))) hits.push(pattern);
       continue;
     }
-    hits.push(...findMatches(files, [pattern]));
+    if (fs.existsSync(path.join(repoRoot, pattern))) hits.push(pattern);
+    for (const file of files) {
+      if (file !== pattern && posixBasename(file) === pattern) hits.push(file);
+    }
   }
   return hits;
 }
@@ -80,9 +100,11 @@ function evalAnyFiles(repoRoot, files, patterns) {
 function evalFileContains(repoRoot, files, rules) {
   if (!rules?.length) return null;
   for (const rule of rules) {
-    const matches = files.filter(
-      (file) => file === rule.file || globMatch(file, rule.file),
-    );
+    const basenameOnly = isBasenameOnly(rule.file);
+    const matches = files.filter((file) => {
+      if (file === rule.file || globMatch(file, rule.file)) return true;
+      return basenameOnly && posixBasename(file) === rule.file;
+    });
     for (const file of matches) {
       const content = readText(repoRoot, file) ?? "";
       const needle = (rule.includes ?? []).find((token) => content.includes(token));

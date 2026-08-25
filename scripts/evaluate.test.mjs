@@ -112,6 +112,7 @@ assert.equal(/does not look for AGENTS\.md/i.test(aiContext.fix), false);
 
 const contributing = catalog.criteria.find((row) => row.id === "contributing");
 assert.ok(contributing.anyFiles.includes("**/CONTRIBUTING.md"));
+assert.ok(contributing.anyFiles.includes("**/CONTRIBUTING.rst"));
 assert.ok(contributing.anyFiles.includes("docs/**/contributing*"));
 assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.md"));
 assert.ok(contributing.anyFiles.includes("CONTRIBUTING.rst"));
@@ -392,7 +393,15 @@ assert.ok(bundleAnalysis.fileContains.some((rule) => (rule.includes ?? []).inclu
 
 const securityPolicy = catalog.criteria.find((row) => row.id === "security-policy");
 assert.ok(securityPolicy.anyFiles.includes("docs/SECURITY.md"));
+assert.ok(securityPolicy.anyFiles.includes("SECURITY.md"));
 assert.ok(securityPolicy.anyFiles.includes("security.md"));
+
+const e2eTests = catalog.criteria.find((row) => row.id === "e2e-tests");
+assert.ok(e2eTests.anyFiles.includes("**/e2e/**"));
+assert.ok(e2eTests.anyFiles.includes("**/cypress/**"));
+assert.ok(e2eTests.anyFiles.includes("tests/e2e/**"));
+assert.ok(e2eTests.anyFiles.includes("**/playwright.config.*"));
+assert.ok(e2eTests.anyFiles.includes("integration"));
 
 const depUpdate = catalog.criteria.find((row) => row.id === "dep-update-automation");
 assert.ok(depUpdate.anyFiles.includes("renovate.json5"));
@@ -1416,6 +1425,63 @@ assertFail("api-docs", { "mkdocs.yml": "site_name: docs\n" });
 assertFail("api-docs", { "conf.py": "project = 'docs'\n" });
 
 assertPass("codeowners", { "docs/CODEOWNERS": "* @team\n" }, /docs\/CODEOWNERS/);
+assertPass("ai-context", { "packages/app/AGENTS.md": "# agents\n" }, /packages\/app\/AGENTS\.md/);
+assertPass("linter", { "apps/web/biome.json": "{}\n" }, /apps\/web\/biome\.json/);
+assertPass("type-checker", { "packages/lib/tsconfig.json": "{}\n" }, /packages\/lib\/tsconfig\.json/);
+assert.equal(evalTree({ "packages/lib/tsconfig.json": "{}\n" })["type-checker"].skipped, false);
+assertPass("linter", { "crates/foo/.golangci.yml": "linters: {}\n" }, /crates\/foo\/\.golangci\.yml/);
+assertPass("security-policy", { "security/SECURITY.md": "# Security\n" }, /security\/SECURITY\.md/);
+const nestedEditor = evalTree({ "packages/foo/.editorconfig": "root = true\n" });
+assert.equal(nestedEditor.editorconfig.pass, true, nestedEditor.editorconfig.message);
+assert.equal(nestedEditor.editorconfig.skipped, false);
+assert.equal(nestedEditor.linter.pass, false);
+assertPass(
+  "linter",
+  { "packages/foo/package.json": { devDependencies: { eslint: "9.0.0" } } },
+  /packages\/foo\/package\.json/,
+);
+assert.match(
+  evalTree({ "packages/foo/package.json": { devDependencies: { eslint: "9.0.0" } } }).linter.message,
+  /eslint/,
+);
+assertPass(
+  "linter",
+  { "crates/x/Cargo.toml": "[workspace]\n[workspace.lints]\nrust.unsafe_code = \"warn\"\n" },
+  /\[workspace\.lints/,
+);
+assertPass(
+  "linter",
+  { "apps/api/pom.xml": "<project>errorprone</project>\n" },
+  /errorprone/,
+);
+const hiddenTsconfig = evalTree({ "node_modules/foo/tsconfig.json": "{}\n" });
+assert.equal(hiddenTsconfig["type-checker"].pass, false);
+assert.equal(
+  /tsconfig\.json/.test(hiddenTsconfig["type-checker"].message),
+  false,
+  hiddenTsconfig["type-checker"].message,
+);
+const examplesComposeSkip = evalTree({
+  "examples/docker-compose.yml": "services: {}\n",
+});
+assert.equal(examplesComposeSkip["env-documentation"].skipped, true);
+assert.equal(examplesComposeSkip["env-documentation"].pass, false);
+assertPass("env-documentation", { "examples/.env.example": "FOO=\n" }, /\.env\.example/);
+assertPass("readme", { "packages/foo/README.md": `${"A".repeat(520)}\n` }, /packages\/foo\/README\.md/);
+const bothReadme = evalTree({
+  "README.md": `${"A".repeat(520)}\n`,
+  "packages/foo/README.md": `${"B".repeat(520)}\n`,
+});
+assert.equal(bothReadme.readme.pass, true, bothReadme.readme.message);
+assert.match(bothReadme.readme.message, /README\.md found/);
+assert.equal(/packages\/foo\/README\.md/.test(bothReadme.readme.message), false);
+assertFail("readme", { "node_modules/foo/README.md": `${"A".repeat(520)}\n` });
+assertPass("contributing", { "docs/guide/CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
+assertPass("e2e-tests", { "packages/web/e2e/login.spec.ts": "test('ok', () => {});\n" }, /e2e/);
+assertFail("e2e-tests", { "src/main/java/com/example/integration/Foo.java": "class Foo {}\n" });
+const nestedBiomeSkipEditor = evalTree({ "apps/web/biome.json": "{}\n" });
+assert.equal(nestedBiomeSkipEditor.linter.pass, true);
+assert.equal(nestedBiomeSkipEditor.editorconfig.skipped, true, nestedBiomeSkipEditor.editorconfig.message);
 assertPass("ai-context", { "GEMINI.md": "# gemini\n" }, /GEMINI\.md/);
 assertPass("ai-context", { ".github/instructions/js.md": "# js\n" }, /instructions/);
 assertPass("ai-context", { ".windsurfrules": "# rules\n" }, /windsurfrules/);
@@ -1668,6 +1734,9 @@ assert.match(checksReadme, /golangci-lint/);
 assert.match(checksReadme, /\.toml/);
 assert.match(checksReadme, /containerization.*also passes on `\.cursor\/environment\.json`/);
 assert.match(checksReadme, /root `environment\.json` does not count/);
+assert.match(checksReadme, /any walked path with that basename/);
+assert.match(checksReadme, /skip signals stay repository-root only/);
+assert.match(checksReadme, /IGNORE_DIRS/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {

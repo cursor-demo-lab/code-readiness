@@ -322,7 +322,18 @@
       "pillarId": "testing",
       "level": 4,
       "requiresLLM": false,
-      "anyFiles": ["playwright.config.*", "cypress.config.*", "cypress", "e2e", "tests/e2e", "integration"],
+      "anyFiles": [
+        "playwright.config.*",
+        "**/playwright.config.*",
+        "cypress.config.*",
+        "cypress",
+        "**/cypress/**",
+        "e2e",
+        "**/e2e/**",
+        "tests/e2e",
+        "tests/e2e/**",
+        "integration"
+      ],
       "fail": "No E2E or integration test setup found.",
       "fix": "Add Playwright, Cypress, or an e2e directory.",
       "effort": "high"
@@ -362,6 +373,7 @@
         ".github/CONTRIBUTING.md",
         ".github/CONTRIBUTING.rst",
         "**/CONTRIBUTING.md",
+        "**/CONTRIBUTING.rst",
         "docs/contributing*",
         "docs/**/contributing*"
       ],
