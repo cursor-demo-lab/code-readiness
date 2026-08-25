@@ -135,8 +135,6 @@ const OPEN_BY_ID: Record<string, string> = {
   "security-policy": "SECURITY.md",
   "pre-commit-hooks": ".pre-commit-config.yaml",
   "architecture-docs": "ARCHITECTURE.md",
-  "type-checker": "tsconfig.json",
-  "version-pinned": ".nvmrc",
 };
 
 const CONCRETE_PATHS = [

@@ -896,6 +896,18 @@ assert.equal(
 );
 assert.match(canvasTemplate, /\.\.\.gate\.slice\(\)\.sort\(byFileThenCatalog\)/);
 assert.match(canvasTemplate, /\.\.\.rest\.slice\(\)\.sort\(byFileThenCatalog\)/);
+assert.match(canvasTemplate, /"pre-commit-hooks": "\.pre-commit-config\.yaml"/);
+assert.match(canvasTemplate, /"architecture-docs": "ARCHITECTURE\.md"/);
+assert.equal(
+  /"version-pinned": "\.nvmrc"/.test(canvasTemplate),
+  false,
+  "OPEN_BY_ID must not map version-pinned to .nvmrc",
+);
+assert.equal(
+  /"type-checker": "tsconfig\.json"/.test(canvasTemplate),
+  false,
+  "OPEN_BY_ID must not map type-checker to tsconfig.json",
+);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
