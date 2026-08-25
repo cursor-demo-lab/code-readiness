@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
-import { ATTRIBUTION, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
+import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import { evaluateRepo, LOCK_FILES, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
 import { globMatch } from "./walk.mjs";
@@ -95,25 +95,68 @@ assert.deepEqual(lockFile.anyFiles, LOCK_FILES);
 assert.ok(LOCK_FILES.includes("uv.lock"));
 assert.ok(LOCK_FILES.includes("pdm.lock"));
 assert.ok(LOCK_FILES.includes("npm-shrinkwrap.json"));
+assert.ok(LOCK_FILES.includes("mix.lock"));
+assert.ok(LOCK_FILES.includes("flake.lock"));
+assert.ok(LOCK_FILES.includes("cabal.project.freeze"));
+assert.ok(LOCK_FILES.includes("pixi.lock"));
 
 const aiContext = catalog.criteria.find((row) => row.id === "ai-context");
 assert.ok(aiContext);
 assert.equal(aiContext.anyFiles.includes("AGENTS.md"), true);
 assert.equal(aiContext.anyFiles.includes(".github/AGENTS.md"), true);
+assert.ok(aiContext.anyFiles.includes("GEMINI.md"));
+assert.ok(aiContext.anyFiles.includes(".github/instructions/**/*.md"));
+assert.ok(aiContext.anyFiles.includes(".windsurfrules"));
+assert.ok(aiContext.anyFiles.includes("WARP.md"));
 assert.equal(/does not look for AGENTS\.md/i.test(aiContext.fix), false);
 
 const contributing = catalog.criteria.find((row) => row.id === "contributing");
 assert.ok(contributing.anyFiles.includes("**/CONTRIBUTING.md"));
 assert.ok(contributing.anyFiles.includes("docs/**/contributing*"));
 assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.md"));
+assert.ok(contributing.anyFiles.includes("CONTRIBUTING.rst"));
+assert.ok(contributing.anyFiles.includes("CONTRIBUTING"));
+assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.rst"));
 assert.equal(IGNORE_DIRS.has(".github"), false);
 
 const linter = catalog.criteria.find((row) => row.id === "linter");
 assert.ok(linter.anyFiles.includes("ruff.toml"));
 assert.ok(linter.anyFiles.includes(".ruff.toml"));
 assert.ok(linter.anyFiles.includes(".oxlintrc.json"));
+assert.ok(linter.anyFiles.includes("biome.json"));
+assert.ok(linter.anyFiles.includes("biome.jsonc"));
+assert.ok(linter.anyFiles.includes("eslint.config.*"));
+assert.ok(linter.anyFiles.includes(".golangci.yml"));
+assert.ok(linter.anyFiles.includes(".golangci.yaml"));
+assert.ok(linter.anyFiles.includes(".golangci.toml"));
+assert.ok(linter.anyFiles.includes(".golangci.json"));
+for (const name of [
+  ".flake8",
+  ".pylintrc",
+  "pylintrc",
+  "clippy.toml",
+  ".clippy.toml",
+  ".clang-tidy",
+  ".hlint.yaml",
+  "hlint.yaml",
+  ".credo.exs",
+  ".tflint.hcl",
+  ".shellcheckrc",
+  ".luacheckrc",
+  ".jshintrc",
+]) {
+  assert.ok(linter.anyFiles.includes(name), `linter missing ${name}`);
+}
+assert.equal(linter.anyFiles.includes(".clang-format"), false);
+assert.equal(linter.anyFiles.includes("rustfmt.toml"), false);
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff.lint]")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pylint")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.flake8")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"biome\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"oxlint\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "setup.cfg" && rule.includes.includes("[flake8]")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("[lints.clippy")));
 
 const formatter = catalog.criteria.find((row) => row.id === "formatter");
 assert.ok(formatter.anyFiles.includes(".prettierrc"));
@@ -125,6 +168,11 @@ assert.ok(formatter.anyFiles.includes("dprint.json"));
 assert.ok(formatter.anyFiles.includes("rustfmt.toml"));
 assert.ok(formatter.anyFiles.includes(".rustfmt.toml"));
 assert.ok(formatter.anyFiles.includes(".rubocop.yml"));
+assert.ok(formatter.anyFiles.includes(".clang-format"));
+assert.ok(formatter.anyFiles.includes(".swift-format"));
+assert.ok(formatter.anyFiles.includes(".swiftformat"));
+assert.ok(formatter.anyFiles.includes(".scalafmt.conf"));
+assert.equal(formatter.anyFiles.includes(".clang-tidy"), false);
 assert.ok(formatter.fileContains.some((rule) => rule.file === "biome.json" && rule.includes.includes("formatter")));
 assert.ok(formatter.fileContains.some((rule) => rule.file === "biome.jsonc" && rule.includes.includes("formatter")));
 assert.ok(formatter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.black]")));
@@ -135,6 +183,11 @@ assert.match(formatter.fix, /dprint/);
 
 const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
 assert.ok(typeChecker.anyFiles.includes("tsconfig.json"));
+assert.equal(typeChecker.anyFiles.includes("**/tsconfig.json"), false);
+assert.equal(
+  typeChecker.fileContains.some((rule) => (rule.includes ?? []).some((token) => /\[tool\.ty\b/.test(token))),
+  false,
+);
 assert.ok(typeChecker.anyFiles.includes("mypy.ini"));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "setup.cfg" && rule.includes.includes("[mypy]")));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.mypy]")));
@@ -145,6 +198,13 @@ const testFramework = catalog.criteria.find((row) => row.id === "test-framework"
 assert.ok(testFramework.anyFiles.includes("conftest.py"));
 assert.ok(testFramework.anyFiles.includes("tests/conftest.py"));
 assert.ok(testFramework.anyFiles.includes("**/conftest.py"));
+assert.ok(testFramework.anyFiles.includes("phpunit.xml"));
+assert.ok(testFramework.anyFiles.includes("phpunit.xml.dist"));
+assert.ok(testFramework.anyFiles.includes(".rspec"));
+assert.ok(testFramework.anyFiles.includes("spec/spec_helper.rb"));
+assert.ok(testFramework.anyGlobs.includes("tests/**/*.rs"));
+assert.ok(testFramework.anyGlobs.includes("**/*_test.rs"));
+assert.equal(testFramework.anyFiles.includes("Cargo.toml"), false);
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
@@ -162,6 +222,8 @@ const versionPinned = catalog.criteria.find((row) => row.id === "version-pinned"
 assert.ok(versionPinned.anyFiles.includes(".python-version"));
 assert.ok(versionPinned.anyFiles.includes(".tool-versions"));
 assert.ok(versionPinned.anyFiles.includes("go.mod"));
+assert.ok(versionPinned.anyFiles.includes(".go-version"));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "runtime.txt" && rule.includes.includes("python-")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "setup.py" && rule.includes.includes("python_requires")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"engines\"")));
@@ -185,6 +247,14 @@ assert.ok(setupScript.anyFiles.includes("scripts/install.sh"));
 assert.ok(setupScript.anyFiles.includes("scripts/install-*"));
 assert.ok(setupScript.anyFiles.includes("setup.py"));
 assert.ok(setupScript.anyFiles.includes("setup.cfg"));
+assert.ok(setupScript.anyFiles.includes("justfile"));
+assert.ok(setupScript.anyFiles.includes("Justfile"));
+assert.ok(setupScript.anyFiles.includes("Taskfile.yml"));
+assert.ok(setupScript.anyFiles.includes("Taskfile.yaml"));
+assert.ok(setupScript.anyFiles.includes("bootstrap.sh"));
+assert.ok(setupScript.anyFiles.includes("scripts/bootstrap*"));
+assert.equal(setupScript.anyFiles.includes("Cargo.toml"), false);
+assert.equal(setupScript.anyFiles.includes("go.mod"), false);
 assert.equal(setupScript.makefileTarget, "setup|install");
 assert.match(String(setupScript.packageJsonPath), /scripts\.dev/);
 assert.match(String(setupScript.packageJsonPath), /scripts\.test/);
@@ -205,6 +275,9 @@ assert.ok(testScript.anyFiles.includes("pytest.ini"));
 assert.ok(testScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.tox")));
 assert.ok(testScript.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.hatch.envs")));
+assert.ok(testScript.fileRegex.some((rule) => rule.file === "justfile"));
+assert.ok(testScript.fileRegex.some((rule) => rule.file === "Justfile"));
+assert.ok(testScript.fileRegex.some((rule) => rule.file === "Taskfile.yml"));
 
 const license = catalog.criteria.find((row) => row.id === "license");
 assert.ok(license.anyFiles.includes("LICENSE-MIT"));
@@ -212,6 +285,103 @@ assert.ok(license.anyFiles.includes("LICENSE-*"));
 assert.ok(license.anyFiles.includes("COPYING"));
 assert.ok(license.anyFiles.includes("COPYING.md"));
 assert.ok(license.anyFiles.includes("UNLICENSE"));
+assert.ok(license.anyFiles.includes("LICENSE.rst"));
+assert.ok(license.anyFiles.includes("LICENSES/**"));
+
+const preCommit = catalog.criteria.find((row) => row.id === "pre-commit-hooks");
+assert.ok(preCommit.anyFiles.includes("lefthook.toml"));
+assert.ok(preCommit.anyFiles.includes(".lefthook.yaml"));
+assert.ok(preCommit.anyFiles.includes(".lintstagedrc"));
+assert.ok(preCommit.anyFiles.includes(".lintstagedrc.*"));
+assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"lint-staged\"")));
+assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"simple-git-hooks\"")));
+assert.equal(preCommit.makefileTarget, undefined);
+
+const apiDocs = catalog.criteria.find((row) => row.id === "api-docs");
+assert.ok(apiDocs.anyFiles.includes("**/openapi.yaml"));
+assert.ok(apiDocs.anyFiles.includes("**/openapi.yml"));
+assert.ok(apiDocs.anyFiles.includes("**/swagger.yaml"));
+assert.ok(apiDocs.anyFiles.includes("redocly.yaml"));
+assert.ok(apiDocs.anyFiles.includes("typedoc.json"));
+assert.equal(apiDocs.anyFiles.includes("mkdocs.yml"), false);
+assert.equal(apiDocs.anyFiles.includes("conf.py"), false);
+
+const codeowners = catalog.criteria.find((row) => row.id === "codeowners");
+assert.ok(codeowners.anyFiles.includes("docs/CODEOWNERS"));
+assert.ok(codeowners.anyFiles.includes("CODEOWNERS"));
+assert.ok(codeowners.anyFiles.includes(".github/CODEOWNERS"));
+
+const architecture = catalog.criteria.find((row) => row.id === "architecture-docs");
+assert.ok(architecture.anyFiles.includes("docs/adr/**"));
+assert.ok(architecture.anyFiles.includes("docs/decisions/**"));
+assert.ok(architecture.anyFiles.includes("adr/**"));
+
+const envDoc = catalog.criteria.find((row) => row.id === "env-documentation");
+assert.ok(envDoc.anyFiles.includes("env.example"));
+assert.ok(envDoc.anyFiles.includes(".envrc.example"));
+assert.ok(envDoc.anyFiles.includes("dotenv.example"));
+
+const containerization = catalog.criteria.find((row) => row.id === "containerization");
+assert.ok(containerization.anyFiles.includes("compose.yaml"));
+assert.ok(containerization.anyFiles.includes("compose.yml"));
+assert.ok(containerization.anyFiles.includes("Containerfile"));
+
+const deadCode = catalog.criteria.find((row) => row.id === "dead-code-detection");
+assert.ok(deadCode.anyFiles.includes(".vulture"));
+assert.ok(deadCode.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("vulture")));
+assert.ok(deadCode.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("cargo-machete")));
+assert.match(deadCode.ciGrep, /deadcode/);
+assert.match(deadCode.ciGrep, /cargo-machete/);
+
+const bundleAnalysis = catalog.criteria.find((row) => row.id === "bundle-analysis");
+assert.ok(bundleAnalysis.fileContains.some((rule) => (rule.includes ?? []).includes("source-map-explorer")));
+
+const securityPolicy = catalog.criteria.find((row) => row.id === "security-policy");
+assert.ok(securityPolicy.anyFiles.includes("docs/SECURITY.md"));
+assert.ok(securityPolicy.anyFiles.includes("security.md"));
+
+const depUpdate = catalog.criteria.find((row) => row.id === "dep-update-automation");
+assert.ok(depUpdate.anyFiles.includes("renovate.json5"));
+assert.ok(depUpdate.anyFiles.includes(".github/renovate.json"));
+assert.ok(depUpdate.anyFiles.includes("renovate.json"));
+
+const securityScanning = catalog.criteria.find((row) => row.id === "security-scanning");
+assert.ok(securityScanning.anyFiles.includes("semgrep.yml"));
+assert.ok(securityScanning.anyFiles.includes(".semgrep.yml"));
+assert.ok(securityScanning.anyFiles.includes("bandit.yaml"));
+assert.ok(securityScanning.anyFiles.includes(".bandit"));
+assert.match(securityScanning.ciGrep, /gosec/);
+assert.match(securityScanning.ciGrep, /govulncheck/);
+
+const secretsDetection = catalog.criteria.find((row) => row.id === "secrets-detection");
+assert.ok(secretsDetection.anyFiles.includes(".gitleaks.toml"));
+assert.ok(secretsDetection.anyFiles.includes(".gitleaks.yml"));
+assert.ok(secretsDetection.anyFiles.includes(".detect-secrets.cfg"));
+assert.ok(secretsDetection.anyFiles.includes(".gitguardian.yml"));
+
+const ciRunsLinters = catalog.criteria.find((row) => row.id === "ci-runs-linters");
+assert.match(ciRunsLinters.ciGrep, /golangci-lint/);
+assert.match(ciRunsLinters.ciGrep, /biome\\s\+check/);
+assert.match(ciRunsLinters.ciGrep, /eslint/);
+assert.equal(/prettier|gofmt|rustfmt|clang-format|black|dprint/i.test(ciRunsLinters.ciGrep), false);
+
+for (const glob of [
+  "azure-pipelines.yml",
+  ".azure-pipelines/**",
+  "bitbucket-pipelines.yml",
+  ".buildkite/pipeline.yml",
+  ".buildkite/*.yml",
+  ".woodpecker.yml",
+  ".woodpecker/*.yml",
+  ".drone.yml",
+  "cloudbuild.yaml",
+  "appveyor.yml",
+]) {
+  assert.ok(CI_GLOBS.includes(glob), `CI_GLOBS missing ${glob}`);
+}
+for (const glob of ["**/*_test.py", "**/*_test.rs", "**/*_test.c", "**/*_test.cpp", "test/**/*.c", "**/*Spec.hs", "**/*Test.hs"]) {
+  assert.ok(TEST_FILE_GLOBS.includes(glob), `TEST_FILE_GLOBS missing ${glob}`);
+}
 
 assert.equal(globMatch("scripts/foo.test.mjs", "**/*.test.*"), true);
 assert.equal(globMatch(".github/workflows/ci.yml", ".github/workflows/*.yml"), true);
@@ -225,6 +395,20 @@ assert.equal(globMatch(".dprint.jsonc", ".prettierrc.*"), false);
 assert.equal(globMatch(".dprint.json", ".prettierrc.*"), false);
 assert.equal(globMatch("dprint.json", ".prettierrc.*"), false);
 assert.equal(globMatch(".prettierrc.json", ".prettierrc.*"), true);
+assert.equal(globMatch("pkg/foo_test.py", "**/*_test.py"), true);
+assert.equal(globMatch("test_foo.py", "**/test_*.py"), true);
+assert.equal(globMatch("src/lib_test.rs", "**/*_test.rs"), true);
+assert.equal(globMatch("tests/foo.rs", "tests/**/*.rs"), true);
+assert.equal(globMatch("FooSpec.hs", "**/*Spec.hs"), true);
+assert.equal(globMatch("FooTest.hs", "**/*Test.hs"), true);
+assert.equal(globMatch("test/main.c", "test/**/*.c"), true);
+assert.equal(globMatch("azure-pipelines.yml", "azure-pipelines.yml"), true);
+assert.equal(globMatch(".buildkite/pipeline.yml", ".buildkite/*.yml"), true);
+assert.equal(globMatch(".azure-pipelines/ci.yml", ".azure-pipelines/**"), true);
+assert.equal(globMatch(".github/instructions/node.md", ".github/instructions/**/*.md"), true);
+assert.equal(globMatch("api/openapi.yaml", "**/openapi.yaml"), true);
+assert.equal(globMatch("LICENSES/MIT.txt", "LICENSES/**"), true);
+assert.equal(globMatch(".lintstagedrc.json", ".lintstagedrc.*"), true);
 
 function resultById(evaluation) {
   return Object.fromEntries(evaluation.results.map((row) => [row.criterionId, row]));
@@ -418,6 +602,12 @@ const rustEval = evaluateRepo(rustRoot);
 const rustById = resultById(rustEval);
 assert.equal(rustById.formatter.pass, true, rustById.formatter.message);
 assert.equal(rustById["type-checker"].pass, true, rustById["type-checker"].message);
+assert.equal(
+  rustById["test-framework"].pass,
+  false,
+  "Cargo.toml alone is not test-framework; need tests/, [[test]], or *_test.rs",
+);
+assert.equal(rustById["setup-script"].pass, false, "Cargo.toml alone is not a setup script");
 
 const javaRoot = tmp("code-readiness-java-");
 fs.writeFileSync(path.join(javaRoot, "pom.xml"), "<project></project>\n");
@@ -656,6 +846,8 @@ const goModOnlyById = resultById(evaluateRepo(goModOnlyRoot));
 assert.equal(goModOnlyById["type-checker"].pass, true, goModOnlyById["type-checker"].message);
 assert.equal(goModOnlyById["type-checker"].skipped, false);
 assert.match(goModOnlyById["type-checker"].message, /Go has a built-in static type system/);
+assert.equal(goModOnlyById.linter.pass, false, "gofmt / go.mod alone is not a linter");
+assert.equal(goModOnlyById["setup-script"].pass, false, "go.mod alone is not a setup script");
 
 const tsShadowRoot = tmp("code-readiness-ts-shadow-");
 fs.writeFileSync(
@@ -810,6 +1002,10 @@ const emptyScored = scoreResults(emptyEval.catalog, emptyEval.results);
 assert.equal(emptyScored.level, 1);
 assert.equal(emptyById["version-pinned"].pass, false, emptyById["version-pinned"].message);
 assert.match(emptyById["version-pinned"].message, /No runtime version pin found/);
+assert.equal(emptyById.linter.pass, false);
+assert.equal(emptyById.linter.skipped, false);
+assert.equal(emptyById.editorconfig.pass, false);
+assert.equal(emptyById.editorconfig.skipped, false);
 assert.equal(emptyById["env-documentation"].skipped, true);
 assert.equal(emptyById["lock-file"].skipped, false);
 assert.equal(emptyById["type-checker"].skipped, true);
@@ -900,6 +1096,259 @@ assert.equal(identityLieScored.level, 1, "license+lock alone is not Functional L
 
 assert.equal(/factory|kodus/i.test(ATTRIBUTION), false);
 
+function writeTree(dir, files) {
+  for (const [rel, content] of Object.entries(files)) {
+    const full = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    if (content === null) continue;
+    fs.writeFileSync(full, typeof content === "string" ? content : `${JSON.stringify(content)}\n`);
+  }
+}
+
+function evalTree(files) {
+  const dir = tmp("code-readiness-pat-");
+  writeTree(dir, files);
+  return resultById(evaluateRepo(dir));
+}
+
+function assertPass(id, files, needle) {
+  const byId = evalTree(files);
+  assert.equal(byId[id].pass, true, `${id} should pass: ${byId[id].message}`);
+  assert.equal(byId[id].skipped, false, `${id} should not skip: ${byId[id].message}`);
+  if (needle) assert.match(byId[id].message, needle);
+  return byId;
+}
+
+function assertFail(id, files, needle) {
+  const byId = evalTree(files);
+  assert.equal(byId[id].pass, false, `${id} should fail: ${byId[id].message}`);
+  if (needle) assert.match(byId[id].message, needle);
+  return byId;
+}
+
+const linterConfigs = [
+  [".golangci.toml", "linters = {}\n"],
+  [".golangci.json", "{}\n"],
+  [".flake8", "[flake8]\n"],
+  [".pylintrc", "[MASTER]\n"],
+  ["pylintrc", "[MASTER]\n"],
+  ["clippy.toml", "avoid-breaking-exported-api = false\n"],
+  [".clippy.toml", "avoid-breaking-exported-api = false\n"],
+  [".clang-tidy", "Checks: '-*'\n"],
+  [".hlint.yaml", "[]\n"],
+  ["hlint.yaml", "[]\n"],
+  [".credo.exs", "%{}\n"],
+  [".tflint.hcl", "config {}\n"],
+  [".shellcheckrc", "disable=SC2086\n"],
+  [".luacheckrc", "std = 'lua51'\n"],
+  [".jshintrc", "{}\n"],
+];
+for (const [name, body] of linterConfigs) {
+  assertPass("linter", { [name]: body }, new RegExp(name.replace(".", "\\.")));
+}
+
+assertPass("linter", { "biome.json": "{}\n" }, /biome\.json/);
+assert.equal(evalTree({ "biome.json": "{}\n" }).linter.pass, true);
+assert.equal(evalTree({ "eslint.config.js": "export default [];\n" }).linter.pass, true);
+assertPass("linter", { "package.json": { devDependencies: { oxlint: "1.0.0" } } }, /oxlint/);
+assertPass("linter", { "pyproject.toml": "[tool.pylint]\n" }, /\[tool\.pylint/);
+assertPass("linter", { "pyproject.toml": "[tool.flake8]\n" }, /\[tool\.flake8/);
+assertPass("linter", { "setup.cfg": "[flake8]\nmax-line-length = 88\n" }, /\[flake8\]/);
+assertPass("linter", { "setup.cfg": "[pylint]\n" }, /\[pylint/);
+assertPass("linter", { "Cargo.toml": "[package]\nname = \"x\"\n[lints.clippy]\nall = \"warn\"\n" }, /\[lints\.clippy/);
+
+const clangFmt = evalTree({ ".clang-format": "BasedOnStyle: LLVM\n" });
+assert.equal(clangFmt.formatter.pass, true, clangFmt.formatter.message);
+assert.match(clangFmt.formatter.message, /\.clang-format/);
+assert.equal(clangFmt.linter.pass, false, "formatter is not a linter");
+assertPass("formatter", { ".swift-format": "{}\n" }, /\.swift-format/);
+assertPass("formatter", { ".swiftformat": "--indent 2\n" }, /\.swiftformat/);
+assertPass("formatter", { ".scalafmt.conf": "version = 3.0.0\n" }, /scalafmt/);
+assertFail("linter", { ".prettierrc": "{}\n" });
+assertFail("linter", { "rustfmt.toml": "max_width = 100\n" });
+assertFail("linter", { "README.md": "We use eslint, biome, golangci-lint, and ruff.\n" });
+assertFail("linter", { Makefile: "lint:\n\tgolangci-lint run\n", "go.mod": "module example.com/x\n" });
+
+assertPass("pre-commit-hooks", { "lefthook.toml": "[pre-commit]\n" }, /lefthook\.toml/);
+assertPass("pre-commit-hooks", { ".lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /\.lefthook\.yaml/);
+assertPass("pre-commit-hooks", { ".lintstagedrc": "{}\n" }, /\.lintstagedrc/);
+assertPass("pre-commit-hooks", { ".lintstagedrc.json": "{}\n" }, /\.lintstagedrc/);
+assertPass("pre-commit-hooks", { "package.json": { "lint-staged": { "*.js": "eslint" } } }, /lint-staged/);
+assertPass("pre-commit-hooks", { "package.json": { "simple-git-hooks": { "pre-commit": "lint" } } }, /simple-git-hooks/);
+assertFail("pre-commit-hooks", { Makefile: "lint:\n\teslint .\n" });
+
+assertPass("test-framework", { "phpunit.xml": "<phpunit></phpunit>\n" }, /phpunit\.xml/);
+assertPass("test-framework", { "phpunit.xml.dist": "<phpunit></phpunit>\n" }, /phpunit\.xml\.dist/);
+assertPass("test-framework", { ".rspec": "--require spec_helper\n" }, /\.rspec/);
+assertPass("test-framework", { "spec/spec_helper.rb": "RSpec.configure {}\n" }, /spec_helper/);
+assertPass("test-framework", { "tests/integration.rs": "#[test] fn ok() {}\n" }, /tests\/integration\.rs/);
+assertPass(
+  "test-framework",
+  { "src/lib_test.rs": "#[test] fn ok() {}\n" },
+  /lib_test\.rs/,
+);
+assertPass(
+  "test-framework",
+  { "Cargo.toml": "[package]\nname = \"x\"\n\n[[test]]\nname = \"extra\"\n" },
+  /\[\[test\]\]/,
+);
+assertFail(
+  "test-framework",
+  { "Cargo.toml": "[package]\nname = \"x\"\nversion = \"0.1.0\"\n" },
+  /No test framework/,
+);
+assertFail("test-framework", { "rustfmt.toml": "max_width = 100\n" });
+assertPass(
+  "test-framework",
+  { "CMakeLists.txt": "cmake_minimum_required(VERSION 3.20)\nenable_testing()\n" },
+  /enable_testing/,
+);
+assertPass("test-framework", { "tests/math_test.c": "int main() { return 0; }\n" }, /math_test\.c/);
+assertFail("test-framework", { "README.md": "Run the test suite often.\n" });
+assertFail("test-framework", { "CMakeLists.txt": "project(demo)\n" });
+
+assertPass("test-files-exist", { "pkg/foo_test.py": "def test_ok():\n    assert True\n" });
+assertPass("test-files-exist", { "src/lib_test.rs": "#[test] fn ok() {}\n" });
+assertPass("test-files-exist", { "math_test.c": "int main() { return 0; }\n" });
+assertPass("test-files-exist", { "math_test.cpp": "int main() { return 0; }\n" });
+assertPass("test-files-exist", { "test/main.c": "int main() { return 0; }\n" });
+assertPass("test-files-exist", { "FooSpec.hs": "main = putStrLn \"ok\"\n" });
+assertPass("test-files-exist", { "FooTest.hs": "main = putStrLn \"ok\"\n" });
+const hiddenInVendor = evalTree({
+  "node_modules/pkg/foo_test.py": "def test_ok():\n    assert True\n",
+  "vendor/lib_test.rs": "#[test] fn ok() {}\n",
+});
+assert.equal(hiddenInVendor["test-files-exist"].pass, false);
+
+assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
+assertPass("test-script", { Justfile: "test:\n    pytest\n" }, /Justfile/);
+assertPass(
+  "test-script",
+  { "Taskfile.yml": "version: '3'\ntasks:\n  test:\n    cmds: [go test ./...]\n" },
+  /Taskfile\.yml/,
+);
+assertFail("test-script", { justfile: "build:\n    cargo build\n" });
+
+assertPass("contributing", { "CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
+assertPass("contributing", { CONTRIBUTING: "How to contribute\n" }, /CONTRIBUTING/);
+assertPass("contributing", { ".github/CONTRIBUTING.rst": "How to contribute\n" }, /\.github\/CONTRIBUTING\.rst/);
+
+assertPass("api-docs", { "svc/openapi.yaml": "openapi: 3.0.0\n" }, /openapi\.yaml/);
+assertPass("api-docs", { "svc/openapi.yml": "openapi: 3.0.0\n" }, /openapi\.yml/);
+assertPass("api-docs", { "docs/swagger.yaml": "swagger: '2.0'\n" }, /swagger\.yaml/);
+assertPass("api-docs", { "redocly.yaml": "apis: {}\n" }, /redocly\.yaml/);
+assertPass("api-docs", { "docs/api/index.md": "# API\n" }, /docs\/api/);
+assertFail("api-docs", { "mkdocs.yml": "site_name: docs\n" });
+assertFail("api-docs", { "conf.py": "project = 'docs'\n" });
+
+assertPass("codeowners", { "docs/CODEOWNERS": "* @team\n" }, /docs\/CODEOWNERS/);
+assertPass("ai-context", { "GEMINI.md": "# gemini\n" }, /GEMINI\.md/);
+assertPass("ai-context", { ".github/instructions/js.md": "# js\n" }, /instructions/);
+assertPass("ai-context", { ".windsurfrules": "# rules\n" }, /windsurfrules/);
+assertPass("ai-context", { "WARP.md": "# warp\n" }, /WARP\.md/);
+assertFail("ai-context", { "README.md": "See AGENTS.md and GEMINI.md for agent context.\n" });
+assertPass("architecture-docs", { "docs/adr/0001-record.md": "# adr\n" }, /docs\/adr/);
+assertPass("architecture-docs", { "docs/decisions/0001.md": "# decision\n" }, /docs\/decisions/);
+assertPass("architecture-docs", { "adr/0001.md": "# adr\n" }, /adr\/0001/);
+
+assertPass("lock-file", { "mix.lock": "%{}\n" }, /mix\.lock/);
+assertPass("lock-file", { "flake.lock": "{}\n" }, /flake\.lock/);
+assertPass("lock-file", { "cabal.project.freeze": "constraints:\n" }, /cabal\.project\.freeze/);
+assertPass("lock-file", { "pixi.lock": "version: 1\n" }, /pixi\.lock/);
+assert.equal(evalTree({ "Main.hs": "main = return ()\n" })["lock-file"].skipped, true);
+
+assertPass("env-documentation", { "env.example": "FOO=\n" }, /env\.example/);
+assertPass("env-documentation", { ".envrc.example": "export FOO=\n" }, /\.envrc\.example/);
+assertPass("env-documentation", { "dotenv.example": "FOO=\n" }, /dotenv\.example/);
+const nestedComposeStillSkip = evalTree({
+  "sample/app/compose.yaml": "services: {}\n",
+});
+assert.equal(nestedComposeStillSkip["env-documentation"].skipped, true);
+
+assertPass("setup-script", { justfile: "setup:\n    npm i\n" }, /justfile/);
+assertPass("setup-script", { "Taskfile.yaml": "version: '3'\n" }, /Taskfile\.yaml/);
+assertPass("setup-script", { "bootstrap.sh": "#!/bin/sh\n" }, /bootstrap\.sh/);
+assertPass("setup-script", { "scripts/bootstrap-dev.sh": "#!/bin/sh\n" }, /scripts\/bootstrap/);
+
+assertPass("version-pinned", { ".go-version": "1.22.0\n" }, /\.go-version/);
+assertPass("version-pinned", { "runtime.txt": "python-3.12.4\n" }, /python-/);
+assertFail("version-pinned", { "runtime.txt": "node-20\n" });
+
+assertPass("containerization", { "compose.yaml": "services: {}\n" }, /compose\.yaml/);
+assertPass("containerization", { "compose.yml": "services: {}\n" }, /compose\.yml/);
+assertPass("containerization", { Containerfile: "FROM alpine\n" }, /Containerfile/);
+assertFail("containerization", { Makefile: "image:\n\tdocker build .\n" });
+
+assertPass("ci-config", { "azure-pipelines.yml": "pool: vm\n" }, /azure-pipelines\.yml/);
+assertPass("ci-config", { ".azure-pipelines/ci.yml": "pool: vm\n" }, /\.azure-pipelines/);
+assertPass("ci-config", { "bitbucket-pipelines.yml": "pipelines: {}\n" }, /bitbucket-pipelines\.yml/);
+assertPass("ci-config", { ".buildkite/pipeline.yml": "steps: []\n" }, /\.buildkite/);
+assertPass("ci-config", { ".woodpecker.yml": "steps: {}\n" }, /\.woodpecker\.yml/);
+assertPass("ci-config", { ".woodpecker/pr.yml": "steps: {}\n" }, /\.woodpecker/);
+assertPass("ci-config", { ".drone.yml": "kind: pipeline\n" }, /\.drone\.yml/);
+assertPass("ci-config", { "cloudbuild.yaml": "steps: []\n" }, /cloudbuild\.yaml/);
+assertPass("ci-config", { "appveyor.yml": "build: off\n" }, /appveyor\.yml/);
+assertFail("ci-config", { Makefile: "ci:\n\tnpm test\n" });
+
+assertPass(
+  "ci-runs-linters",
+  { ".github/workflows/ci.yml": "run: biome check .\n" },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-linters",
+  { ".github/workflows/ci.yml": "run: golangci-lint run\n" },
+  /CI config matched/,
+);
+assertFail("ci-runs-linters", { ".github/workflows/ci.yml": "run: prettier --check .\n" });
+
+assertPass("dead-code-detection", { ".vulture": "# whitelist\n" }, /\.vulture/);
+assertPass("dead-code-detection", { "pyproject.toml": "vulture = \"2.0\"\n" }, /vulture/);
+assertPass("dead-code-detection", { "Cargo.toml": "cargo-machete = \"0.6\"\n" }, /cargo-machete/);
+assertPass(
+  "dead-code-detection",
+  { ".github/workflows/ci.yml": "run: deadcode ./...\n" },
+  /CI config matched/,
+);
+assertFail("dead-code-detection", { "README.md": "Remove unused code regularly.\n" });
+
+assertPass(
+  "bundle-analysis",
+  { "package.json": { devDependencies: { "source-map-explorer": "5.0.0" } } },
+  /source-map-explorer/,
+);
+
+assertPass("license", { "LICENSE.rst": "MIT License\n" }, /LICENSE\.rst/);
+assertPass("license", { "LICENSES/MIT.txt": "MIT License\n" }, /LICENSES/);
+assertFail("license", { "README.md": "[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()\n" });
+
+assertPass("security-policy", { "docs/SECURITY.md": "# Security\n" }, /docs\/SECURITY\.md/);
+assertPass("security-policy", { "security.md": "# Security\n" }, /security\.md/);
+
+assertPass("dep-update-automation", { "renovate.json5": "{}\n" }, /renovate\.json5/);
+assertPass("dep-update-automation", { ".github/renovate.json": "{}\n" }, /\.github\/renovate\.json/);
+
+assertPass("security-scanning", { "semgrep.yml": "rules: []\n" }, /semgrep\.yml/);
+assertPass("security-scanning", { ".semgrep.yml": "rules: []\n" }, /\.semgrep\.yml/);
+assertPass("security-scanning", { "bandit.yaml": "skips: []\n" }, /bandit\.yaml/);
+assertPass("security-scanning", { ".bandit": "[bandit]\n" }, /\.bandit/);
+assertPass(
+  "security-scanning",
+  { ".github/workflows/ci.yml": "run: gosec ./...\n" },
+  /CI config matched/,
+);
+assertPass(
+  "security-scanning",
+  { ".github/workflows/ci.yml": "run: govulncheck ./...\n" },
+  /CI config matched/,
+);
+assertFail("security-scanning", { "README.md": "We take security seriously.\n" });
+
+assertPass("secrets-detection", { ".gitleaks.yml": "title: gitleaks\n" }, /\.gitleaks\.yml/);
+assertPass("secrets-detection", { ".detect-secrets.cfg": "[plugins]\n" }, /\.detect-secrets\.cfg/);
+assertPass("secrets-detection", { ".gitguardian.yml": "version: 2\n" }, /\.gitguardian\.yml/);
+assertFail("secrets-detection", { "README.md": "We run gitleaks in CI.\n" });
+
 const canvasTemplate = fs.readFileSync(
   path.join(skillRoot(), "canvas", "code-readiness.canvas.tsx"),
   "utf8",
@@ -941,6 +1390,9 @@ assert.match(checksReadme, /would be L2 except/);
 assert.match(checksReadme, /L2 fail ids/);
 assert.match(checksReadme, /not `l1CapReasons`/);
 assert.match(checksReadme, /Do not dummy `\.editorconfig`/);
+assert.match(checksReadme, /ESLint and Biome are both first-class JS\/TS linters/);
+assert.match(checksReadme, /golangci-lint/);
+assert.match(checksReadme, /\.toml/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {

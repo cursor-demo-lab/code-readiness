@@ -42,6 +42,8 @@ Hill-climb after PR #14: nestjs/nest is L1 Functional 69% at L2 10/13 (need 11).
 
 Hill-climb after PR #16: huggingface/transformers and huggingface/diffusers fail `version-pinned` (`No runtime version pin found.`) at L2 8/11 (need 9). Their stub `pyproject.toml` files are byte-identical to GitHub and have no `requires-python` (not truncated). Their stub `setup.py` files are 0 bytes vs GitHub 12998 / 11262. Upstream `setup.py` contains `python_requires` (`>=3.10.0`). Catalog `version-pinned` `fileContains` only looked at pyproject `requires-python` (plus `.python-version` / engines / `go.mod`); it never read `setup.py`. `setup.py` `python_requires` now passes. Do not treat ruff `target-version` as a runtime pin. Do not dummy `.editorconfig`. Eval stubs of transformers/diffusers `setup.py` are truncated and must be refreshed for the promotion to show on the 27-OSS campaign; stubs live outside this repo. No new ids, no L1/L2 threshold change, no new pillars.
 
+Hill-climb catalog coverage: broaden existing detectors only so each Factory pillar recognizes common language-native files (`anyFiles` / `fileContains` / `anyGlobs` / `languagesPass`, plus `CI_GLOBS` / `TEST_FILE_GLOBS`). No new ids, no new pillars, no L4/L5 retune, no LLM rows, no dummy `.editorconfig`, no canvas restyle. Formatters are not linters. ESLint and Biome stay equal-rank JS/TS linters; golangci-lint configs include toml/json. Env-documentation skip stays root-only. `.cursor/environment.json` stays with PR #19. Do not rescore the 27-OSS campaign in this repo.
+
 ## Explicitly refused
 
 - New criterion ids

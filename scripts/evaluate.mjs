@@ -34,6 +34,10 @@ export const LOCK_FILES = [
   "Gemfile.lock",
   "composer.lock",
   "Package.resolved",
+  "mix.lock",
+  "flake.lock",
+  "cabal.project.freeze",
+  "pixi.lock",
 ];
 
 const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set([

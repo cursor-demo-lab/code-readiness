@@ -64,6 +64,8 @@
         ".oxlintrc.json",
         ".golangci.yml",
         ".golangci.yaml",
+        ".golangci.toml",
+        ".golangci.json",
         "detekt.yml",
         ".detekt.yml",
         "stylecop.json",
@@ -74,14 +76,29 @@
         "phpcs.xml",
         ".swiftlint.yml",
         "checkstyle.xml",
-        "pmd.xml"
+        "pmd.xml",
+        ".flake8",
+        ".pylintrc",
+        "pylintrc",
+        "clippy.toml",
+        ".clippy.toml",
+        ".clang-tidy",
+        ".hlint.yaml",
+        "hlint.yaml",
+        ".credo.exs",
+        ".tflint.hcl",
+        ".shellcheckrc",
+        ".luacheckrc",
+        ".jshintrc"
       ],
       "fileContains": [
         { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "build.gradle", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs"] },
-        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\""] },
-        { "file": "pyproject.toml", "includes": ["[tool.ruff", "[tool.ruff.lint]"] }
+        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\"", "\"oxlint\""] },
+        { "file": "pyproject.toml", "includes": ["[tool.ruff", "[tool.ruff.lint]", "[tool.pylint", "[tool.flake8"] },
+        { "file": "setup.cfg", "includes": ["[flake8]", "[pylint"] },
+        { "file": "Cargo.toml", "includes": ["[lints.clippy"] }
       ],
       "fail": "No linter configuration found.",
       "fix": "Add a linter config such as ESLint, Biome, Ruff, or golangci-lint.",
@@ -102,7 +119,11 @@
         "dprint.json",
         "rustfmt.toml",
         ".rustfmt.toml",
-        ".rubocop.yml"
+        ".rubocop.yml",
+        ".clang-format",
+        ".swift-format",
+        ".swiftformat",
+        ".scalafmt.conf"
       ],
       "fileContains": [
         { "file": "biome.json", "includes": ["formatter"] },
@@ -149,9 +170,23 @@
       "pillarId": "style-linting",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": [".husky", ".lefthook.yml", "lefthook.yml", ".pre-commit-config.yaml"],
+      "anyFiles": [
+        ".husky",
+        ".lefthook.yml",
+        "lefthook.yml",
+        "lefthook.toml",
+        ".lefthook.yaml",
+        ".lefthook.toml",
+        "lefthook.yaml",
+        ".pre-commit-config.yaml",
+        ".lintstagedrc",
+        ".lintstagedrc.*"
+      ],
+      "fileContains": [
+        { "file": "package.json", "includes": ["\"lint-staged\"", "\"simple-git-hooks\""] }
+      ],
       "fail": "No pre-commit hooks found.",
-      "fix": "Add Husky, Lefthook, or pre-commit hooks.",
+      "fix": "Add Husky, Lefthook, lint-staged, or pre-commit hooks.",
       "effort": "medium"
     },
     {
@@ -176,9 +211,19 @@
         "pytest.ini",
         "conftest.py",
         "tests/conftest.py",
-        "**/conftest.py"
+        "**/conftest.py",
+        "phpunit.xml",
+        "phpunit.xml.dist",
+        ".rspec",
+        "spec/spec_helper.rb"
       ],
-      "anyGlobs": ["**/*_test.go"],
+      "anyGlobs": [
+        "**/*_test.go",
+        "tests/**/*.rs",
+        "**/*_test.rs",
+        "tests/**/*_test.c",
+        "tests/**/*_test.cpp"
+      ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },
         {
@@ -187,7 +232,9 @@
         },
         { "file": "build.gradle.kts", "includes": ["kotest", "junit", "jupiter", "testImplementation"] },
         { "file": "build.gradle", "includes": ["junit", "jupiter", "kotest", "testImplementation"] },
-        { "file": "pom.xml", "includes": ["junit"] }
+        { "file": "pom.xml", "includes": ["junit"] },
+        { "file": "Cargo.toml", "includes": ["[[test]]"] },
+        { "file": "**/CMakeLists.txt", "includes": ["enable_testing", "add_test", "ctest"] }
       ],
       "fail": "No test framework configuration found.",
       "fix": "Configure Jest, Vitest, pytest, or Go testing.",
@@ -232,6 +279,12 @@
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest", "[tool.tox", "[tool.hatch.envs"] }
+      ],
+      "fileRegex": [
+        { "file": "justfile", "pattern": "(^|\\n)test\\s*:" },
+        { "file": "Justfile", "pattern": "(^|\\n)test\\s*:" },
+        { "file": "Taskfile.yml", "pattern": "(^|\\n)\\s+test\\s*:" },
+        { "file": "Taskfile.yaml", "pattern": "(^|\\n)\\s+test\\s*:" }
       ],
       "fail": "No test script or test target found.",
       "fix": "Add a test script in package.json or a test target in the Makefile.",
@@ -298,7 +351,10 @@
       "requiresLLM": false,
       "anyFiles": [
         "CONTRIBUTING.md",
+        "CONTRIBUTING.rst",
+        "CONTRIBUTING",
         ".github/CONTRIBUTING.md",
+        ".github/CONTRIBUTING.rst",
         "**/CONTRIBUTING.md",
         "docs/contributing*",
         "docs/**/contributing*"
@@ -313,7 +369,18 @@
       "pillarId": "documentation",
       "level": 3,
       "requiresLLM": false,
-      "anyFiles": ["openapi.*", "swagger.*", "docs/api*", "jsdoc.json", "typedoc.json"],
+      "anyFiles": [
+        "openapi.*",
+        "swagger.*",
+        "**/openapi.yaml",
+        "**/openapi.yml",
+        "**/swagger.yaml",
+        "redocly.yaml",
+        "docs/api*",
+        "docs/api/**",
+        "jsdoc.json",
+        "typedoc.json"
+      ],
       "fail": "No API documentation found.",
       "fix": "Add OpenAPI specs, TypeDoc, or docs/api.",
       "effort": "medium"
@@ -324,7 +391,7 @@
       "pillarId": "documentation",
       "level": 3,
       "requiresLLM": false,
-      "anyFiles": ["CODEOWNERS", ".github/CODEOWNERS"],
+      "anyFiles": ["CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"],
       "fail": "No CODEOWNERS file found.",
       "fix": "Add a CODEOWNERS file.",
       "effort": "low"
@@ -341,7 +408,11 @@
         ".cursorrules",
         ".github/copilot-instructions.md",
         "AGENTS.md",
-        ".github/AGENTS.md"
+        ".github/AGENTS.md",
+        "GEMINI.md",
+        ".github/instructions/**/*.md",
+        ".windsurfrules",
+        "WARP.md"
       ],
       "fail": "No AI context files found.",
       "fix": "Add AGENTS.md, CLAUDE.md, .cursor/rules, .cursorrules, or .github/copilot-instructions.md.",
@@ -353,7 +424,14 @@
       "pillarId": "documentation",
       "level": 4,
       "requiresLLM": false,
-      "anyFiles": ["docs/architecture*", "docs/adr/*", "ARCHITECTURE.md"],
+      "anyFiles": [
+        "docs/architecture*",
+        "docs/adr/*",
+        "docs/adr/**",
+        "docs/decisions/**",
+        "adr/**",
+        "ARCHITECTURE.md"
+      ],
       "fail": "No architecture documentation found.",
       "fix": "Add ARCHITECTURE.md or docs/adr.",
       "effort": "high"
@@ -401,7 +479,11 @@
         "packages.lock.json",
         "Gemfile.lock",
         "composer.lock",
-        "Package.resolved"
+        "Package.resolved",
+        "mix.lock",
+        "flake.lock",
+        "cabal.project.freeze",
+        "pixi.lock"
       ],
       "fail": "No dependency lock file found.",
       "fix": "Commit a lock file for the package manager.",
@@ -413,7 +495,14 @@
       "pillarId": "dev-environment",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": [".env.example", ".env.template", ".env.sample"],
+      "anyFiles": [
+        ".env.example",
+        ".env.template",
+        ".env.sample",
+        "env.example",
+        ".envrc.example",
+        "dotenv.example"
+      ],
       "fail": "No .env.example or similar found.",
       "fix": "Add .env.example documenting required variables.",
       "effort": "low"
@@ -437,7 +526,13 @@
         "scripts/install.sh",
         "scripts/install-*",
         "setup.py",
-        "setup.cfg"
+        "setup.cfg",
+        "justfile",
+        "Justfile",
+        "Taskfile.yml",
+        "Taskfile.yaml",
+        "bootstrap.sh",
+        "scripts/bootstrap*"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[build-system]"] }
@@ -466,13 +561,15 @@
         ".ruby-version",
         ".php-version",
         ".swift-version",
-        "global.json"
+        "global.json",
+        ".go-version"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["requires-python"] },
         { "file": "setup.py", "includes": ["python_requires"] },
         { "file": "package.json", "includes": ["\"engines\"", "\"packageManager\""] },
-        { "file": "Cargo.toml", "includes": ["rust-version"] }
+        { "file": "Cargo.toml", "includes": ["rust-version"] },
+        { "file": "runtime.txt", "includes": ["python-"] }
       ],
       "fail": "No runtime version pin found.",
       "fix": "Add .nvmrc, .python-version, .tool-versions, or go.mod.",
@@ -488,6 +585,9 @@
         "Dockerfile",
         "docker-compose.yml",
         "docker-compose.yaml",
+        "compose.yaml",
+        "compose.yml",
+        "Containerfile",
         ".devcontainer",
         "**/Dockerfile",
         "docker/Dockerfile",
@@ -506,7 +606,7 @@
       "requiresLLM": false,
       "ciFiles": true,
       "fail": "No CI configuration found.",
-      "fix": "Add GitHub Actions, GitLab CI, CircleCI, Jenkins, or Travis config.",
+      "fix": "Add GitHub Actions, GitLab CI, CircleCI, Azure Pipelines, Buildkite, Jenkins, or Travis config.",
       "effort": "medium"
     },
     {
@@ -598,8 +698,13 @@
       "pillarId": "code-health",
       "level": 4,
       "requiresLLM": false,
-      "anyFiles": ["knip.json", "knip.ts", "knip.config.ts", ".knip.json", ".deadcode*"],
-      "fileContains": [{ "file": "package.json", "includes": ["\"knip\"", "unused-exports", "ts-prune"] }],
+      "anyFiles": ["knip.json", "knip.ts", "knip.config.ts", ".knip.json", ".deadcode*", ".vulture"],
+      "fileContains": [
+        { "file": "package.json", "includes": ["\"knip\"", "unused-exports", "ts-prune", "\"vulture\""] },
+        { "file": "pyproject.toml", "includes": ["vulture"] },
+        { "file": "Cargo.toml", "includes": ["cargo-machete"] }
+      ],
+      "ciGrep": "\\b(knip|ts-prune|vulture|cargo-machete|deadcode)\\b",
       "fail": "No dead code detection tool found.",
       "fix": "Add knip or similar unused-export config.",
       "effort": "medium"
@@ -614,7 +719,7 @@
       "fileContains": [
         {
           "file": "package.json",
-          "includes": ["webpack-bundle-analyzer", "@next/bundle-analyzer", "size-limit"]
+          "includes": ["webpack-bundle-analyzer", "@next/bundle-analyzer", "size-limit", "source-map-explorer"]
         }
       ],
       "fail": "No bundle analysis configuration found.",
@@ -630,6 +735,7 @@
       "anyFiles": [
         "LICENSE",
         "LICENSE.md",
+        "LICENSE.rst",
         "LICENSE.txt",
         "LICENCE",
         "LICENCE.md",
@@ -638,7 +744,8 @@
         "LICENSE-*",
         "COPYING",
         "COPYING.md",
-        "UNLICENSE"
+        "UNLICENSE",
+        "LICENSES/**"
       ],
       "fail": "No license file found.",
       "fix": "Add a LICENSE file at the repository root.",
@@ -650,7 +757,7 @@
       "pillarId": "security",
       "level": 3,
       "requiresLLM": false,
-      "anyFiles": ["SECURITY.md", ".github/SECURITY.md"],
+      "anyFiles": ["SECURITY.md", ".github/SECURITY.md", "docs/SECURITY.md", "security.md"],
       "fail": "No security policy found.",
       "fix": "Add SECURITY.md describing how to report vulnerabilities.",
       "effort": "low"
@@ -665,6 +772,8 @@
         ".github/dependabot.yml",
         ".github/dependabot.yaml",
         "renovate.json",
+        "renovate.json5",
+        ".github/renovate.json",
         ".renovaterc",
         ".renovaterc.json"
       ],
@@ -678,8 +787,8 @@
       "pillarId": "security",
       "level": 4,
       "requiresLLM": false,
-      "anyFiles": [".snyk"],
-      "ciGrep": "\\b(codeql|snyk|trivy|semgrep|owasp|cargo-audit|brakeman)\\b",
+      "anyFiles": [".snyk", "semgrep.yml", ".semgrep.yml", "bandit.yaml", ".bandit"],
+      "ciGrep": "\\b(codeql|snyk|trivy|semgrep|owasp|cargo-audit|brakeman|gosec|govulncheck)\\b",
       "fail": "No security scanning configured in CI.",
       "fix": "Add CodeQL, Snyk, Trivy, or Semgrep to CI config. Do not run those tools here.",
       "effort": "high"
@@ -690,7 +799,7 @@
       "pillarId": "security",
       "level": 4,
       "requiresLLM": false,
-      "anyFiles": [".gitleaks.toml"],
+      "anyFiles": [".gitleaks.toml", ".gitleaks.yml", ".detect-secrets.cfg", ".gitguardian.yml"],
       "ciGrep": "\\b(gitleaks|detect-secrets|trufflehog|gitguardian)\\b",
       "fail": "No secrets detection tool configured.",
       "fix": "Add gitleaks or detect-secrets config.",
