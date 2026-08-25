@@ -1,5 +1,11 @@
 import path from "node:path";
-import { ATTRIBUTION, ENGINE_NAME, LEVEL_LABELS, SCOPE_LABEL } from "./constants.mjs";
+import {
+  ATTRIBUTION,
+  ENGINE_NAME,
+  LEVEL_LABELS,
+  LEVEL_THRESHOLD,
+  SCOPE_LABEL,
+} from "./constants.mjs";
 import { hashCatalog } from "./catalog.mjs";
 import { fileExists, readGitHead } from "./lib.mjs";
 import { recommend, scoreResults } from "./evaluate.mjs";
@@ -27,6 +33,14 @@ function agentsMdNote(repoRoot, results) {
   return "ai-context does not check AGENTS.md. AGENTS.md is present at the repository root and is not part of the 80% denominator.";
 }
 
+function countedAtLevel(results, level) {
+  const rows = results.filter((row) => row.level === level && !row.skipped);
+  return {
+    passed: rows.filter((row) => row.pass).length,
+    total: rows.length,
+  };
+}
+
 export function buildReport(evaluation, options = {}) {
   const repoRoot = options.repoRoot;
   const repoName = options.repoName ?? path.basename(repoRoot);
@@ -37,6 +51,15 @@ export function buildReport(evaluation, options = {}) {
   const skippedAi = evaluation.results.filter((row) => row.skipped && row.requiresLLM);
   const label = LEVEL_LABELS[scored.level];
   const nextLevel = scored.nextLevelProgress.nextLevel;
+  const l2 = countedAtLevel(evaluation.results, 2);
+  const l1CapReasons = evaluation.results
+    .filter((row) => row.level === 1 && !row.skipped && !row.pass)
+    .map((row) => row.criterionId);
+  const l1Capped =
+    scored.level === 1 &&
+    l2.total > 0 &&
+    l2.passed / l2.total >= LEVEL_THRESHOLD &&
+    l1CapReasons.length > 0;
   const level5Disclaimer =
     scored.level === 5
       ? "v1 skips L5 quality checks. Level 5 here means the one non-AI Level 5 check passed, bundle-analysis. It is not an Autonomous rating."
@@ -72,6 +95,10 @@ export function buildReport(evaluation, options = {}) {
       nextLevelCurrent: scored.nextLevelProgress.current,
       nextLevelNeeded: scored.nextLevelProgress.needed,
       nextLevelRemaining: scored.nextLevelProgress.remaining,
+      l2Passed: l2.passed,
+      l2Total: l2.total,
+      l1CapReasons,
+      l1Capped,
     },
     pillar_scores: scored.pillarScores,
     criterion_results,

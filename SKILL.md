@@ -50,6 +50,8 @@ Keep the catalog's seven pillars and level names. Do not invent a second band.
 
 Levels: 1 Foundational, 2 Guided, 3 Structured, 4 Optimized, 5 Autonomous. Gate: 80% of **this** level's non-skipped criteria, sequential. Minimum level is always 1.
 
+`maturity_level` also includes `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (editorconfig, lock-file, and the other L1 ids). The canvas treats that cap as the primary visual. Do not change the 80% math.
+
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
 `ai-context` does not check `AGENTS.md`. If that file exists and `ai-context` failed, mention it outside the denominator.
