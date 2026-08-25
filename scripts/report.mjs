@@ -7,7 +7,7 @@ import {
   SCOPE_LABEL,
 } from "./constants.mjs";
 import { hashCatalog } from "./catalog.mjs";
-import { fileExists, readGitHead } from "./lib.mjs";
+import { readGitHead } from "./lib.mjs";
 import { recommend, scoreResults } from "./evaluate.mjs";
 
 function joinEnglish(items) {
@@ -24,13 +24,6 @@ function thesis(repoName, level, label, scorePercent, remediations) {
       ? "No failing checks in this run."
       : `Fix ${joinEnglish(titles)} first.`;
   return `${repoName} is Level ${level} ${label} at ${scorePercent}% of counted checks. ${fix} Scoring is ${SCOPE_LABEL}.`;
-}
-
-function agentsMdNote(repoRoot, results) {
-  if (!fileExists(repoRoot, "AGENTS.md")) return null;
-  const aiContext = results.find((row) => row.criterionId === "ai-context");
-  if (!aiContext || aiContext.pass || aiContext.skipped) return null;
-  return "ai-context does not check AGENTS.md. AGENTS.md is present at the repository root and is not part of the 80% denominator.";
 }
 
 function countedAtLevel(results, level) {
@@ -95,8 +88,10 @@ export function buildReport(evaluation, options = {}) {
       nextLevelCurrent: scored.nextLevelProgress.current,
       nextLevelNeeded: scored.nextLevelProgress.needed,
       nextLevelRemaining: scored.nextLevelProgress.remaining,
-      l2Passed: l2.passed,
-      l2Total: l2.total,
+      l1Passed: scored.l1Passed,
+      l1Total: scored.l1Total,
+      l2Passed: scored.l2Passed,
+      l2Total: scored.l2Total,
       l1CapReasons,
       l1Capped,
     },
@@ -117,7 +112,7 @@ export function buildReport(evaluation, options = {}) {
     },
     thesis: thesis(repoName, scored.level, label, scored.scorePercent, remediations),
     level5Disclaimer,
-    agentsMdNote: agentsMdNote(repoRoot, evaluation.results),
+    agentsMdNote: null,
     attribution: ATTRIBUTION,
   };
 }

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { LEVEL_THRESHOLD } from "./constants.mjs";
+import { thresholdForLevel } from "./constants.mjs";
 import {
   ciFiles,
   detectLanguages,
@@ -15,14 +15,17 @@ import {
 } from "./walk.mjs";
 import { catalogPath, loadCatalog } from "./catalog.mjs";
 
-const LOCK_FILES = [
+export const LOCK_FILES = [
   "package-lock.json",
+  "npm-shrinkwrap.json",
   "bun.lockb",
   "bun.lock",
   "yarn.lock",
   "pnpm-lock.yaml",
   "poetry.lock",
   "Pipfile.lock",
+  "uv.lock",
+  "pdm.lock",
   "go.sum",
   "Cargo.lock",
   "gradle.lockfile",
@@ -31,6 +34,8 @@ const LOCK_FILES = [
   "composer.lock",
   "Package.resolved",
 ];
+
+const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set(["java", "c", "cpp", "haskell"]);
 
 function hit(message, details) {
   return { pass: true, skipped: false, message, details };
@@ -99,6 +104,26 @@ function evalCiGrep(repoRoot, files, pattern) {
     if (rx.test(content)) return { configs, hit: file };
   }
   return { configs, hit: null };
+}
+
+function basename(rel) {
+  const parts = rel.split("/");
+  return parts[parts.length - 1] ?? rel;
+}
+
+function hasNoConventionalLockfile(languages) {
+  return [...languages].some((lang) => NO_CONVENTIONAL_LOCKFILE_LANGUAGES.has(lang));
+}
+
+function hasEnvSignals(files) {
+  return files.some((file) => {
+    const name = basename(file);
+    if (name === ".env" || name === ".envrc" || name === "direnv") return true;
+    if (name.startsWith(".env.")) return true;
+    if (/^docker-compose.*\.ya?ml$/i.test(name)) return true;
+    if (/^compose.*\.ya?ml$/i.test(name)) return true;
+    return false;
+  });
 }
 
 function lockFresh(repoRoot, files, days) {
@@ -172,6 +197,18 @@ function evalCriterion(criterion, ctx) {
   ]);
   if (fileHits.length > 0) {
     return hit(`Found ${fileHits[0]}`);
+  }
+
+  if (criterion.id === "lock-file") {
+    if (hasNoConventionalLockfile(ctx.languages)) {
+      return skip("This language has no conventional committed lockfile.");
+    }
+  }
+
+  if (criterion.id === "env-documentation") {
+    if (!hasEnvSignals(ctx.files)) {
+      return skip("No environment or compose files to document.");
+    }
   }
 
   if (criterion.packageJsonPath && packageJsonHas(ctx.pkg, criterion.packageJsonPath)) {
@@ -256,6 +293,16 @@ export function scoreResults(catalog, results) {
   });
 
   const counted = results.filter((row) => !row.skipped);
+  const levelStats = (level) => {
+    const atLevel = counted.filter((row) => row.level === level);
+    return {
+      passed: atLevel.filter((row) => row.pass).length,
+      total: atLevel.length,
+    };
+  };
+  const l1 = levelStats(1);
+  const l2 = levelStats(2);
+
   let highestPassed = 1;
   for (const level of [1, 2, 3, 4, 5]) {
     const atLevel = counted.filter((row) => row.level === level);
@@ -264,7 +311,7 @@ export function scoreResults(catalog, results) {
       continue;
     }
     const passedCount = atLevel.filter((row) => row.pass).length;
-    if (passedCount / atLevel.length >= LEVEL_THRESHOLD) highestPassed = level;
+    if (passedCount / atLevel.length >= thresholdForLevel(level)) highestPassed = level;
     else break;
   }
 
@@ -275,7 +322,7 @@ export function scoreResults(catalog, results) {
   if (nextLevel != null) {
     const nextRows = counted.filter((row) => row.level === nextLevel);
     current = nextRows.filter((row) => row.pass).length;
-    needed = Math.ceil(nextRows.length * LEVEL_THRESHOLD);
+    needed = Math.ceil(nextRows.length * thresholdForLevel(nextLevel));
     remaining = Math.max(0, needed - current);
   }
 
@@ -288,6 +335,10 @@ export function scoreResults(catalog, results) {
     level: highestPassed,
     scorePercent,
     pillarScores,
+    l1Passed: l1.passed,
+    l1Total: l1.total,
+    l2Passed: l2.passed,
+    l2Total: l2.total,
     nextLevelProgress: {
       current,
       needed,

@@ -30,11 +30,11 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 
 ## Honesty
 
-**This catalog.** Deterministic file and config presence. Seven pillars. Five levels: Foundational, Guided, Structured, Optimized, Autonomous. 80% of this level's non-skipped checks, sequential, minimum level 1. Skipped L5 quality checks are a third state and drop out of the denominator. v1 never runs those quality checks.
+**This catalog.** Deterministic file and config presence. Seven pillars. Five levels: Foundational, Guided, Structured, Optimized, Autonomous. L1 is 3/4 (75%). L2+ stays 80% sequential, minimum level 1. Skipped L5 quality checks are a third state and drop out of the denominator. v1 never runs those quality checks.
 
 **`/doctor`.** A qualitative Cursor rubric with a different canvas schema. The scores are not comparable.
 
-`ai-context` does not look for `AGENTS.md`. It looks for `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. An `AGENTS.md` note, if shown, stays outside the 80% denominator.
+`ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` counts. Do not add LLM scoring.
 
 If a run would display Level 5, the canvas adds a disclaimer. That band can trip on `bundle-analysis` alone because quality checks are skipped.
 

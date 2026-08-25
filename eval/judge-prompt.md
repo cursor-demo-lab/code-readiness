@@ -1,6 +1,6 @@
 You are scoring /code-readiness eval outputs. Return JSON only. No markdown. No preamble.
 
-Engine: checks/catalog.json filesystem heuristics in cursor-demo-lab/code-readiness. Deterministic file and config presence. v1 never runs AI. llm_calls must be 0. This is not /doctor. Do not treat AGENTS.md as an ai-context pass. Do not expect a third-party JSON dump.
+Engine: checks/catalog.json filesystem heuristics in cursor-demo-lab/code-readiness. Deterministic file and config presence. v1 never runs AI. llm_calls must be 0. This is not /doctor. Treat AGENTS.md and .github/AGENTS.md as an ai-context pass. Do not expect a third-party JSON dump.
 
 Goldens, expected ordinal bands only:
 - socketio/chat-example @ frozen SHA, expected LOW
@@ -17,7 +17,7 @@ Score 1-5 integers:
 - fixture_agreement: core FS checks match files at the frozen SHA per the catalog
 - remediation_quality: top fixes are catalog remediations for real fails, not invented work
 - canvas_completeness: regions repo_identity, maturity_level, pillar_scores, criterion_results, remediations, run_metadata (check_count, llm_calls=0) are present and filled with real data
-- level_sanity: level matches the 80% sequential gate and the expected band, with Level 5 disclaimed when shown
+- level_sanity: level matches the sequential gate (L1 is 3/4 (75%); L2+ stays 80%) and the expected band, with Level 5 disclaimed when shown
 
 hallucinated_configs is true if the report or canvas claims a file, tool, or config that is not in the golden tree and not in the catalog result.
 
