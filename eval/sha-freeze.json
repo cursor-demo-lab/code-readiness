@@ -1,0 +1,43 @@
+{
+  "frozen_at": "2026-08-25",
+  "kodus_version": "0.1.3",
+  "note": "Default-branch SHAs looked up on frozen_at with the GitHub API. Do not clone these repositories into the skill repo.",
+  "hard_ranking": "chat-example < express < fastapi ≈ act",
+  "excluded": ["CockroachDB", "kodustech/agent-readiness"],
+  "goldens": [
+    {
+      "id": "chat-example",
+      "repo": "socketio/chat-example",
+      "default_branch": "main",
+      "sha": "07a183a618aea3e1c7f63c8d9bb1fcb78a1e99e8",
+      "committed_at": "2023-11-17T15:10:24Z",
+      "expected_band": "LOW"
+    },
+    {
+      "id": "express",
+      "repo": "expressjs/express",
+      "default_branch": "master",
+      "sha": "023767fe9872e029271df1418f73401bff20ff40",
+      "committed_at": "2026-08-22T20:59:54Z",
+      "expected_band": "LOW-MID",
+      "ordinal_hint": "Factory L2 is an ordinal hint only. Do not assert Factory numerators."
+    },
+    {
+      "id": "fastapi",
+      "repo": "fastapi/fastapi",
+      "default_branch": "master",
+      "sha": "c3f316b7e814667e8ee81e03a7330d00ee61e45c",
+      "committed_at": "2026-08-19T08:58:10Z",
+      "expected_band": "MID-HIGH"
+    },
+    {
+      "id": "act",
+      "repo": "nektos/act",
+      "default_branch": "master",
+      "sha": "4f411281417e88660bea1c1a1749aa71ae0bd60f",
+      "committed_at": "2026-06-01T03:17:32Z",
+      "expected_band": "HIGH",
+      "notes": "Go auto-passes formatter and type-checker in Kodus."
+    }
+  ]
+}
