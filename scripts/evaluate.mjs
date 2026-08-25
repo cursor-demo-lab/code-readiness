@@ -274,6 +274,16 @@ function evalCriterion(criterion, ctx) {
   return miss(criterion.fail);
 }
 
+function skipEditorconfigWhenLinterPasses(results) {
+  const linter = results.find((row) => row.criterionId === "linter");
+  const editorconfig = results.find((row) => row.criterionId === "editorconfig");
+  if (!linter?.pass || linter.skipped) return;
+  if (!editorconfig || editorconfig.pass || editorconfig.skipped) return;
+  editorconfig.skipped = true;
+  editorconfig.pass = false;
+  editorconfig.message = "Prescriptive linter already configured.";
+}
+
 export function evaluateRepo(repoRoot) {
   const catalog = loadCatalog();
   const files = walkFiles(repoRoot);
@@ -301,6 +311,7 @@ export function evaluateRepo(repoRoot) {
       effort: criterion.effort ?? "medium",
     });
   }
+  skipEditorconfigWhenLinterPasses(results);
   return { catalog, files, languages: [...ctx.languages], results };
 }
 

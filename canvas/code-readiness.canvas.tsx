@@ -124,6 +124,11 @@ const LEVELS: Array<{ level: 1 | 2 | 3 | 4 | 5; label: string }> = [
   { level: 5, label: "Autonomous" },
 ];
 
+const WHY_FOR_AGENTS: Record<string, string> = {
+  editorconfig:
+    "Add .editorconfig only when there is no linter. A linter is the agent-runnable style oracle. Do not dummy .editorconfig.",
+};
+
 const OPEN_BY_ID: Record<string, string> = {
   editorconfig: ".editorconfig",
   readme: "README.md",
@@ -139,7 +144,7 @@ const OPEN_BY_ID: Record<string, string> = {
 
 const WHY_FOR_AGENTS: Record<string, string> = {
   editorconfig:
-    "Agents guess indent and charset. .editorconfig is a machine-readable contract so patches match the repo without a style fight in review.",
+    "Add .editorconfig only when there is no linter. A linter is the agent-runnable style oracle. Do not dummy .editorconfig.",
   linter:
     "Agents generate code that looks right. A linter is a cheap local oracle they can loop on after each edit.",
   formatter:
