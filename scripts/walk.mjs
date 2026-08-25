@@ -114,6 +114,18 @@ export function detectLanguages(files) {
     langs.add("python");
   }
   if (has("package.json") || has("tsconfig.json")) langs.add("node");
+  if (
+    has("package.json") ||
+    files.some((f) => /\.(js|mjs|cjs|jsx)$/i.test(f))
+  ) {
+    langs.add("javascript");
+  }
+  if (
+    has("tsconfig.json") ||
+    files.some((f) => /\.(ts|tsx|mts|cts)$/i.test(f))
+  ) {
+    langs.add("typescript");
+  }
   if (has("pom.xml") || has("build.gradle") || files.some((f) => f.endsWith(".java"))) {
     langs.add("java");
   }

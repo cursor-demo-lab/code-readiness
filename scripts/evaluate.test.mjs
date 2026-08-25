@@ -120,7 +120,10 @@ assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Cargo.toml" &
 const setupScript = catalog.criteria.find((row) => row.id === "setup-script");
 assert.ok(setupScript.anyFiles.includes("Makefile"));
 assert.equal(setupScript.makefileTarget, "setup|install");
-assert.equal(setupScript.packageJsonPath, "scripts.dev");
+assert.match(String(setupScript.packageJsonPath), /scripts\.dev/);
+assert.match(String(setupScript.packageJsonPath), /scripts\.test/);
+assert.match(String(setupScript.packageJsonPath), /scripts\.lint/);
+assert.match(String(setupScript.packageJsonPath), /scripts\.build/);
 
 const license = catalog.criteria.find((row) => row.id === "license");
 assert.ok(license.anyFiles.includes("LICENSE-MIT"));
@@ -362,6 +365,38 @@ const pyJsLockById = resultById(evaluateRepo(pyJsLockRoot));
 assert.equal(pyJsLockById["lock-file"].pass, true, pyJsLockById["lock-file"].message);
 assert.equal(pyJsLockById["lock-file"].skipped, false);
 assert.match(pyJsLockById["lock-file"].message, /package-lock\.json/);
+
+const jsNoLockRoot = tmp("code-readiness-js-nolock-");
+fs.writeFileSync(path.join(jsNoLockRoot, "package.json"), "{}\n");
+const jsNoLockById = resultById(evaluateRepo(jsNoLockRoot));
+assert.equal(jsNoLockById["lock-file"].skipped, true, jsNoLockById["lock-file"].message);
+assert.match(jsNoLockById["lock-file"].message, /no conventional committed lockfile/i);
+assert.equal(jsNoLockById["lock-file"].pass, false);
+
+const tsNoLockRoot = tmp("code-readiness-ts-nolock-");
+fs.writeFileSync(path.join(tsNoLockRoot, "tsconfig.json"), "{}\n");
+const tsNoLockById = resultById(evaluateRepo(tsNoLockRoot));
+assert.equal(tsNoLockById["lock-file"].skipped, true, tsNoLockById["lock-file"].message);
+assert.match(tsNoLockById["lock-file"].message, /no conventional committed lockfile/i);
+assert.equal(tsNoLockById["lock-file"].pass, false);
+
+const jsLockPassRoot = tmp("code-readiness-js-lock-");
+fs.writeFileSync(path.join(jsLockPassRoot, "package.json"), "{}\n");
+fs.writeFileSync(path.join(jsLockPassRoot, "yarn.lock"), "# yarn\n");
+const jsLockPassById = resultById(evaluateRepo(jsLockPassRoot));
+assert.equal(jsLockPassById["lock-file"].pass, true, jsLockPassById["lock-file"].message);
+assert.equal(jsLockPassById["lock-file"].skipped, false);
+assert.match(jsLockPassById["lock-file"].message, /yarn\.lock/);
+
+const setupTestRoot = tmp("code-readiness-setup-test-");
+fs.writeFileSync(
+  path.join(setupTestRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "jest" } }),
+);
+const setupTestById = resultById(evaluateRepo(setupTestRoot));
+assert.equal(setupTestById["setup-script"].pass, true, setupTestById["setup-script"].message);
+assert.match(setupTestById["setup-script"].message, /scripts\.test/);
+assert.equal(/scripts\.dev/.test(setupTestById["setup-script"].message), false);
 
 const envSkipRoot = tmp("code-readiness-env-skip-");
 fs.writeFileSync(path.join(envSkipRoot, "index.js"), "export default {}\n");
