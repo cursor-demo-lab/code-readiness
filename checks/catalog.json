@@ -470,6 +470,7 @@
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["requires-python"] },
+        { "file": "setup.py", "includes": ["python_requires"] },
         { "file": "package.json", "includes": ["\"engines\"", "\"packageManager\""] },
         { "file": "Cargo.toml", "includes": ["rust-version"] }
       ],

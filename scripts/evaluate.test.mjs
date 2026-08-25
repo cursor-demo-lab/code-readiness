@@ -159,10 +159,24 @@ assert.equal(
 );
 
 const versionPinned = catalog.criteria.find((row) => row.id === "version-pinned");
+assert.ok(versionPinned.anyFiles.includes(".python-version"));
+assert.ok(versionPinned.anyFiles.includes(".tool-versions"));
+assert.ok(versionPinned.anyFiles.includes("go.mod"));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "setup.py" && rule.includes.includes("python_requires")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"engines\"")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"packageManager\"")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("rust-version")));
+assert.equal(
+  versionPinned.anyFiles.includes("setup.py"),
+  false,
+  "empty setup.py must not pass version-pinned; only python_requires counts",
+);
+assert.equal(
+  versionPinned.fileContains.some((rule) => (rule.includes ?? []).some((token) => /target-version/i.test(token))),
+  false,
+  "ruff target-version is not a runtime pin",
+);
 
 const setupScript = catalog.criteria.find((row) => row.id === "setup-script");
 assert.ok(setupScript.anyFiles.includes("Makefile"));
@@ -670,6 +684,31 @@ const pyverById = resultById(evaluateRepo(pyverRoot));
 assert.equal(pyverById["version-pinned"].pass, true, pyverById["version-pinned"].message);
 assert.match(pyverById["version-pinned"].message, /requires-python/);
 
+const setupPyPinRoot = tmp("code-readiness-setuppy-pin-");
+fs.writeFileSync(
+  path.join(setupPyPinRoot, "setup.py"),
+  'from setuptools import setup\nsetup(python_requires=">=3.10")\n',
+);
+const setupPyPinById = resultById(evaluateRepo(setupPyPinRoot));
+assert.equal(setupPyPinById["version-pinned"].pass, true, setupPyPinById["version-pinned"].message);
+assert.match(setupPyPinById["version-pinned"].message, /python_requires/);
+assert.match(setupPyPinById["version-pinned"].message, /setup\.py/);
+
+const ruffTargetRoot = tmp("code-readiness-ruff-target-");
+fs.writeFileSync(
+  path.join(ruffTargetRoot, "pyproject.toml"),
+  "[tool.ruff]\ntarget-version = \"py310\"\n",
+);
+const ruffTargetById = resultById(evaluateRepo(ruffTargetRoot));
+assert.equal(ruffTargetById["version-pinned"].pass, false, ruffTargetById["version-pinned"].message);
+assert.match(ruffTargetById["version-pinned"].message, /No runtime version pin found/);
+
+const noPinRoot = tmp("code-readiness-nopin-");
+fs.writeFileSync(path.join(noPinRoot, "setup.py"), "from setuptools import setup\nsetup()\n");
+const noPinById = resultById(evaluateRepo(noPinRoot));
+assert.equal(noPinById["version-pinned"].pass, false, noPinById["version-pinned"].message);
+assert.match(noPinById["version-pinned"].message, /No runtime version pin found/);
+
 const makeRoot = tmp("code-readiness-make-");
 fs.writeFileSync(path.join(makeRoot, "Makefile"), "all:\n\t@echo ok\n");
 const makeById = resultById(evaluateRepo(makeRoot));
@@ -769,6 +808,8 @@ const emptyEval = evaluateRepo(emptyRoot);
 const emptyById = resultById(emptyEval);
 const emptyScored = scoreResults(emptyEval.catalog, emptyEval.results);
 assert.equal(emptyScored.level, 1);
+assert.equal(emptyById["version-pinned"].pass, false, emptyById["version-pinned"].message);
+assert.match(emptyById["version-pinned"].message, /No runtime version pin found/);
 assert.equal(emptyById["env-documentation"].skipped, true);
 assert.equal(emptyById["lock-file"].skipped, false);
 assert.equal(emptyById["type-checker"].skipped, true);
