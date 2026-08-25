@@ -1171,6 +1171,8 @@ assertFail("linter", { Makefile: "lint:\n\tgolangci-lint run\n", "go.mod": "modu
 
 assertPass("pre-commit-hooks", { "lefthook.toml": "[pre-commit]\n" }, /lefthook\.toml/);
 assertPass("pre-commit-hooks", { ".lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /\.lefthook\.yaml/);
+assertPass("pre-commit-hooks", { ".lefthook.toml": "[pre-commit]\n" }, /\.lefthook\.toml/);
+assertPass("pre-commit-hooks", { "lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /lefthook\.yaml/);
 assertPass("pre-commit-hooks", { ".lintstagedrc": "{}\n" }, /\.lintstagedrc/);
 assertPass("pre-commit-hooks", { ".lintstagedrc.json": "{}\n" }, /\.lintstagedrc/);
 assertPass("pre-commit-hooks", { "package.json": { "lint-staged": { "*.js": "eslint" } } }, /lint-staged/);
