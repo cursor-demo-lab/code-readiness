@@ -38,6 +38,8 @@ Hill-climb after PR #12: microsoft/TypeScript dropped L2→L1 because Go formatt
 
 Hill-climb after PR #13: tj/commander.js is 9/12 L2 (need 10 for 80%) and fails `pre-commit-hooks`, `test-framework`, and `ai-context`. The test-framework fail is a detector hole — the stub has `scripts.test = "node --test && npm run check:type:ts"` and `tests/*.test.js`, but catalog `fileContains` for package.json included the token `"node --test"` WITH wrapping quotes, so `evalFileContains` looks for quote-node-space-dash-dash-test-quote. After `--test` comes space then `&&`, not a closing quote; `node:test` is also absent. Unquoted `node --test` now matches. Do not treat `**/*.test.js` as test-framework (that is `test-files-exist`, L1). Do not dummy AGENTS.md or pre-commit. `packageJsonPath` `scripts.test` stays on `test-script`, a different criterion. No new ids, no L1/L2 threshold change, no new pillars.
 
+Hill-climb after PR #14: nestjs/nest is L1 Functional 69% at L2 10/13 (need 11). Remaining L2 fails: editorconfig, ai-context, env-documentation. env-documentation FAILs `No .env.example or similar found` because compose files exist. The nest stub has `integration/docker-compose.yml` plus `sample/**/docker-compose.yml` and `sample/**/*.env`. There is no root `.env`, `.env.example`, or root compose. Nested sample/integration compose was counting as "this library has env to document." `hasEnvSignals` now counts only root-level `.env` / `.env.*` / `.envrc` / `docker-compose.y*ml` / `compose.y*ml`. Nested `sample/**` / `examples/**` / `integration/**` compose or env do not trigger the fail path. A repo with root `.env` or root compose and no `.env.example` still FAILs. A repo with no env/compose/direnv at root still SKIPS. Do not dummy `.editorconfig`. nest 10/13 becomes 10/12 Documented honestly. No new ids, no L1/L2 threshold change, no new pillars.
+
 ## Explicitly refused
 
 - New criterion ids
@@ -55,5 +57,5 @@ Hill-climb after PR #13: tj/commander.js is 9/12 L2 (need 10 for 80%) and fails 
 - Repository-root walk
 - Seven pillars
 - Python-native test-script / setup-script detectors
-- `env-documentation` skip on empty trees
+- `env-documentation` skip unless root env/compose/direnv signals exist
 - `lock-file` language-aware skip-when-absent (now an L2 skip)

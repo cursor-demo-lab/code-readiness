@@ -515,12 +515,58 @@ const envSkipById = resultById(envSkipEval);
 assert.equal(envSkipById["env-documentation"].skipped, true, envSkipById["env-documentation"].message);
 assert.equal(envSkipById["env-documentation"].pass, false);
 
+const envSampleComposeRoot = tmp("code-readiness-env-sample-compose-");
+fs.mkdirSync(path.join(envSampleComposeRoot, "sample", "app"), { recursive: true });
+fs.writeFileSync(
+  path.join(envSampleComposeRoot, "sample", "app", "docker-compose.yml"),
+  "services: {}\n",
+);
+const envSampleComposeById = resultById(evaluateRepo(envSampleComposeRoot));
+assert.equal(
+  envSampleComposeById["env-documentation"].skipped,
+  true,
+  envSampleComposeById["env-documentation"].message,
+);
+
+const envIntegrationComposeRoot = tmp("code-readiness-env-integration-compose-");
+fs.mkdirSync(path.join(envIntegrationComposeRoot, "integration"), { recursive: true });
+fs.writeFileSync(
+  path.join(envIntegrationComposeRoot, "integration", "docker-compose.yml"),
+  "services: {}\n",
+);
+const envIntegrationComposeById = resultById(evaluateRepo(envIntegrationComposeRoot));
+assert.equal(
+  envIntegrationComposeById["env-documentation"].skipped,
+  true,
+  envIntegrationComposeById["env-documentation"].message,
+);
+
+const envRootDotenvFail = tmp("code-readiness-env-root-dotenv-");
+fs.writeFileSync(path.join(envRootDotenvFail, ".env"), "FOO=1\n");
+const envRootDotenvById = resultById(evaluateRepo(envRootDotenvFail));
+assert.equal(envRootDotenvById["env-documentation"].skipped, false);
+assert.equal(
+  envRootDotenvById["env-documentation"].pass,
+  false,
+  envRootDotenvById["env-documentation"].message,
+);
+
 const envFailRoot = tmp("code-readiness-env-fail-");
 fs.writeFileSync(path.join(envFailRoot, "docker-compose.yml"), "services: {}\n");
 const envFailEval = evaluateRepo(envFailRoot);
 const envFailById = resultById(envFailEval);
 assert.equal(envFailById["env-documentation"].skipped, false);
 assert.equal(envFailById["env-documentation"].pass, false, envFailById["env-documentation"].message);
+
+const envExamplePassRoot = tmp("code-readiness-env-example-");
+fs.writeFileSync(path.join(envExamplePassRoot, ".env.example"), "FOO=\n");
+const envExamplePassById = resultById(evaluateRepo(envExamplePassRoot));
+assert.equal(envExamplePassById["env-documentation"].skipped, false);
+assert.equal(
+  envExamplePassById["env-documentation"].pass,
+  true,
+  envExamplePassById["env-documentation"].message,
+);
 
 const nestedRoot = tmp("code-readiness-contrib-");
 fs.mkdirSync(path.join(nestedRoot, "docs", "en", "docs"), { recursive: true });
