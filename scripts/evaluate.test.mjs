@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
-import { ATTRIBUTION, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
+import { ATTRIBUTION, IGNORE_DIRS, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
 import { evaluateRepo, LOCK_FILES, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
 import { globMatch } from "./walk.mjs";
@@ -78,12 +78,31 @@ assert.equal(/does not look for AGENTS\.md/i.test(aiContext.fix), false);
 const contributing = catalog.criteria.find((row) => row.id === "contributing");
 assert.ok(contributing.anyFiles.includes("**/CONTRIBUTING.md"));
 assert.ok(contributing.anyFiles.includes("docs/**/contributing*"));
+assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.md"));
+assert.equal(IGNORE_DIRS.has(".github"), false, ".github must stay walkable for CI and CONTRIBUTING");
+
+const license = catalog.criteria.find((row) => row.id === "license");
+assert.ok(license.anyFiles.includes("LICENSE-*"));
+assert.ok(license.anyFiles.includes("LICENSE-MIT"));
+assert.ok(license.anyFiles.includes("COPYING"));
+assert.ok(license.anyFiles.includes("COPYING.md"));
+assert.ok(license.anyFiles.includes("UNLICENSE"));
+
+const linter = catalog.criteria.find((row) => row.id === "linter");
+assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml"));
+assert.ok(linter.fileContains.some((rule) => rule.file === "setup.cfg"));
+const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml"));
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "setup.cfg"));
 
 assert.equal(globMatch("scripts/foo.test.mjs", "**/*.test.*"), true);
 assert.equal(globMatch(".github/workflows/ci.yml", ".github/workflows/*.yml"), true);
 assert.equal(globMatch("src/foo.js", "**/*.test.*"), false);
 assert.equal(globMatch("docs/en/docs/contributing.md", "docs/**/contributing*"), true);
 assert.equal(globMatch("docs/en/docs/CONTRIBUTING.md", "**/CONTRIBUTING.md"), true);
+assert.equal(globMatch(".github/CONTRIBUTING.md", "**/CONTRIBUTING.md"), true);
+assert.equal(globMatch("LICENSE-MIT", "LICENSE-*"), true);
+assert.equal(globMatch("UNLICENSE", "LICENSE-*"), false);
 
 function resultById(evaluation) {
   return Object.fromEntries(evaluation.results.map((row) => [row.criterionId, row]));
@@ -264,6 +283,48 @@ const nestedEval = evaluateRepo(nestedRoot);
 const nestedById = resultById(nestedEval);
 assert.equal(nestedById.contributing.pass, true, nestedById.contributing.message);
 assert.match(nestedById.contributing.message, /docs\/en\/docs\/contributing\.md/);
+
+const githubContribRoot = tmp("code-readiness-gh-contrib-");
+fs.mkdirSync(path.join(githubContribRoot, ".github"), { recursive: true });
+fs.writeFileSync(path.join(githubContribRoot, ".github", "CONTRIBUTING.md"), "# contributing\n");
+const githubContribEval = evaluateRepo(githubContribRoot);
+const githubContribById = resultById(githubContribEval);
+assert.equal(githubContribById.contributing.pass, true, githubContribById.contributing.message);
+assert.match(githubContribById.contributing.message, /\.github\/CONTRIBUTING\.md/);
+
+for (const name of ["LICENSE-MIT", "COPYING", "UNLICENSE", "COPYING.md"]) {
+  const licenseRoot = tmp(`code-readiness-${name.toLowerCase()}-`);
+  fs.writeFileSync(path.join(licenseRoot, name), "permission to use\n");
+  const licenseEval = evaluateRepo(licenseRoot);
+  const licenseById = resultById(licenseEval);
+  assert.equal(licenseById.license.pass, true, `${name} should satisfy license`);
+}
+
+const ruffRoot = tmp("code-readiness-ruff-");
+fs.writeFileSync(
+  path.join(ruffRoot, "pyproject.toml"),
+  "[project]\nname = \"x\"\nversion = \"0.1.0\"\n\n[tool.ruff]\nline-length = 88\n",
+);
+const ruffEval = evaluateRepo(ruffRoot);
+const ruffById = resultById(ruffEval);
+assert.equal(ruffById.linter.pass, true, ruffById.linter.message);
+assert.equal(ruffById.formatter.pass, true, ruffById.formatter.message);
+assert.equal(ruffById["type-checker"].pass, false);
+
+const mypyRoot = tmp("code-readiness-mypy-");
+fs.writeFileSync(
+  path.join(mypyRoot, "pyproject.toml"),
+  "[project]\nname = \"x\"\nversion = \"0.1.0\"\n\n[tool.mypy]\nstrict = true\n",
+);
+const mypyEval = evaluateRepo(mypyRoot);
+const mypyById = resultById(mypyEval);
+assert.equal(mypyById["type-checker"].pass, true, mypyById["type-checker"].message);
+
+const flakeRoot = tmp("code-readiness-flake-");
+fs.writeFileSync(path.join(flakeRoot, "setup.cfg"), "[flake8]\nmax-line-length = 88\n");
+const flakeEval = evaluateRepo(flakeRoot);
+const flakeById = resultById(flakeEval);
+assert.equal(flakeById.linter.pass, true, flakeById.linter.message);
 
 const emptyRoot = tmp("code-readiness-empty-");
 const emptyEval = evaluateRepo(emptyRoot);

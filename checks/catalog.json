@@ -79,7 +79,9 @@
         { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "build.gradle", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs"] },
-        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\""] }
+        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\""] },
+        { "file": "pyproject.toml", "includes": ["[tool.ruff", "[tool.ruff.lint]", "[tool.flake8]", "[tool.pylint"] },
+        { "file": "setup.cfg", "includes": ["[flake8]", "[pylint]", "[tool.ruff"] }
       ],
       "fail": "No linter configuration found.",
       "fix": "Add a linter config such as ESLint, Biome, Ruff, or golangci-lint.",
@@ -96,6 +98,7 @@
         { "file": "biome.json", "includes": ["formatter"] },
         { "file": "biome.jsonc", "includes": ["formatter"] },
         { "file": "pyproject.toml", "includes": ["[tool.black]", "[tool.ruff"] },
+        { "file": "setup.cfg", "includes": ["[black]", "[tool.black]", "[tool.ruff"] },
         { "file": "package.json", "includes": ["\"prettier\""] }
       ],
       "languagesPass": {
@@ -114,7 +117,10 @@
       "level": 3,
       "requiresLLM": false,
       "anyFiles": ["mypy.ini", ".mypy.ini", "pyrightconfig.json"],
-      "fileContains": [{ "file": "setup.cfg", "includes": ["[mypy]"] }],
+      "fileContains": [
+        { "file": "setup.cfg", "includes": ["[mypy]"] },
+        { "file": "pyproject.toml", "includes": ["[tool.mypy]", "[tool.pyright"] }
+      ],
       "tsconfigStrict": true,
       "languagesPass": {
         "go": "Go has a built-in static type system.",
@@ -250,7 +256,13 @@
       "pillarId": "documentation",
       "level": 2,
       "requiresLLM": false,
-      "anyFiles": ["CONTRIBUTING.md", "**/CONTRIBUTING.md", "docs/contributing*", "docs/**/contributing*"],
+      "anyFiles": [
+        "CONTRIBUTING.md",
+        ".github/CONTRIBUTING.md",
+        "**/CONTRIBUTING.md",
+        "docs/contributing*",
+        "docs/**/contributing*"
+      ],
       "fail": "No contributing guide found.",
       "fix": "Add CONTRIBUTING.md with workflow and PR guidelines.",
       "effort": "low"
@@ -554,7 +566,19 @@
       "pillarId": "security",
       "level": 1,
       "requiresLLM": false,
-      "anyFiles": ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md", "LICENCE.txt"],
+      "anyFiles": [
+        "LICENSE",
+        "LICENSE.md",
+        "LICENSE.txt",
+        "LICENSE-*",
+        "LICENSE-MIT",
+        "LICENCE",
+        "LICENCE.md",
+        "LICENCE.txt",
+        "COPYING",
+        "COPYING.md",
+        "UNLICENSE"
+      ],
       "fail": "No license file found.",
       "fix": "Add a LICENSE file at the repository root.",
       "effort": "low"

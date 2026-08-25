@@ -20,6 +20,10 @@ Go, Rust, Java, Kotlin, C#, and Swift auto-pass `type-checker`. Go, Rust, and C#
 
 `env-documentation` skips when there is no `.env.example` / `.env.template` / `.env.sample` and the tree also has no `.env`, `.env.*`, `docker-compose*.yml`, `compose*.yml`, or `.envrc` / `direnv`. Fail only when those env or compose files exist without an example.
 
+`linter` and `type-checker` read `pyproject.toml` and `setup.cfg` (ruff, flake8, pylint, mypy, pyright). `formatter` already treats `[tool.ruff]` / `[tool.black]` in pyproject as a pass; ruff counts as both linter and formatter.
+
+`license` also matches `LICENSE-*`, `LICENSE-MIT`, `COPYING`, `COPYING.md`, and `UNLICENSE`. `contributing` matches `.github/CONTRIBUTING.md` and nested `docs/**/contributing*`. `.github` is not an ignored walk directory.
+
 ## Levels
 
 1 Foundational, 2 Guided, 3 Structured, 4 Optimized, 5 Autonomous.
