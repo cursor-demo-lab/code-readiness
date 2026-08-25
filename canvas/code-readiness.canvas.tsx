@@ -140,6 +140,7 @@ const OPEN_BY_ID: Record<string, string> = {
   "security-policy": "SECURITY.md",
   "pre-commit-hooks": ".pre-commit-config.yaml",
   "architecture-docs": "ARCHITECTURE.md",
+  containerization: ".cursor/environment.json",
 };
 
 const WHY_FOR_AGENTS: Record<string, string> = {
@@ -182,7 +183,7 @@ const WHY_FOR_AGENTS: Record<string, string> = {
   "architecture-docs":
     "Agents change the wrong layer. ADRs tell them the intended seams.",
   containerization:
-    "A Dockerfile or devcontainer is a known-good environment. Agents stop improvising local setup.",
+    "Cursor Cloud Agent `.cursor/environment.json` is a boot/container signal agents can run; root `environment.json` is not a hit.",
   "branch-protection":
     "Documented branch rules stop agents from pushing around review.",
   "dead-code-detection":
@@ -212,6 +213,7 @@ const CONCRETE_PATHS = [
   "package.json",
   ".cursorrules",
   ".nvmrc",
+  "Dockerfile",
 ];
 
 const DAG_NODE_WIDTH = 88;

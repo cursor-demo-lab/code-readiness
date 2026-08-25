@@ -605,10 +605,11 @@
         "**/Dockerfile",
         "docker/Dockerfile",
         "deploy/Dockerfile",
-        ".devcontainer/devcontainer.json"
+        ".devcontainer/devcontainer.json",
+        ".cursor/environment.json"
       ],
-      "fail": "No container configuration found.",
-      "fix": "Add a Dockerfile, docker-compose, or .devcontainer.",
+      "fail": "No Dockerfile, docker-compose, compose.yaml, Containerfile, .devcontainer, or .cursor/environment.json found.",
+      "fix": "Add a Dockerfile, docker-compose, compose.yaml, Containerfile, .devcontainer, or .cursor/environment.json.",
       "effort": "high"
     },
     {
