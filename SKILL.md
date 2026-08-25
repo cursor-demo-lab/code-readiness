@@ -68,6 +68,8 @@ Sidecar is the split for this repeatable report: stable TSX plus `{ "report": pa
 
 Import only from `"cursor/canvas"`. Call `useHostTheme()`. Invented exports are the most common runtime failure. After writing `.canvas.tsx` with the write-file tool, the footer `Canvas TypeScript check:` is the ship gate. Fix errors and re-save.
 
+- Also: `LineChart` of pillar %, `computeDAGLayout` L1–L5 SVG, `Link` when `repo_identity` has a URL, `TextInput` fail search, `Checkbox` L1-capped filter.
+
 V2 slop: 2 or more of gradients, emojis, box-shadow, wall of identical cards, rainbow, giant text, decorative borders means redesign. One H1. Two Stats max. No nested scroll. Captions on `Text size="small"`. Defer the rest of design rules to `/canvas` and `canvas/CANVAS.md`.
 
 **Local IDE, 3.1.15 or newer.** Write exactly:

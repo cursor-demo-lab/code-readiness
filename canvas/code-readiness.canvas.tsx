@@ -5,6 +5,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Checkbox,
   Code,
   CollapsibleSection,
   Divider,
@@ -12,6 +13,8 @@ import {
   H1,
   H2,
   H3,
+  LineChart,
+  Link,
   PieChart,
   Pill,
   Row,
@@ -22,9 +25,11 @@ import {
   Swatch,
   Table,
   Text,
+  TextInput,
   TodoListCard,
   Toggle,
   UsageBar,
+  computeDAGLayout,
   useCanvasAction,
   useCanvasState,
   useHostTheme,
@@ -72,6 +77,9 @@ type Report = {
     path: string;
     gitSha: string | null;
     scope: "repository root only";
+    url?: string;
+    githubUrl?: string;
+    html_url?: string;
   };
   maturity_level: {
     level: 1 | 2 | 3 | 4 | 5;
@@ -145,6 +153,9 @@ const CONCRETE_PATHS = [
   ".nvmrc",
 ];
 
+const DAG_NODE_WIDTH = 88;
+const DAG_NODE_HEIGHT = 40;
+
 function scoreChartTone(percent: number): ChartTone {
   if (percent >= 80) return "success";
   if (percent >= 50) return "warning";
@@ -158,9 +169,98 @@ function namedOpenPath(item: Remediation): string | null {
   return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
 }
 
+function failOpenPath(row: CriterionRow): string | null {
+  const mapped = OPEN_BY_ID[row.criterionId];
+  if (mapped) return mapped;
+  const blob = `${row.name} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`;
+  return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
+}
+
 function rowTone(row: CriterionRow): TableRowTone {
   if (row.skipped) return "neutral";
   return row.pass ? "success" : "danger";
+}
+
+function identityUrl(identity: Report["repo_identity"]): string | null {
+  const candidates = [identity.url, identity.githubUrl, identity.html_url];
+  return (
+    candidates.find(
+      (value) => typeof value === "string" && /^https?:\/\//.test(value),
+    ) ?? null
+  );
+}
+
+function SequentialGateDag({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
+  const theme = useHostTheme();
+  const layout = computeDAGLayout({
+    nodes: LEVELS.map((item) => ({ id: `L${item.level}` })),
+    edges: LEVELS.slice(0, -1).map((item) => ({
+      from: `L${item.level}`,
+      to: `L${item.level + 1}`,
+    })),
+    direction: "horizontal",
+    nodeWidth: DAG_NODE_WIDTH,
+    nodeHeight: DAG_NODE_HEIGHT,
+    rankGap: 28,
+    nodeGap: 24,
+    padding: 8,
+  });
+
+  return (
+    <svg
+      width={layout.width}
+      height={layout.height}
+      role="img"
+      aria-label={`Sequential maturity gate, current level ${current}`}
+    >
+      {layout.edges.map((edge) => (
+        <line
+          key={`${edge.from}-${edge.to}`}
+          x1={edge.sourceX}
+          y1={edge.sourceY}
+          x2={edge.targetX}
+          y2={edge.targetY}
+          stroke={theme.stroke.secondary}
+          strokeWidth={1.5}
+        />
+      ))}
+      {layout.nodes.map((node) => {
+        const level = Number(node.id.slice(1)) as 1 | 2 | 3 | 4 | 5;
+        const active = level === current;
+        const reached = level <= current;
+        const label = LEVELS.find((item) => item.level === level)?.label ?? node.id;
+        return (
+          <g key={node.id}>
+            <rect
+              x={node.x}
+              y={node.y}
+              width={DAG_NODE_WIDTH}
+              height={DAG_NODE_HEIGHT}
+              rx={6}
+              fill={
+                active
+                  ? theme.accent.primary
+                  : reached
+                    ? theme.fill.secondary
+                    : theme.fill.tertiary
+              }
+              stroke={active ? theme.accent.primary : theme.stroke.tertiary}
+            />
+            <text
+              x={node.x + DAG_NODE_WIDTH / 2}
+              y={node.y + DAG_NODE_HEIGHT / 2 + 4}
+              textAnchor="middle"
+              fill={active ? theme.text.onAccent : theme.text.primary}
+              fontSize={12}
+            >
+              {node.id}
+            </text>
+            <title>{active ? `${label} (current)` : label}</title>
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 export default function CodeReadinessCanvas() {
@@ -169,6 +269,8 @@ export default function CodeReadinessCanvas() {
   const [report] = useCanvasState<Report | null>("report", null);
   const [pillarFilter, setPillarFilter] = useCanvasState("pillarFilter", "all");
   const [failsOnly, setFailsOnly] = useCanvasState("failsOnly", true);
+  const [failSearch, setFailSearch] = useCanvasState("failSearch", "");
+  const [l1CappedOnly, setL1CappedOnly] = useCanvasState("l1CappedOnly", false);
   const pageStyle = { color: theme.text.primary };
 
   if (report == null) {
@@ -200,9 +302,15 @@ export default function CodeReadinessCanvas() {
   const openable = report.remediations
     .map((item) => ({ item, path: namedOpenPath(item) }))
     .filter((entry): entry is { item: Remediation; path: string } => entry.path != null);
+  const topFailPath =
+    report.criterion_results
+      .filter((row) => !row.pass && !row.skipped)
+      .map(failOpenPath)
+      .find((file) => file != null) ?? null;
   const sha = report.repo_identity.gitSha
     ? report.repo_identity.gitSha.slice(0, 12)
     : "no git sha";
+  const repoHref = identityUrl(report.repo_identity);
   const nextGap =
     band.nextLevel == null
       ? null
@@ -225,9 +333,24 @@ export default function CodeReadinessCanvas() {
     { label: "Fail", value: failedCount, tone: "danger" as const },
     { label: "Skip", value: skippedCount, tone: "neutral" as const },
   ].filter((slice) => slice.value > 0);
+  const query = failSearch.trim().toLowerCase();
   const visibleRows = report.criterion_results.filter((row) => {
     if (pillarFilter !== "all" && row.pillarId !== pillarFilter) return false;
-    if (failsOnly) return !row.pass && !row.skipped;
+    if (failsOnly && (row.pass || row.skipped)) return false;
+    if (l1CappedOnly) {
+      const capIds = band.l1CapReasons;
+      if (capIds.length > 0) {
+        if (!capIds.includes(row.criterionId)) return false;
+      } else if (!(row.level === 1 && !row.pass && !row.skipped)) {
+        return false;
+      }
+    }
+    if (query) {
+      if (row.pass || row.skipped) return false;
+      const blob =
+        `${row.name} ${row.criterionId} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`.toLowerCase();
+      if (!blob.includes(query)) return false;
+    }
     return true;
   });
   const tableGroups = report.pillar_scores
@@ -245,6 +368,18 @@ export default function CodeReadinessCanvas() {
       label: pillar.name,
     })),
   ];
+  const remainingByLevel = LEVELS.map((item) =>
+    report.criterion_results.filter(
+      (row) => row.level === item.level && !row.skipped && !row.pass,
+    ).length,
+  );
+  const checksHeading = l1CappedOnly
+    ? "L1-capped checks"
+    : query
+      ? "Matching failing checks"
+      : failsOnly
+        ? "Failing checks"
+        : "All checks";
 
   return (
     <Stack gap={24} style={pageStyle}>
@@ -258,6 +393,11 @@ export default function CodeReadinessCanvas() {
           <Pill active>{band.label}</Pill>
           {band.l1Capped ? <Pill active>L1 capped</Pill> : null}
         </Row>
+        {repoHref ? (
+          <Text size="small" tone="tertiary">
+            <Link href={repoHref}>{report.repo_identity.name}</Link>
+          </Text>
+        ) : null}
         <Row gap={8} align="center" wrap>
           {LEVELS.map((item) => (
             <Pill
@@ -308,6 +448,15 @@ export default function CodeReadinessCanvas() {
         </Callout>
       ) : null}
 
+      <Stack gap={8}>
+        <H2>Sequential gate</H2>
+        <SequentialGateDag current={band.level} />
+        <Text size="small" tone="tertiary">
+          L1 to L5 walk. Highlighted node is the current band. The canvas does
+          not recompute the 80% gate.
+        </Text>
+      </Stack>
+
       {todos.length > 0 ? (
         <Stack gap={12}>
           <H2>Fix these first</H2>
@@ -324,8 +473,22 @@ export default function CodeReadinessCanvas() {
                 </Button>
               ))}
             </Row>
+          ) : topFailPath ? (
+            <Button
+              variant="secondary"
+              onClick={() => dispatch({ type: "openFile", path: topFailPath })}
+            >
+              {`Open ${topFailPath}`}
+            </Button>
           ) : null}
         </Stack>
+      ) : topFailPath ? (
+        <Button
+          variant="secondary"
+          onClick={() => dispatch({ type: "openFile", path: topFailPath })}
+        >
+          {`Open ${topFailPath}`}
+        </Button>
       ) : null}
 
       {pieData.length > 0 ? (
@@ -392,7 +555,7 @@ export default function CodeReadinessCanvas() {
       {report.pillar_scores.length > 0 ? (
         <Stack gap={8}>
           <H2>Pillar scores</H2>
-          <BarChart
+          <LineChart
             categories={report.pillar_scores.map((pillar) => pillar.name)}
             series={[
               {
@@ -401,7 +564,6 @@ export default function CodeReadinessCanvas() {
                 tone: scoreChartTone(band.scorePercent),
               },
             ]}
-            horizontal
             yMax={100}
             valueSuffix="%"
             referenceLines={[{ value: 80, label: "80%", tone: "warning" }]}
@@ -415,21 +577,54 @@ export default function CodeReadinessCanvas() {
         </Stack>
       ) : null}
 
+      <Stack gap={8}>
+        <H2>Remaining to next level</H2>
+        <BarChart
+          categories={LEVELS.map((item) => `L${item.level}`)}
+          series={[
+            {
+              name: "Remaining fails",
+              data: remainingByLevel,
+              tone: "danger",
+            },
+          ]}
+          horizontal
+          height={220}
+        />
+        <Text size="small" tone="tertiary">
+          Failing counted checks left at each sequential gate
+          {band.nextLevel == null
+            ? "."
+            : `. Need ${band.nextLevelRemaining} more Level ${band.nextLevel} ${band.nextLevelLabel} checks to move the needle.`}
+        </Text>
+      </Stack>
+
       <Divider />
 
       <Stack gap={12}>
-        <Row gap={12} align="center">
+        <Row gap={12} align="center" wrap>
           <H2>Checks</H2>
           <Spacer />
+          <TextInput
+            value={failSearch}
+            onChange={setFailSearch}
+            placeholder="Search failing checks"
+            type="search"
+          />
           <Text size="small">Fails only</Text>
           <Toggle checked={failsOnly} onChange={setFailsOnly} />
+          <Checkbox
+            checked={l1CappedOnly}
+            onChange={setL1CappedOnly}
+            label="L1-capped only"
+          />
           <Select
             value={pillarFilter}
             onChange={setPillarFilter}
             options={pillarOptions}
           />
         </Row>
-        <H3>{failsOnly ? "Failing checks" : "All checks"}</H3>
+        <H3>{checksHeading}</H3>
         {tableGroups.map((group, index) => (
           <CollapsibleSection
             key={group.pillarId}
