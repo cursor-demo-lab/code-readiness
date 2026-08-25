@@ -36,6 +36,8 @@ Hill-climb after the v2 27-OSS eval: Factory L1 Functional treats type checker a
 
 Hill-climb after PR #12: microsoft/TypeScript dropped L2→L1 because Go formatter no longer false-passed from stray `tools/*.go`. The remaining formatter fail is a detector hole — that stub has a root `.dprint.jsonc` and still failed `formatter` with "No formatter configuration found." Catalog `anyFiles` listed Prettier / rustfmt / rubocop; `fileContains` listed biome / black / ruff / package.json `"prettier"`. dprint is a real formatter that repo uses, and `.prettierrc.*` does not match `.dprint.jsonc`. Root `.dprint.json` / `.dprint.jsonc` / `dprint.json` now pass `formatter`. No new ids, no dummy `.editorconfig`, no L1/L2 threshold change (stays 80%; 80% of 12 needs 10; TypeScript was 9/12 and dprint makes that 10/12 Documented honestly), no new pillars.
 
+Hill-climb after PR #13: tj/commander.js is 9/12 L2 (need 10 for 80%) and fails `pre-commit-hooks`, `test-framework`, and `ai-context`. The test-framework fail is a detector hole — the stub has `scripts.test = "node --test && npm run check:type:ts"` and `tests/*.test.js`, but catalog `fileContains` for package.json included the token `"node --test"` WITH wrapping quotes, so `evalFileContains` looks for quote-node-space-dash-dash-test-quote. After `--test` comes space then `&&`, not a closing quote; `node:test` is also absent. Unquoted `node --test` now matches. Do not treat `**/*.test.js` as test-framework (that is `test-files-exist`, L1). Do not dummy AGENTS.md or pre-commit. `packageJsonPath` `scripts.test` stays on `test-script`, a different criterion. No new ids, no L1/L2 threshold change, no new pillars.
+
 ## Explicitly refused
 
 - New criterion ids

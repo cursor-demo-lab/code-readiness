@@ -147,8 +147,16 @@ assert.ok(testFramework.anyFiles.includes("tests/conftest.py"));
 assert.ok(testFramework.anyFiles.includes("**/conftest.py"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
+assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node:test")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("junit")));
+assert.equal(
+  [...(testFramework.anyFiles ?? []), ...(testFramework.anyGlobs ?? [])].some((pattern) =>
+    pattern.includes(".test.js"),
+  ),
+  false,
+  "test-framework must not treat **/*.test.js as a framework (that is test-files-exist)",
+);
 
 const versionPinned = catalog.criteria.find((row) => row.id === "version-pinned");
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
@@ -642,6 +650,57 @@ fs.writeFileSync(
 );
 const nodeTestById = resultById(evaluateRepo(nodeTestRoot));
 assert.equal(nodeTestById["test-framework"].pass, true, nodeTestById["test-framework"].message);
+assert.match(nodeTestById["test-framework"].message, /node --test/);
+
+const commanderTestRoot = tmp("code-readiness-commander-test-");
+fs.writeFileSync(
+  path.join(commanderTestRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node --test && npm run check:type:ts" } }),
+);
+fs.mkdirSync(path.join(commanderTestRoot, "tests"));
+fs.writeFileSync(path.join(commanderTestRoot, "tests", "cli.test.js"), "test('ok', () => {});\n");
+const commanderTestById = resultById(evaluateRepo(commanderTestRoot));
+assert.equal(commanderTestById["test-framework"].pass, true, commanderTestById["test-framework"].message);
+assert.match(commanderTestById["test-framework"].message, /node --test/);
+assert.equal(commanderTestById["test-script"].pass, true, commanderTestById["test-script"].message);
+assert.equal(commanderTestById["test-files-exist"].pass, true);
+
+const noFrameworkRoot = tmp("code-readiness-nofw-");
+fs.writeFileSync(
+  path.join(noFrameworkRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node test.js" } }),
+);
+fs.mkdirSync(path.join(noFrameworkRoot, "tests"));
+fs.writeFileSync(path.join(noFrameworkRoot, "tests", "cli.test.js"), "test('ok', () => {});\n");
+const noFrameworkById = resultById(evaluateRepo(noFrameworkRoot));
+assert.equal(noFrameworkById["test-framework"].pass, false, noFrameworkById["test-framework"].message);
+assert.match(noFrameworkById["test-framework"].message, /No test framework configuration found/);
+assert.equal(noFrameworkById["test-files-exist"].pass, true, noFrameworkById["test-files-exist"].message);
+assert.equal(noFrameworkById["test-script"].pass, true, noFrameworkById["test-script"].message);
+
+const jestDepRoot = tmp("code-readiness-jest-dep-");
+fs.writeFileSync(
+  path.join(jestDepRoot, "package.json"),
+  JSON.stringify({ devDependencies: { jest: "29.0.0" } }),
+);
+const jestDepById = resultById(evaluateRepo(jestDepRoot));
+assert.equal(jestDepById["test-framework"].pass, true, jestDepById["test-framework"].message);
+assert.match(jestDepById["test-framework"].message, /"jest"/);
+
+const mochaDepRoot = tmp("code-readiness-mocha-dep-");
+fs.writeFileSync(
+  path.join(mochaDepRoot, "package.json"),
+  JSON.stringify({ devDependencies: { mocha: "10.0.0" } }),
+);
+const mochaDepById = resultById(evaluateRepo(mochaDepRoot));
+assert.equal(mochaDepById["test-framework"].pass, true, mochaDepById["test-framework"].message);
+assert.match(mochaDepById["test-framework"].message, /"mocha"/);
+
+const goTestFileRoot = tmp("code-readiness-gotestfile-");
+fs.writeFileSync(path.join(goTestFileRoot, "foo_test.go"), "package x\n");
+const goTestFileById = resultById(evaluateRepo(goTestFileRoot));
+assert.equal(goTestFileById["test-framework"].pass, true, goTestFileById["test-framework"].message);
+assert.match(goTestFileById["test-framework"].message, /foo_test\.go/);
 
 const pomJunitRoot = tmp("code-readiness-junit-");
 fs.writeFileSync(
