@@ -49,6 +49,7 @@ const NO_CONVENTIONAL_LOCKFILE_LANGUAGES = new Set([
   "javascript",
   "typescript",
   "node",
+  "rust",
 ]);
 
 function hit(message, details) {

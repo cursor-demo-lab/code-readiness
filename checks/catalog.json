@@ -94,11 +94,11 @@
       "fileContains": [
         { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "build.gradle", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
-        { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs"] },
-        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\"", "\"oxlint\""] },
+        { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs", "errorprone", "error_prone", "error_prone_core"] },
+        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\"", "\"oxlint\"", "\"standard\"", "\"xo\""] },
         { "file": "pyproject.toml", "includes": ["[tool.ruff", "[tool.ruff.lint]", "[tool.pylint", "[tool.flake8"] },
         { "file": "setup.cfg", "includes": ["[flake8]", "[pylint"] },
-        { "file": "Cargo.toml", "includes": ["[lints.clippy"] }
+        { "file": "Cargo.toml", "includes": ["[lints.clippy", "[workspace.lints", "[lints.rust"] }
       ],
       "fail": "No linter configuration found.",
       "fix": "Add a linter config such as ESLint, Biome, Ruff, or golangci-lint.",
@@ -123,13 +123,18 @@
         ".clang-format",
         ".swift-format",
         ".swiftformat",
-        ".scalafmt.conf"
+        ".scalafmt.conf",
+        ".php-cs-fixer.php",
+        ".style.yapf"
       ],
       "fileContains": [
         { "file": "biome.json", "includes": ["formatter"] },
         { "file": "biome.jsonc", "includes": ["formatter"] },
         { "file": "pyproject.toml", "includes": ["[tool.black]", "[tool.ruff"] },
-        { "file": "package.json", "includes": ["\"prettier\""] }
+        { "file": "package.json", "includes": ["\"prettier\""] },
+        { "file": "pom.xml", "includes": ["spotless"] },
+        { "file": "build.gradle", "includes": ["spotless"] },
+        { "file": "build.gradle.kts", "includes": ["spotless"] }
       ],
       "languagesPass": {
         "go": "Go has built-in formatting via gofmt.",
@@ -179,11 +184,12 @@
         ".lefthook.toml",
         "lefthook.yaml",
         ".pre-commit-config.yaml",
+        ".pre-commit-config.yml",
         ".lintstagedrc",
         ".lintstagedrc.*"
       ],
       "fileContains": [
-        { "file": "package.json", "includes": ["\"lint-staged\"", "\"simple-git-hooks\""] }
+        { "file": "package.json", "includes": ["\"husky\"", "\"lint-staged\"", "\"simple-git-hooks\""] }
       ],
       "fail": "No pre-commit hooks found.",
       "fix": "Add Husky, Lefthook, lint-staged, or pre-commit hooks.",
@@ -219,7 +225,7 @@
       ],
       "anyGlobs": [
         "**/*_test.go",
-        "tests/**/*.rs",
+        "**/tests/**/*.rs",
         "**/*_test.rs",
         "tests/**/*_test.c",
         "tests/**/*_test.cpp"
@@ -337,7 +343,7 @@
       "pillarId": "documentation",
       "level": 1,
       "requiresLLM": false,
-      "anyFiles": ["README.md", "readme.md", "Readme.md"],
+      "anyFiles": ["README.md", "readme.md", "Readme.md", "README.rst", "readme.rst"],
       "minBytes": 500,
       "fail": "No README.md with at least 500 characters.",
       "fix": "Add a README with project overview and setup.",
@@ -532,7 +538,11 @@
         "Taskfile.yml",
         "Taskfile.yaml",
         "bootstrap.sh",
-        "scripts/bootstrap*"
+        "scripts/bootstrap*",
+        "Cargo.toml",
+        "pom.xml",
+        "CMakeLists.txt",
+        "configure.ac"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[build-system]"] }
@@ -569,7 +579,10 @@
         { "file": "setup.py", "includes": ["python_requires"] },
         { "file": "package.json", "includes": ["\"engines\"", "\"packageManager\""] },
         { "file": "Cargo.toml", "includes": ["rust-version"] },
-        { "file": "runtime.txt", "includes": ["python-"] }
+        { "file": "runtime.txt", "includes": ["python-"] },
+        { "file": "pom.xml", "includes": ["maven.compiler.source", "maven.compiler.release", "<release>"] },
+        { "file": "build.gradle", "includes": ["jvmToolchain", "sourceCompatibility"] },
+        { "file": "build.gradle.kts", "includes": ["jvmToolchain", "sourceCompatibility"] }
       ],
       "fail": "No runtime version pin found.",
       "fix": "Add .nvmrc, .python-version, .tool-versions, or go.mod.",

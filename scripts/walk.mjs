@@ -168,7 +168,12 @@ export function ciFiles(files) {
 }
 
 export function testFiles(files) {
-  return findMatches(files, TEST_FILE_GLOBS);
+  return findMatches(files, TEST_FILE_GLOBS).filter((file) => {
+    const parts = file.split("/");
+    return !parts.some(
+      (part) => part === "fixtures" || part === "snapshots" || part === "__snapshots__",
+    );
+  });
 }
 
 export function parseTsconfigStrict(raw) {

@@ -155,8 +155,22 @@ assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && r
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.flake8")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"biome\"")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"oxlint\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"standard\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"xo\"")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "setup.cfg" && rule.includes.includes("[flake8]")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("[lints.clippy")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("[workspace.lints")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("[lints.rust")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("errorprone")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("error_prone")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("error_prone_core")));
+assert.equal(
+  linter.fileContains.some((rule) => (rule.includes ?? []).includes("spotless")),
+  false,
+  "spotless is a formatter, not a linter",
+);
+assert.equal(linter.anyFiles.includes(".php-cs-fixer.php"), false);
+assert.equal(linter.languagesPass, undefined);
 
 const formatter = catalog.criteria.find((row) => row.id === "formatter");
 assert.ok(formatter.anyFiles.includes(".prettierrc"));
@@ -172,7 +186,11 @@ assert.ok(formatter.anyFiles.includes(".clang-format"));
 assert.ok(formatter.anyFiles.includes(".swift-format"));
 assert.ok(formatter.anyFiles.includes(".swiftformat"));
 assert.ok(formatter.anyFiles.includes(".scalafmt.conf"));
+assert.ok(formatter.anyFiles.includes(".php-cs-fixer.php"));
+assert.ok(formatter.anyFiles.includes(".style.yapf"));
 assert.equal(formatter.anyFiles.includes(".clang-tidy"), false);
+assert.ok(formatter.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("spotless")));
+assert.ok(formatter.fileContains.some((rule) => rule.file === "build.gradle" && rule.includes.includes("spotless")));
 assert.ok(formatter.fileContains.some((rule) => rule.file === "biome.json" && rule.includes.includes("formatter")));
 assert.ok(formatter.fileContains.some((rule) => rule.file === "biome.jsonc" && rule.includes.includes("formatter")));
 assert.ok(formatter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.black]")));
@@ -186,6 +204,10 @@ assert.ok(typeChecker.anyFiles.includes("tsconfig.json"));
 assert.equal(typeChecker.anyFiles.includes("**/tsconfig.json"), false);
 assert.equal(
   typeChecker.fileContains.some((rule) => (rule.includes ?? []).some((token) => /\[tool\.ty\b/.test(token))),
+  false,
+);
+assert.equal(
+  typeChecker.fileContains.some((rule) => (rule.includes ?? []).some((token) => /basedpyright/i.test(token))),
   false,
 );
 assert.ok(typeChecker.anyFiles.includes("mypy.ini"));
@@ -202,7 +224,7 @@ assert.ok(testFramework.anyFiles.includes("phpunit.xml"));
 assert.ok(testFramework.anyFiles.includes("phpunit.xml.dist"));
 assert.ok(testFramework.anyFiles.includes(".rspec"));
 assert.ok(testFramework.anyFiles.includes("spec/spec_helper.rb"));
-assert.ok(testFramework.anyGlobs.includes("tests/**/*.rs"));
+assert.ok(testFramework.anyGlobs.includes("**/tests/**/*.rs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.rs"));
 assert.equal(testFramework.anyFiles.includes("Cargo.toml"), false);
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
@@ -224,6 +246,10 @@ assert.ok(versionPinned.anyFiles.includes(".tool-versions"));
 assert.ok(versionPinned.anyFiles.includes("go.mod"));
 assert.ok(versionPinned.anyFiles.includes(".go-version"));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "runtime.txt" && rule.includes.includes("python-")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("maven.compiler.source")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("maven.compiler.release")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "build.gradle" && rule.includes.includes("jvmToolchain")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "build.gradle.kts" && rule.includes.includes("sourceCompatibility")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("requires-python")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "setup.py" && rule.includes.includes("python_requires")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"engines\"")));
@@ -253,7 +279,10 @@ assert.ok(setupScript.anyFiles.includes("Taskfile.yml"));
 assert.ok(setupScript.anyFiles.includes("Taskfile.yaml"));
 assert.ok(setupScript.anyFiles.includes("bootstrap.sh"));
 assert.ok(setupScript.anyFiles.includes("scripts/bootstrap*"));
-assert.equal(setupScript.anyFiles.includes("Cargo.toml"), false);
+assert.ok(setupScript.anyFiles.includes("Cargo.toml"));
+assert.ok(setupScript.anyFiles.includes("pom.xml"));
+assert.ok(setupScript.anyFiles.includes("CMakeLists.txt"));
+assert.ok(setupScript.anyFiles.includes("configure.ac"));
 assert.equal(setupScript.anyFiles.includes("go.mod"), false);
 assert.equal(setupScript.makefileTarget, "setup|install");
 assert.match(String(setupScript.packageJsonPath), /scripts\.dev/);
@@ -279,6 +308,11 @@ assert.ok(testScript.fileRegex.some((rule) => rule.file === "justfile"));
 assert.ok(testScript.fileRegex.some((rule) => rule.file === "Justfile"));
 assert.ok(testScript.fileRegex.some((rule) => rule.file === "Taskfile.yml"));
 
+const readme = catalog.criteria.find((row) => row.id === "readme");
+assert.ok(readme.anyFiles.includes("README.md"));
+assert.ok(readme.anyFiles.includes("README.rst"));
+assert.equal(readme.minBytes, 500);
+
 const license = catalog.criteria.find((row) => row.id === "license");
 assert.ok(license.anyFiles.includes("LICENSE-MIT"));
 assert.ok(license.anyFiles.includes("LICENSE-*"));
@@ -293,6 +327,9 @@ assert.ok(preCommit.anyFiles.includes("lefthook.toml"));
 assert.ok(preCommit.anyFiles.includes(".lefthook.yaml"));
 assert.ok(preCommit.anyFiles.includes(".lintstagedrc"));
 assert.ok(preCommit.anyFiles.includes(".lintstagedrc.*"));
+assert.ok(preCommit.anyFiles.includes(".pre-commit-config.yaml"));
+assert.ok(preCommit.anyFiles.includes(".pre-commit-config.yml"));
+assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"husky\"")));
 assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"lint-staged\"")));
 assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"simple-git-hooks\"")));
 assert.equal(preCommit.makefileTarget, undefined);
@@ -379,7 +416,7 @@ for (const glob of [
 ]) {
   assert.ok(CI_GLOBS.includes(glob), `CI_GLOBS missing ${glob}`);
 }
-for (const glob of ["**/*_test.py", "**/*_test.rs", "**/*_test.c", "**/*_test.cpp", "test/**/*.c", "**/*Spec.hs", "**/*Test.hs"]) {
+for (const glob of ["**/*_test.py", "**/tests/**/*.rs", "**/*_test.rs", "**/*_test.c", "**/*_test.cpp", "test/**/*.c", "**/*Spec.hs", "**/*Test.hs", "test/*.hs", "**/tests/**/*.tcl", "tests/*.test", "test/**/*.js"]) {
   assert.ok(TEST_FILE_GLOBS.includes(glob), `TEST_FILE_GLOBS missing ${glob}`);
 }
 
@@ -399,6 +436,11 @@ assert.equal(globMatch("pkg/foo_test.py", "**/*_test.py"), true);
 assert.equal(globMatch("test_foo.py", "**/test_*.py"), true);
 assert.equal(globMatch("src/lib_test.rs", "**/*_test.rs"), true);
 assert.equal(globMatch("tests/foo.rs", "tests/**/*.rs"), true);
+assert.equal(globMatch("tests/foo.rs", "**/tests/**/*.rs"), true);
+assert.equal(globMatch("pkg/tests/foo.rs", "**/tests/**/*.rs"), true);
+assert.equal(globMatch("tokio/tests/foo.rs", "**/tests/**/*.rs"), true);
+assert.equal(globMatch("pkg/tests/foo.rs", "tests/**/*.rs"), false);
+assert.equal(globMatch("test/router.js", "test/**/*.js"), true);
 assert.equal(globMatch("FooSpec.hs", "**/*Spec.hs"), true);
 assert.equal(globMatch("FooTest.hs", "**/*Test.hs"), true);
 assert.equal(globMatch("test/main.c", "test/**/*.c"), true);
@@ -607,7 +649,10 @@ assert.equal(
   false,
   "Cargo.toml alone is not test-framework; need tests/, [[test]], or *_test.rs",
 );
-assert.equal(rustById["setup-script"].pass, false, "Cargo.toml alone is not a setup script");
+assert.equal(rustById["setup-script"].pass, true, "Cargo.toml is a setup script");
+assert.equal(rustById.linter.pass, false, "Cargo.toml alone is not a linter; no languagesPass rust on linter");
+assert.equal(rustById["lock-file"].skipped, true, rustById["lock-file"].message);
+assert.match(rustById["lock-file"].message, /no conventional committed lockfile/i);
 
 const javaRoot = tmp("code-readiness-java-");
 fs.writeFileSync(path.join(javaRoot, "pom.xml"), "<project></project>\n");
@@ -1156,6 +1201,24 @@ assertPass("linter", { "pyproject.toml": "[tool.flake8]\n" }, /\[tool\.flake8/);
 assertPass("linter", { "setup.cfg": "[flake8]\nmax-line-length = 88\n" }, /\[flake8\]/);
 assertPass("linter", { "setup.cfg": "[pylint]\n" }, /\[pylint/);
 assertPass("linter", { "Cargo.toml": "[package]\nname = \"x\"\n[lints.clippy]\nall = \"warn\"\n" }, /\[lints\.clippy/);
+assertPass(
+  "linter",
+  { "Cargo.toml": "[workspace]\n[workspace.lints]\nrust.unsafe_code = \"warn\"\n" },
+  /\[workspace\.lints/,
+);
+assertPass(
+  "linter",
+  { "Cargo.toml": "[package]\nname = \"x\"\n[lints.rust]\nunsafe_code = \"warn\"\n" },
+  /\[lints\.rust/,
+);
+assertPass(
+  "linter",
+  { "pom.xml": "<project><dependency>error_prone_core</dependency></project>\n" },
+  /error_prone/,
+);
+assertPass("linter", { "pom.xml": "<project>errorprone</project>\n" }, /errorprone/);
+assertPass("linter", { "package.json": { devDependencies: { standard: "17.0.0" } } }, /standard/);
+assertPass("linter", { "package.json": { devDependencies: { xo: "0.58.0" } } }, /xo/);
 
 const clangFmt = evalTree({ ".clang-format": "BasedOnStyle: LLVM\n" });
 assert.equal(clangFmt.formatter.pass, true, clangFmt.formatter.message);
@@ -1164,6 +1227,14 @@ assert.equal(clangFmt.linter.pass, false, "formatter is not a linter");
 assertPass("formatter", { ".swift-format": "{}\n" }, /\.swift-format/);
 assertPass("formatter", { ".swiftformat": "--indent 2\n" }, /\.swiftformat/);
 assertPass("formatter", { ".scalafmt.conf": "version = 3.0.0\n" }, /scalafmt/);
+assertPass("formatter", { ".php-cs-fixer.php": "<?php\nreturn [];\n" }, /php-cs-fixer/);
+assertPass("formatter", { ".style.yapf": "[style]\nbased_on_style = pep8\n" }, /style\.yapf/);
+const spotlessPom = evalTree({ "pom.xml": "<project><plugin>spotless</plugin></project>\n" });
+assert.equal(spotlessPom.formatter.pass, true, spotlessPom.formatter.message);
+assert.equal(spotlessPom.linter.pass, false, "spotless is a formatter, not a linter");
+const phpCsFixer = evalTree({ ".php-cs-fixer.php": "<?php\nreturn [];\n" });
+assert.equal(phpCsFixer.formatter.pass, true);
+assert.equal(phpCsFixer.linter.pass, false, "php-cs-fixer is a formatter, not a linter");
 assertFail("linter", { ".prettierrc": "{}\n" });
 assertFail("linter", { "rustfmt.toml": "max_width = 100\n" });
 assertFail("linter", { "README.md": "We use eslint, biome, golangci-lint, and ruff.\n" });
@@ -1175,6 +1246,8 @@ assertPass("pre-commit-hooks", { ".lefthook.toml": "[pre-commit]\n" }, /\.leftho
 assertPass("pre-commit-hooks", { "lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /lefthook\.yaml/);
 assertPass("pre-commit-hooks", { ".lintstagedrc": "{}\n" }, /\.lintstagedrc/);
 assertPass("pre-commit-hooks", { ".lintstagedrc.json": "{}\n" }, /\.lintstagedrc/);
+assertPass("pre-commit-hooks", { ".pre-commit-config.yml": "repos: []\n" }, /\.pre-commit-config\.yml/);
+assertPass("pre-commit-hooks", { "package.json": { devDependencies: { husky: "9.0.0" } } }, /husky/);
 assertPass("pre-commit-hooks", { "package.json": { "lint-staged": { "*.js": "eslint" } } }, /lint-staged/);
 assertPass("pre-commit-hooks", { "package.json": { "simple-git-hooks": { "pre-commit": "lint" } } }, /simple-git-hooks/);
 assertFail("pre-commit-hooks", { Makefile: "lint:\n\teslint .\n" });
@@ -1211,6 +1284,14 @@ assertFail("test-framework", { "CMakeLists.txt": "project(demo)\n" });
 
 assertPass("test-files-exist", { "pkg/foo_test.py": "def test_ok():\n    assert True\n" });
 assertPass("test-files-exist", { "src/lib_test.rs": "#[test] fn ok() {}\n" });
+assertPass("test-files-exist", { "pkg/tests/foo.rs": "#[test] fn ok() {}\n" });
+assertPass("test-files-exist", { "tokio/tests/foo.rs": "#[test] fn ok() {}\n" });
+assertPass("test-files-exist", { "test/router.js": "describe('r', () => {});\n" });
+assertFail("test-files-exist", { "test/fixtures/foo.js": "module.exports = {};\n" });
+assertFail("test-files-exist", { "test/snapshots/out.js": "module.exports = {};\n" });
+assertPass("test-files-exist", { "tests/unit.tcl": "test ok {}\n" });
+assertPass("test-files-exist", { "tests/man.test": "jq filter\n" });
+assertPass("test-files-exist", { "test/Spec.hs": "main = putStrLn \"ok\"\n" });
 assertPass("test-files-exist", { "math_test.c": "int main() { return 0; }\n" });
 assertPass("test-files-exist", { "math_test.cpp": "int main() { return 0; }\n" });
 assertPass("test-files-exist", { "test/main.c": "int main() { return 0; }\n" });
@@ -1234,6 +1315,8 @@ assertFail("test-script", { justfile: "build:\n    cargo build\n" });
 assertPass("contributing", { "CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
 assertPass("contributing", { CONTRIBUTING: "How to contribute\n" }, /CONTRIBUTING/);
 assertPass("contributing", { ".github/CONTRIBUTING.rst": "How to contribute\n" }, /\.github\/CONTRIBUTING\.rst/);
+assertPass("readme", { "README.rst": `${"A".repeat(520)}\n` }, /README\.rst/);
+assertFail("readme", { "README.rst": "short\n" });
 
 assertPass("api-docs", { "svc/openapi.yaml": "openapi: 3.0.0\n" }, /openapi\.yaml/);
 assertPass("api-docs", { "svc/openapi.yml": "openapi: 3.0.0\n" }, /openapi\.yml/);
@@ -1258,6 +1341,16 @@ assertPass("lock-file", { "flake.lock": "{}\n" }, /flake\.lock/);
 assertPass("lock-file", { "cabal.project.freeze": "constraints:\n" }, /cabal\.project\.freeze/);
 assertPass("lock-file", { "pixi.lock": "version: 1\n" }, /pixi\.lock/);
 assert.equal(evalTree({ "Main.hs": "main = return ()\n" })["lock-file"].skipped, true);
+const rustLockSkip = evalTree({ "Cargo.toml": "[package]\nname = \"x\"\nversion = \"0.1.0\"\n" });
+assert.equal(rustLockSkip["lock-file"].skipped, true, rustLockSkip["lock-file"].message);
+assert.equal(rustLockSkip["lock-file"].pass, false);
+const rustLockPass = evalTree({
+  "Cargo.toml": "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+  "Cargo.lock": "# lock\n",
+});
+assert.equal(rustLockPass["lock-file"].pass, true, rustLockPass["lock-file"].message);
+assert.equal(rustLockPass["lock-file"].skipped, false);
+assert.match(rustLockPass["lock-file"].message, /Cargo\.lock/);
 
 assertPass("env-documentation", { "env.example": "FOO=\n" }, /env\.example/);
 assertPass("env-documentation", { ".envrc.example": "export FOO=\n" }, /\.envrc\.example/);
@@ -1271,10 +1364,29 @@ assertPass("setup-script", { justfile: "setup:\n    npm i\n" }, /justfile/);
 assertPass("setup-script", { "Taskfile.yaml": "version: '3'\n" }, /Taskfile\.yaml/);
 assertPass("setup-script", { "bootstrap.sh": "#!/bin/sh\n" }, /bootstrap\.sh/);
 assertPass("setup-script", { "scripts/bootstrap-dev.sh": "#!/bin/sh\n" }, /scripts\/bootstrap/);
+assertPass("setup-script", { "Cargo.toml": "[package]\nname = \"x\"\nversion = \"0.1.0\"\n" }, /Cargo\.toml/);
+assertPass("setup-script", { "pom.xml": "<project></project>\n" }, /pom\.xml/);
+assertPass("setup-script", { "CMakeLists.txt": "project(demo)\n" }, /CMakeLists\.txt/);
+assertPass("setup-script", { "configure.ac": "AC_INIT([demo],[1.0])\n" }, /configure\.ac/);
 
 assertPass("version-pinned", { ".go-version": "1.22.0\n" }, /\.go-version/);
 assertPass("version-pinned", { "runtime.txt": "python-3.12.4\n" }, /python-/);
 assertFail("version-pinned", { "runtime.txt": "node-20\n" });
+assertPass(
+  "version-pinned",
+  { "pom.xml": "<project><maven.compiler.source>17</maven.compiler.source></project>\n" },
+  /maven\.compiler\.source/,
+);
+assertPass(
+  "version-pinned",
+  { "build.gradle.kts": "java { jvmToolchain(17) }\n" },
+  /jvmToolchain/,
+);
+assertPass(
+  "version-pinned",
+  { "build.gradle": "sourceCompatibility = 17\n" },
+  /sourceCompatibility/,
+);
 
 assertPass("containerization", { "compose.yaml": "services: {}\n" }, /compose\.yaml/);
 assertPass("containerization", { "compose.yml": "services: {}\n" }, /compose\.yml/);
