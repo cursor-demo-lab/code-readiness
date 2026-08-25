@@ -24,6 +24,6 @@ Go, Rust, Java, Kotlin, C#, and Swift auto-pass `type-checker`. Go, Rust, and C#
 
 1 Foundational, 2 Guided, 3 Structured, 4 Optimized, 5 Autonomous.
 
-L1 is 3/4 (75%). L2+ stays 80% sequential. Minimum level is 1. Non-AI counts: L1=4 need 3, L2=10 need 8, L3=12 need 10, L4=8 need 7, L5=1 need 1 (`bundle-analysis`). If the report would show Level 5, add the disclaimer. Do not celebrate Autonomous.
+L1 is readme, license, and lock-file (language-aware skip) at 75%. editorconfig is L2 style. L2+ stays 80% sequential. Minimum level is 1. Non-AI counts: L1=3 need 3 (2/2 when lock-file skips), L2=11 need 9, L3=12 need 10, L4=8 need 7, L5=1 need 1 (`bundle-analysis`). If the report would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
 Optional helper: `node scripts/code-readiness.mjs <repo>` applies this same catalog with Node `fs` only. No npm install.

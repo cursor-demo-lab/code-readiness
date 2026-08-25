@@ -30,7 +30,7 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 
 ## Honesty
 
-**This catalog.** Deterministic file and config presence. Seven pillars. Five levels: Foundational, Guided, Structured, Optimized, Autonomous. L1 is 3/4 (75%). L2+ stays 80% sequential, minimum level 1. Skipped L5 quality checks are a third state and drop out of the denominator. v1 never runs those quality checks.
+**This catalog.** Deterministic file and config presence. Seven pillars. Five levels: Foundational, Guided, Structured, Optimized, Autonomous. L1 is 75% of counted L1 rows (readme, license, lock-file). editorconfig is L2 style. L2+ stays 80% sequential, minimum level 1. Skipped L5 quality checks are a third state and drop out of the denominator. v1 never runs those quality checks.
 
 **`/doctor`.** A qualitative Cursor rubric with a different canvas schema. The scores are not comparable.
 
