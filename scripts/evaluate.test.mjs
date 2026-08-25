@@ -115,6 +115,24 @@ assert.ok(linter.anyFiles.includes(".oxlintrc.json"));
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff.lint]")));
 
+const formatter = catalog.criteria.find((row) => row.id === "formatter");
+assert.ok(formatter.anyFiles.includes(".prettierrc"));
+assert.ok(formatter.anyFiles.includes(".prettierrc.*"));
+assert.ok(formatter.anyFiles.includes("prettier.config.*"));
+assert.ok(formatter.anyFiles.includes(".dprint.json"));
+assert.ok(formatter.anyFiles.includes(".dprint.jsonc"));
+assert.ok(formatter.anyFiles.includes("dprint.json"));
+assert.ok(formatter.anyFiles.includes("rustfmt.toml"));
+assert.ok(formatter.anyFiles.includes(".rustfmt.toml"));
+assert.ok(formatter.anyFiles.includes(".rubocop.yml"));
+assert.ok(formatter.fileContains.some((rule) => rule.file === "biome.json" && rule.includes.includes("formatter")));
+assert.ok(formatter.fileContains.some((rule) => rule.file === "biome.jsonc" && rule.includes.includes("formatter")));
+assert.ok(formatter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.black]")));
+assert.ok(formatter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ruff")));
+assert.ok(formatter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"prettier\"")));
+assert.equal(formatter.languagesPass.go, "Go has built-in formatting via gofmt.");
+assert.match(formatter.fix, /dprint/);
+
 const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
 assert.ok(typeChecker.anyFiles.includes("tsconfig.json"));
 assert.ok(typeChecker.anyFiles.includes("mypy.ini"));
@@ -181,6 +199,10 @@ assert.equal(globMatch("docs/en/docs/CONTRIBUTING.md", "**/CONTRIBUTING.md"), tr
 assert.equal(globMatch(".github/CONTRIBUTING.md", "**/CONTRIBUTING.md"), true);
 assert.equal(globMatch("tests/conftest.py", "**/conftest.py"), true);
 assert.equal(globMatch("LICENSE-MIT", "LICENSE-*"), true);
+assert.equal(globMatch(".dprint.jsonc", ".prettierrc.*"), false);
+assert.equal(globMatch(".dprint.json", ".prettierrc.*"), false);
+assert.equal(globMatch("dprint.json", ".prettierrc.*"), false);
+assert.equal(globMatch(".prettierrc.json", ".prettierrc.*"), true);
 
 function resultById(evaluation) {
   return Object.fromEntries(evaluation.results.map((row) => [row.criterionId, row]));
@@ -307,6 +329,8 @@ assert.equal(l1MissById.editorconfig.level, 2);
 assert.equal(l1MissById.license.pass, true);
 assert.equal(l1MissById.readme.pass, true);
 assert.equal(l1MissById["lock-file"].pass, true);
+assert.equal(l1MissById.formatter.pass, true, l1MissById.formatter.message);
+assert.match(l1MissById.formatter.message, /\.prettierrc/);
 const l1MissScored = scoreResults(l1MissEval.catalog, l1MissEval.results);
 assert.equal(l1MissById["type-checker"].skipped, true, l1MissById["type-checker"].message);
 assert.equal(l1MissScored.l1Passed, 3);
@@ -362,6 +386,7 @@ fs.writeFileSync(path.join(goRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n
 const goEval = evaluateRepo(goRoot);
 const goById = resultById(goEval);
 assert.equal(goById.formatter.pass, true, goById.formatter.message);
+assert.match(goById.formatter.message, /Go has built-in formatting via gofmt/);
 assert.equal(goById["type-checker"].pass, true, goById["type-checker"].message);
 assert.equal(goById["version-pinned"].pass, true);
 
@@ -425,6 +450,8 @@ assert.equal(jsNoLockById["lock-file"].skipped, true, jsNoLockById["lock-file"].
 assert.match(jsNoLockById["lock-file"].message, /no conventional committed lockfile/i);
 assert.equal(jsNoLockById["lock-file"].pass, false);
 assert.equal(jsNoLockById["type-checker"].skipped, true, jsNoLockById["type-checker"].message);
+assert.equal(jsNoLockById.formatter.pass, false, jsNoLockById.formatter.message);
+assert.match(jsNoLockById.formatter.message, /No formatter configuration found/);
 
 const tsNoLockRoot = tmp("code-readiness-ts-nolock-");
 fs.writeFileSync(path.join(tsNoLockRoot, "tsconfig.json"), "{}\n");
@@ -538,6 +565,22 @@ assert.equal(strayGoById["type-checker"].skipped, true, strayGoById["type-checke
 assert.match(strayGoById["type-checker"].message, /no conventional type-checker file/i);
 assert.equal(/Go has a built-in static type system/.test(strayGoById["type-checker"].message), false);
 assert.equal(strayGoById.formatter.pass, false, strayGoById.formatter.message);
+
+const dprintRoot = tmp("code-readiness-dprint-");
+fs.writeFileSync(path.join(dprintRoot, "package.json"), "{}\n");
+fs.writeFileSync(path.join(dprintRoot, ".dprint.jsonc"), "{ \"plugins\": [] }\n");
+const dprintById = resultById(evaluateRepo(dprintRoot));
+assert.equal(dprintById.formatter.pass, true, dprintById.formatter.message);
+assert.match(dprintById.formatter.message, /\.dprint\.jsonc/);
+assert.equal(/Go has built-in formatting via gofmt/.test(dprintById.formatter.message), false);
+assert.equal(dprintById["type-checker"].skipped, true, dprintById["type-checker"].message);
+
+const noFmtRoot = tmp("code-readiness-nofmt-");
+fs.writeFileSync(path.join(noFmtRoot, "package.json"), "{}\n");
+const noFmtById = resultById(evaluateRepo(noFmtRoot));
+assert.equal(noFmtById.formatter.pass, false, noFmtById.formatter.message);
+assert.match(noFmtById.formatter.message, /No formatter configuration found/);
+assert.equal(noFmtById["type-checker"].skipped, true, noFmtById["type-checker"].message);
 
 const goModOnlyRoot = tmp("code-readiness-gomod-only-");
 fs.writeFileSync(path.join(goModOnlyRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n");
