@@ -2,7 +2,7 @@
   "id": "code-readiness-fs",
   "scope": "repository root only",
   "levelThreshold": 0.8,
-  "level1Threshold": 0.75,
+  "level1Threshold": 0.8,
   "minLevel": 1,
   "v1SkipLLM": true,
   "pillars": [
@@ -51,7 +51,7 @@
       "id": "linter",
       "name": "Linter configured",
       "pillarId": "style-linting",
-      "level": 2,
+      "level": 1,
       "requiresLLM": false,
       "anyFiles": [
         ".eslintrc",
@@ -113,7 +113,7 @@
       "id": "type-checker",
       "name": "Type checker configured",
       "pillarId": "style-linting",
-      "level": 3,
+      "level": 1,
       "requiresLLM": false,
       "anyFiles": ["mypy.ini", ".mypy.ini", "pyrightconfig.json"],
       "fileContains": [
@@ -137,7 +137,7 @@
       "id": "pre-commit-hooks",
       "name": "Pre-commit hooks configured",
       "pillarId": "style-linting",
-      "level": 3,
+      "level": 2,
       "requiresLLM": false,
       "anyFiles": [".husky", ".lefthook.yml", "lefthook.yml", ".pre-commit-config.yaml"],
       "fail": "No pre-commit hooks found.",
@@ -187,7 +187,7 @@
       "id": "test-files-exist",
       "name": "Test files exist",
       "pillarId": "testing",
-      "level": 2,
+      "level": 1,
       "requiresLLM": false,
       "testFiles": true,
       "fail": "No test files found.",
@@ -323,7 +323,7 @@
       "id": "ai-context",
       "name": "AI context files",
       "pillarId": "documentation",
-      "level": 3,
+      "level": 2,
       "requiresLLM": false,
       "anyFiles": [
         "CLAUDE.md",
@@ -372,7 +372,7 @@
       "id": "lock-file",
       "name": "Lock file present",
       "pillarId": "dev-environment",
-      "level": 1,
+      "level": 2,
       "requiresLLM": false,
       "anyFiles": [
         "package-lock.json",
@@ -614,7 +614,7 @@
       "id": "license",
       "name": "License file present",
       "pillarId": "security",
-      "level": 1,
+      "level": 2,
       "requiresLLM": false,
       "anyFiles": [
         "LICENSE",

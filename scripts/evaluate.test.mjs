@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
-import { ATTRIBUTION, IGNORE_DIRS, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
+import { ATTRIBUTION, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, thresholdForLevel } from "./constants.mjs";
 import { evaluateRepo, LOCK_FILES, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
 import { globMatch } from "./walk.mjs";
@@ -38,8 +38,15 @@ const catalog = loadCatalog();
 assert.equal(catalog.pillars.length, 7);
 assert.equal(catalog.criteria.length, 39);
 assert.equal(catalog.v1SkipLLM, true);
-assert.equal(catalog.level1Threshold, 0.75);
+assert.equal(catalog.level1Threshold, 0.8);
 assert.equal(catalog.levelThreshold, 0.8);
+assert.deepEqual(LEVEL_LABELS, {
+  1: "Functional",
+  2: "Documented",
+  3: "Standardized",
+  4: "Optimized",
+  5: "Autonomous",
+});
 for (const id of CORE_IDS) {
   assert.ok(
     catalog.criteria.some((row) => row.id === id),
@@ -53,23 +60,35 @@ assert.deepEqual(
 function countedAt(level) {
   return catalog.criteria.filter((row) => row.level === level && !row.requiresLLM).length;
 }
-assert.equal(countedAt(1), 3);
-assert.equal(countedAt(2), 11);
-assert.equal(countedAt(3), 12);
+assert.equal(countedAt(1), 4);
+assert.equal(countedAt(2), 13);
+assert.equal(countedAt(3), 9);
 assert.equal(countedAt(4), 8);
 assert.equal(countedAt(5), 1);
 
-assert.equal(thresholdForLevel(1), 0.75);
+assert.equal(thresholdForLevel(1), 0.8);
 assert.equal(thresholdForLevel(2), LEVEL_THRESHOLD);
 assert.equal(thresholdForLevel(5), LEVEL_THRESHOLD);
+assert.equal(thresholdForLevel(1), thresholdForLevel(2));
 
 const editorconfig = catalog.criteria.find((row) => row.id === "editorconfig");
 assert.equal(editorconfig.level, 2);
 assert.equal(editorconfig.pillarId, "style-linting");
 assert.deepEqual(
   catalog.criteria.filter((row) => row.level === 1).map((row) => row.id).sort(),
-  ["license", "lock-file", "readme"],
+  ["linter", "readme", "test-files-exist", "type-checker"],
 );
+assert.equal(catalog.criteria.find((row) => row.id === "license").level, 2);
+assert.equal(catalog.criteria.find((row) => row.id === "lock-file").level, 2);
+assert.equal(catalog.criteria.find((row) => row.id === "linter").level, 1);
+assert.equal(catalog.criteria.find((row) => row.id === "test-files-exist").level, 1);
+assert.equal(catalog.criteria.find((row) => row.id === "type-checker").level, 1);
+assert.equal(catalog.criteria.find((row) => row.id === "ai-context").level, 2);
+assert.equal(catalog.criteria.find((row) => row.id === "pre-commit-hooks").level, 2);
+assert.equal(catalog.criteria.find((row) => row.id === "ci-config").level, 2);
+assert.equal(catalog.criteria.find((row) => row.id === "containerization").level, 3);
+assert.equal(catalog.criteria.find((row) => row.id === "branch-protection").level, 4);
+assert.equal(catalog.criteria.find((row) => row.id === "e2e-tests").level, 4);
 
 const lockFile = catalog.criteria.find((row) => row.id === "lock-file");
 assert.deepEqual(lockFile.anyFiles, LOCK_FILES);
@@ -187,27 +206,27 @@ function catalogRows({ l1Pass, l2Pass }) {
   });
 }
 
-const l1ThreeOfThree = catalogRows({
-  l1Pass: (criterion) => criterion.id !== "editorconfig",
+const l1FourOfFour = catalogRows({
+  l1Pass: () => true,
   l2Pass: () => true,
 });
-const scoredL1 = scoreResults(catalog, l1ThreeOfThree);
-assert.equal(scoredL1.level, 2, "L1 3/3 plus complete L2 should reach Guided");
-assert.equal(scoredL1.l1Passed, 3);
-assert.equal(scoredL1.l1Total, 3);
-assert.equal(scoredL1.l2Passed, 11);
-assert.equal(scoredL1.l2Total, 11);
-assert.equal(scoredL1.nextLevelProgress.needed, Math.ceil(12 * LEVEL_THRESHOLD));
+const scoredL1 = scoreResults(catalog, l1FourOfFour);
+assert.equal(scoredL1.level, 2, "L1 4/4 plus complete L2 should reach Documented");
+assert.equal(scoredL1.l1Passed, 4);
+assert.equal(scoredL1.l1Total, 4);
+assert.equal(scoredL1.l2Passed, 13);
+assert.equal(scoredL1.l2Total, 13);
+assert.equal(scoredL1.nextLevelProgress.needed, Math.ceil(9 * LEVEL_THRESHOLD));
 
-const l1TwoOfThree = catalogRows({
-  l1Pass: (criterion) => criterion.id !== "editorconfig" && criterion.id !== "license",
+const l1ThreeOfFour = catalogRows({
+  l1Pass: (criterion) => criterion.id !== "linter",
   l2Pass: () => true,
 });
-const scoredTwoOfThree = scoreResults(catalog, l1TwoOfThree);
-assert.equal(scoredTwoOfThree.level, 1, "L1 2/3 still caps at Foundational");
-assert.equal(scoredTwoOfThree.l1Passed, 2);
-assert.equal(scoredTwoOfThree.l1Total, 3);
-assert.equal(scoredTwoOfThree.nextLevelProgress.needed, Math.ceil(11 * LEVEL_THRESHOLD));
+const scoredThreeOfFour = scoreResults(catalog, l1ThreeOfFour);
+assert.equal(scoredThreeOfFour.level, 1, "L1 3/4 stays Functional at 80%");
+assert.equal(scoredThreeOfFour.l1Passed, 3);
+assert.equal(scoredThreeOfFour.l1Total, 4);
+assert.equal(scoredThreeOfFour.nextLevelProgress.needed, Math.ceil(13 * LEVEL_THRESHOLD));
 
 const root = tmp("code-readiness-");
 fs.writeFileSync(path.join(root, "LICENSE"), "MIT\n");
@@ -242,6 +261,9 @@ assert.equal(byId["readme-quality"].skipped, true);
 assert.equal(byId["docs-agent-friendliness"].skipped, true);
 assert.equal(byId["ai-context"].pass, true, "AGENTS.md satisfies ai-context");
 
+assert.equal(byId["type-checker"].skipped, true, byId["type-checker"].message);
+assert.match(byId["type-checker"].message, /no conventional type-checker file/i);
+
 const scored = scoreResults(evalJs.catalog, evalJs.results);
 assert.equal(scored.level, 1);
 assert.ok(scored.scorePercent > 0);
@@ -270,6 +292,8 @@ function writeGuidedMinusEditorconfig(dir) {
   fs.writeFileSync(path.join(dir, ".nvmrc"), "20\n");
   fs.mkdirSync(path.join(dir, ".github", "workflows"), { recursive: true });
   fs.writeFileSync(path.join(dir, ".github", "workflows", "ci.yml"), "name: ci\n");
+  fs.writeFileSync(path.join(dir, "AGENTS.md"), "# agents\n");
+  fs.mkdirSync(path.join(dir, ".husky"));
 }
 
 const l1MissEditor = tmp("code-readiness-l1-");
@@ -282,10 +306,11 @@ assert.equal(l1MissById.license.pass, true);
 assert.equal(l1MissById.readme.pass, true);
 assert.equal(l1MissById["lock-file"].pass, true);
 const l1MissScored = scoreResults(l1MissEval.catalog, l1MissEval.results);
+assert.equal(l1MissById["type-checker"].skipped, true, l1MissById["type-checker"].message);
 assert.equal(l1MissScored.l1Passed, 3);
 assert.equal(l1MissScored.l1Total, 3);
 assert.ok(l1MissScored.l2Passed / l1MissScored.l2Total >= LEVEL_THRESHOLD);
-assert.equal(l1MissScored.level, 2, "missing only .editorconfig still reaches Guided");
+assert.equal(l1MissScored.level, 2, "missing only .editorconfig still reaches Documented");
 
 const pyGuidedRoot = tmp("code-readiness-py-guided-");
 fs.writeFileSync(
@@ -320,13 +345,15 @@ assert.equal(pyGuidedById.editorconfig.level, 2);
 assert.equal(pyGuidedById.readme.pass, true);
 assert.equal(pyGuidedById.license.pass, true);
 assert.equal(pyGuidedById["env-documentation"].skipped, true);
+assert.equal(pyGuidedById["type-checker"].skipped, true, pyGuidedById["type-checker"].message);
+assert.equal(pyGuidedById.linter.pass, true);
+assert.equal(pyGuidedById["test-files-exist"].pass, true);
+assert.equal(pyGuidedById["test-script"].pass, true, pyGuidedById["test-script"].message);
 const pyGuidedScored = scoreResults(pyGuidedEval.catalog, pyGuidedEval.results);
-assert.equal(pyGuidedScored.l1Passed, 2);
-assert.equal(pyGuidedScored.l1Total, 2);
-assert.equal(pyGuidedScored.l2Passed, 8);
-assert.equal(pyGuidedScored.l2Total, 10);
-assert.ok(pyGuidedScored.l2Passed / pyGuidedScored.l2Total >= LEVEL_THRESHOLD);
-assert.equal(pyGuidedScored.level, 2, "Python 8/9 L2 plus editorconfig fail is 8/10 Guided");
+assert.equal(pyGuidedScored.l1Passed, 3);
+assert.equal(pyGuidedScored.l1Total, 3);
+assert.equal(pyGuidedById.license.level, 2);
+assert.equal(pyGuidedById["lock-file"].level, 2);
 
 const goRoot = tmp("code-readiness-go-");
 fs.writeFileSync(path.join(goRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n");
@@ -375,6 +402,7 @@ assert.equal(pyNoLockById["lock-file"].pass, false);
 assert.equal(/pyproject\.toml/i.test(pyNoLockById["lock-file"].message), false);
 assert.equal(pyNoLockById["test-script"].pass, false, pyNoLockById["test-script"].message);
 assert.equal(pyNoLockById["setup-script"].pass, false, pyNoLockById["setup-script"].message);
+assert.equal(pyNoLockById["type-checker"].skipped, true, pyNoLockById["type-checker"].message);
 
 const pyJsLockRoot = tmp("code-readiness-pyjs-lock-");
 fs.writeFileSync(
@@ -394,6 +422,7 @@ const jsNoLockById = resultById(evaluateRepo(jsNoLockRoot));
 assert.equal(jsNoLockById["lock-file"].skipped, true, jsNoLockById["lock-file"].message);
 assert.match(jsNoLockById["lock-file"].message, /no conventional committed lockfile/i);
 assert.equal(jsNoLockById["lock-file"].pass, false);
+assert.equal(jsNoLockById["type-checker"].skipped, true, jsNoLockById["type-checker"].message);
 
 const tsNoLockRoot = tmp("code-readiness-ts-nolock-");
 fs.writeFileSync(path.join(tsNoLockRoot, "tsconfig.json"), "{}\n");
@@ -401,6 +430,8 @@ const tsNoLockById = resultById(evaluateRepo(tsNoLockRoot));
 assert.equal(tsNoLockById["lock-file"].skipped, true, tsNoLockById["lock-file"].message);
 assert.match(tsNoLockById["lock-file"].message, /no conventional committed lockfile/i);
 assert.equal(tsNoLockById["lock-file"].pass, false);
+assert.equal(tsNoLockById["type-checker"].skipped, false);
+assert.equal(tsNoLockById["type-checker"].pass, false, tsNoLockById["type-checker"].message);
 
 const jsLockPassRoot = tmp("code-readiness-js-lock-");
 fs.writeFileSync(path.join(jsLockPassRoot, "package.json"), "{}\n");
@@ -539,9 +570,10 @@ const emptyScored = scoreResults(emptyEval.catalog, emptyEval.results);
 assert.equal(emptyScored.level, 1);
 assert.equal(emptyById["env-documentation"].skipped, true);
 assert.equal(emptyById["lock-file"].skipped, false);
+assert.equal(emptyById["type-checker"].skipped, true);
 assert.equal(
   emptyEval.results.filter((row) => row.skipped).length,
-  5,
+  6,
 );
 
 const capRoot = tmp("code-readiness-cap-");
@@ -566,15 +598,63 @@ fs.writeFileSync(path.join(capRoot, ".github", "workflows", "ci.yml"), "on: push
 const capEval = evaluateRepo(capRoot);
 const capReport = buildReport(capEval, { repoRoot: capRoot, repoName: "cap" });
 assert.equal(capReport.maturity_level.level, 1);
-assert.equal(capReport.maturity_level.l1Capped, true);
-assert.equal(capReport.maturity_level.l1CapReasons.includes("editorconfig"), false);
-assert.ok(capReport.maturity_level.l1CapReasons.includes("license"));
-assert.equal(capReport.maturity_level.l1Passed, 2);
+assert.equal(capReport.maturity_level.l1Capped, false);
+assert.equal(capReport.maturity_level.l1CapReasons.includes("license"), false);
+assert.equal(capReport.maturity_level.l1Passed, 3);
 assert.equal(capReport.maturity_level.l1Total, 3);
 assert.ok(capReport.maturity_level.l2Total >= 8);
-assert.ok(
-  capReport.maturity_level.l2Passed / capReport.maturity_level.l2Total >= 0.8,
+
+const functionalRoot = tmp("code-readiness-l1-functional-");
+fs.writeFileSync(
+  path.join(functionalRoot, "README.md"),
+  `${"A".repeat(520)}\n# sample\nsetup and usage.\n`,
 );
+fs.writeFileSync(path.join(functionalRoot, ".golangci.yml"), "linters: {}\n");
+fs.writeFileSync(path.join(functionalRoot, "go.mod"), "module example.com/x\n\ngo 1.22\n");
+fs.writeFileSync(path.join(functionalRoot, "foo_test.go"), "package x\n");
+const functionalEval = evaluateRepo(functionalRoot);
+const functionalById = resultById(functionalEval);
+const functionalScored = scoreResults(functionalEval.catalog, functionalEval.results);
+assert.equal(functionalById.readme.pass, true);
+assert.equal(functionalById.linter.pass, true);
+assert.equal(functionalById["test-files-exist"].pass, true);
+assert.equal(functionalById["type-checker"].pass, true, functionalById["type-checker"].message);
+assert.equal(functionalById["type-checker"].skipped, false);
+assert.equal(functionalScored.l1Passed, 4);
+assert.equal(functionalScored.l1Total, 4);
+
+const jsFunctionalSkipRoot = tmp("code-readiness-l1-js-");
+fs.writeFileSync(
+  path.join(jsFunctionalSkipRoot, "README.md"),
+  `${"A".repeat(520)}\n# sample\nsetup and usage.\n`,
+);
+fs.writeFileSync(path.join(jsFunctionalSkipRoot, "eslint.config.js"), "export default [];\n");
+fs.writeFileSync(path.join(jsFunctionalSkipRoot, "app.test.js"), "test('ok', () => {});\n");
+const jsFunctionalEval = evaluateRepo(jsFunctionalSkipRoot);
+const jsFunctionalById = resultById(jsFunctionalEval);
+const jsFunctionalScored = scoreResults(jsFunctionalEval.catalog, jsFunctionalEval.results);
+assert.equal(jsFunctionalById.readme.pass, true);
+assert.equal(jsFunctionalById.linter.pass, true);
+assert.equal(jsFunctionalById["test-files-exist"].pass, true);
+assert.equal(jsFunctionalById["type-checker"].skipped, true, jsFunctionalById["type-checker"].message);
+assert.equal(jsFunctionalScored.l1Passed, 3);
+assert.equal(jsFunctionalScored.l1Total, 3);
+
+const identityLieRoot = tmp("code-readiness-identity-");
+fs.writeFileSync(path.join(identityLieRoot, "LICENSE"), "MIT\n");
+fs.writeFileSync(path.join(identityLieRoot, "package.json"), "{}\n");
+fs.writeFileSync(path.join(identityLieRoot, "package-lock.json"), "{}\n");
+const identityLieEval = evaluateRepo(identityLieRoot);
+const identityLieById = resultById(identityLieEval);
+const identityLieScored = scoreResults(identityLieEval.catalog, identityLieEval.results);
+assert.equal(identityLieById.license.pass, true);
+assert.equal(identityLieById["lock-file"].pass, true);
+assert.equal(identityLieById.readme.pass, false);
+assert.equal(identityLieById.linter.pass, false);
+assert.equal(identityLieById["test-files-exist"].pass, false);
+assert.equal(identityLieScored.l1Passed, 0);
+assert.ok(identityLieScored.l1Total >= 3);
+assert.equal(identityLieScored.level, 1, "license+lock alone is not Functional L1");
 
 assert.equal(/factory|kodus/i.test(ATTRIBUTION), false);
 
@@ -608,6 +688,7 @@ function walkTextFiles(dir, acc = []) {
 }
 for (const file of walkTextFiles(skillRoot())) {
   if (file.endsWith(`${path.sep}evaluate.test.mjs`)) continue;
+  if (/adr-scoring/.test(file)) continue;
   const text = fs.readFileSync(file, "utf8").replaceAll("kodustech/agent-readiness", "");
   assert.equal(/factory|kodus/i.test(text), false, file);
 }

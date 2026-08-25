@@ -98,10 +98,10 @@ Thesis-first. Job: what band are we in, is L1 hard-capped, and what three fixes 
 - Sequential L1–L5 `computeDAGLayout` SVG, `LineChart` of pillar percentages, horizontal `BarChart` of remaining fails per sequential level
 - `Select` + `Toggle` + `TextInput` fail search + `Checkbox` L1-capped then `CollapsibleSection` + `Table` under `H2` / `H3`. Criterion id in `Code`, level in `Pill`. Tables are not inside Cards
 
-L1 capped means the sequential gate holds the band at Foundational even though the L2 gate already passes (`l2Passed` / `l2Total`). Reasons are failing L1 ids such as `editorconfig` and `lock-file`. Report JSON carries `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. The canvas does not recompute the 80% gate.
+L1 capped means the sequential gate holds the band at Functional even though the L2 gate already passes (`l2Passed` / `l2Total`). Reasons are failing L1 ids such as `readme`, `linter`, and `test-files-exist`. Report JSON carries `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. The canvas does not recompute the 80% gate.
 
 No Overview / Metrics / Details shell. No nested scroll. No invented product-score copy. Keep "not `/doctor`" if it helps disambiguate.
 
-Level labels on the canvas are ours: Foundational, Guided, Structured, Optimized, Autonomous.
+Level labels on the canvas are ours: Functional, Documented, Standardized, Optimized, Autonomous.
 
 V2 slop: 2 or more of gradients, emojis, box-shadow, wall of identical cards, rainbow, giant text, decorative borders means redesign.

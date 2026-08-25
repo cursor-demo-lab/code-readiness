@@ -262,6 +262,13 @@ function evalCriterion(criterion, ctx) {
     }
   }
 
+  if (criterion.id === "type-checker") {
+    const hasTsconfig = fs.existsSync(path.join(ctx.repoRoot, "tsconfig.json"));
+    if (!hasTsconfig) {
+      return skip("This language has no conventional type-checker file.");
+    }
+  }
+
   return miss(criterion.fail);
 }
 

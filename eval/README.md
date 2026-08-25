@@ -14,7 +14,7 @@ Ground truth is `checks/catalog.json` versus the golden tree.
 | `#LLM` | `run_metadata.llm_calls` must be `0`. Fail the run if not |
 | Fixture agreement | For the 16 core FS check IDs in `core-checks.json`, the catalog result must match file presence at the frozen SHA |
 | Ranking | `chat-example < express < fastapi ≈ act` on `scorePercent`, then level. Fail if inverted |
-| Canvas regions | Emitted sidecar `report` must include `repo_identity`, `maturity_level`, `pillar_scores`, `criterion_results`, `remediations`, `run_metadata` with `check_count` and `llm_calls=0`. `maturity_level` may include `l1Passed` / `l1Total` / `l2Passed` / `l2Total` / `l1Capped` / `l1CapReasons`. Level sanity uses L1 3/4 (75%) and L2+ 80% sequential. |
+| Canvas regions | Emitted sidecar `report` must include `repo_identity`, `maturity_level`, `pillar_scores`, `criterion_results`, `remediations`, `run_metadata` with `check_count` and `llm_calls=0`. `maturity_level` may include `l1Passed` / `l1Total` / `l2Passed` / `l2Total` / `l1Capped` / `l1CapReasons`. Level sanity uses 80% sequential at every level, including L1. |
 
 Do not clone goldens into this repository. At eval time, clone each repo at the SHA in `sha-freeze.json`.
 
