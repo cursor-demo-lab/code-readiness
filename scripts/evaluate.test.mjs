@@ -880,20 +880,44 @@ assert.equal(/linear-gradient|radial-gradient/.test(canvasTemplate), false);
 assert.match(canvasTemplate, /Functional/);
 assert.match(canvasTemplate, /Documented/);
 assert.equal(/Foundational|Guided/.test(canvasTemplate), false);
+assert.match(canvasTemplate, /function remainingGateFails/);
+assert.match(canvasTemplate, /function rankedFixRows/);
+assert.match(canvasTemplate, /Would be \$\{band\.nextLevelLabel\}/);
+assert.match(canvasTemplate, /except \$\{joinIds\(ids\)\}/);
+assert.match(canvasTemplate, /band\.l1Capped/);
+assert.match(canvasTemplate, /l1CapReasons/);
+assert.match(canvasTemplate, /\.slice\(\s*0,\s*5\s*\)/);
+assert.match(canvasTemplate, /\$\{row\.criterionId\} — add \$\{file\}/);
+assert.match(canvasTemplate, /type: "openFile"/);
+assert.equal(
+  /Need \$\{band\.nextLevelRemaining\} more Level/.test(canvasTemplate),
+  false,
+  "callout must name remaining fail ids, not a generic need-N-more line",
+);
+assert.match(canvasTemplate, /\.\.\.gate\.slice\(\)\.sort\(byFileThenCatalog\)/);
+assert.match(canvasTemplate, /\.\.\.rest\.slice\(\)\.sort\(byFileThenCatalog\)/);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
-assert.match(skillMd, /would be L2 except/);
-assert.match(skillMd, /L2 fail ids/);
-assert.match(skillMd, /not `l1CapReasons`/);
+assert.match(skillMd, /one repository/);
+assert.match(skillMd, /honesty gate/);
+assert.match(skillMd, /would be Documented except/);
+assert.match(skillMd, /gate-ranked/);
+assert.match(skillMd, /remaining fails at `nextLevel` first/);
 assert.match(skillMd, /only for when `l1Capped` is true/);
 assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
+assert.equal(/Nest is that shape|L2 10\/13/.test(skillMd), false);
 assert.equal(
   /failing L1 ids \(`l1CapReasons`\)/.test(skillMd),
   false,
-  "would be L2 except must name L2 fail ids, not l1CapReasons",
+  "would-be-except must name remaining fail ids, not l1CapReasons",
 );
+
+const canvasMd = fs.readFileSync(path.join(skillRoot(), "canvas", "CANVAS.md"), "utf8");
+assert.match(canvasMd, /what band, what unblocks the next sequential gate, and which files/);
+assert.match(canvasMd, /would be Documented except/);
+assert.match(canvasMd, /`nextLevel` fails first/);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.match(checksReadme, /would be L2 except/);

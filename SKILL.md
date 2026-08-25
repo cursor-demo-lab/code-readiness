@@ -5,7 +5,7 @@ description: Score how ready a repository is for coding agents using local files
 
 # /code-readiness
 
-Score a **repository root** by walking `checks/catalog.json` with Read, glob, and grep. Fill a report JSON. Copy this repo's canvas template and sidecar. Do not install packages. Do not run `npx`. Do not call external scoring APIs. Do not run an LLM judge. Do not run tests, linters, or scanners.
+Score **one repository root** by walking `checks/catalog.json` with Read, glob, and grep. Fill a report JSON. Copy this repo's canvas template and sidecar. That single-repo canvas is the product. The 27-repo eval campaign is the honesty gate for the catalog, not a second canvas and not the chat recipe. Do not install packages. Do not run `npx`. Do not call external scoring APIs. Do not run an LLM judge. Do not run tests, linters, or scanners.
 
 `/code-readiness` is a deterministic file and config score from this catalog. `/doctor` is a different Cursor rubric. The scores are not comparable. Do not wrap a Doctor canvas.
 
@@ -52,7 +52,7 @@ Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. E
 
 `maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (readme, linter, test-files-exist, type-checker). The canvas treats that cap as the primary visual. L1 is 80% of counted L1 rows (4/4, or 3/3 when type-checker skips).
 
-Eval canvas copy must print those engine labels (Functional / Documented / Standardized / Optimized / Autonomous). For a high-% repo still at level 1 because the L2 sequential gate failed (L1 counted checks already pass or type-checker skipped), print "would be L2 except …" naming the remaining L2 fail ids, not `l1CapReasons`. Nest is that shape: L1 4/4, L2 10/13, still Functional — would be L2 except editorconfig, ai-context, env-documentation. `l1CapReasons` is only for when `l1Capped` is true (L2 would pass, L1 counted checks fail). Do not dummy `.editorconfig`.
+Print engine labels (Functional / Documented / Standardized / Optimized / Autonomous). For a single repo short of the next sequential gate, the Callout names remaining fail ids from `criterion_results` at `maturity_level.nextLevel`: would be Documented except editorconfig, ai-context. Rank `TodoListCard` items the same way: remaining fails at `nextLevel` first, then other fails. Never lead with a fail that is not on the current gate if gate fails exist. `l1CapReasons` only for when `l1Capped` is true. Do not dummy `.editorconfig`.
 
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
@@ -97,7 +97,7 @@ See `canvas/CANVAS.md`.
 ### 5. Chat: three lines plus the canvas link
 
 1. Level and score
-2. Top fix
+2. Top gate-ranked fix: the first remaining fail at `nextLevel` (or the first `l1CapReasons` id when `l1Capped`), plus the concrete file to add or open
 3. Markdown link from the save-result URL, or the absolute local `.canvas.tsx` path on desktop
 
 If this is the first `.canvas.tsx` in the workspace canvases directory, add one sentence: a canvas is a live React panel beside chat.
