@@ -187,8 +187,32 @@ function productSetupHits(files) {
   return productHits.length > 0 ? productHits : files;
 }
 
+function isTestScriptProjectHit(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, "*Tests.csproj") ||
+    globMatch(name, "*Test.csproj") ||
+    globMatch(name, "*Tests.sln")
+  );
+}
+
+function isDeferredTestScriptProject(file) {
+  return /fuzz|bench/i.test(posixBasename(file));
+}
+
+function productTestScriptHits(files) {
+  const projectHits = files.filter(isTestScriptProjectHit);
+  const preferredProjects = projectHits.filter((file) => !isDeferredTestScriptProject(file));
+  const withoutFuzzBench =
+    preferredProjects.length > 0
+      ? files.filter((file) => !isTestScriptProjectHit(file) || !isDeferredTestScriptProject(file))
+      : files;
+  return productStyleHits(withoutFuzzBench);
+}
+
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
+  if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
   if (criterion.id === "setup-script") return shallowestHit(productSetupHits(fileHits));

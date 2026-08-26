@@ -2218,6 +2218,34 @@ assertPass(
   { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
   /Newtonsoft\.Json\.Tests\.csproj/,
 );
+const newtonsoftLikeTestScript = evalTree({
+  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
+  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+});
+assert.equal(
+  newtonsoftLikeTestScript["test-script"].pass,
+  true,
+  newtonsoftLikeTestScript["test-script"].message,
+);
+assert.match(newtonsoftLikeTestScript["test-script"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(
+  /FuzzTests/.test(newtonsoftLikeTestScript["test-script"].message),
+  false,
+  newtonsoftLikeTestScript["test-script"].message,
+);
+assertPass(
+  "test-script",
+  { "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n" },
+  /Newtonsoft\.Json\.FuzzTests\.csproj/,
+);
+const benchAndTests = evalTree({
+  "Src/Foo.BenchmarkTests/Foo.BenchmarkTests.csproj": "<Project></Project>\n",
+  "Src/Foo.Tests/Foo.Tests.csproj": "<Project></Project>\n",
+});
+assert.equal(benchAndTests["test-script"].pass, true, benchAndTests["test-script"].message);
+assert.match(benchAndTests["test-script"].message, /Foo\.Tests\.csproj/);
+assert.equal(/Benchmark/.test(benchAndTests["test-script"].message), false);
+assertPass("setup-script", { "Foo.csproj": "<Project></Project>\n" }, /Foo\.csproj/);
 assertPass("test-script", { "Foo.Tests.sln": "Microsoft Visual Studio Solution\n" }, /Foo\.Tests\.sln/);
 assertPass("test-script", { Makefile: "test:\n\t@echo ok\n" }, /Makefile/);
 assertPass("test-script", { "scripts/test.sh": "pytest\n" }, /scripts\/test\.sh/);
@@ -3451,6 +3479,8 @@ assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
 assert.match(rootReadme, /`setup-script` first-hit prefers/);
 assert.match(rootReadme, /support-only tree still passes/);
+assert.match(rootReadme, /`test-script` first-hit among/);
+assert.match(rootReadme, /Fuzz-only tree still passes/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -3475,6 +3505,8 @@ assert.match(skillMd, /`containerization` first-hit prefers/);
 assert.match(skillMd, /integration-only tree still passes/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
 assert.match(skillMd, /support-only tree still passes/);
+assert.match(skillMd, /`test-script` first-hit among/);
+assert.match(skillMd, /Fuzz-only tree still passes/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -3590,6 +3622,8 @@ assert.match(checksReadme, /A `build\.gradle` \/ `build\.gradle\.kts` or product
 assert.match(checksReadme, /`setup-script` first-hit is the shallowest product-tree/);
 assert.match(checksReadme, /support\/build\.gradle/);
 assert.match(checksReadme, /support-only tree still passes/);
+assert.match(checksReadme, /`test-script` first-hit among/);
+assert.match(checksReadme, /Fuzz-only tree still passes/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
