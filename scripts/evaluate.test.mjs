@@ -1688,6 +1688,71 @@ const singleDoubleMatch = evalTree({ "test/router.test.js": "describe('r', () =>
 assert.match(singleDoubleMatch["test-files-exist"].message, /Found 1 test file\(s\)/);
 assert.equal(singleDoubleMatch["test-files-exist"].details, "test/router.test.js");
 
+const railsFirstHit = evalTree({
+  "actioncable/rollup.config.test.js": "export default {};\n",
+  "activerecord/test/cases/base_test.rb": "class BasicsTest < ActiveRecord::TestCase\nend\n",
+});
+assert.equal(railsFirstHit["test-files-exist"].pass, true, railsFirstHit["test-files-exist"].message);
+assert.match(railsFirstHit["test-files-exist"].message, /activerecord\/test\/cases\/base_test\.rb/);
+assert.equal(/rollup\.config\.test\.js/.test(railsFirstHit["test-files-exist"].message), false);
+assert.match(railsFirstHit["test-files-exist"].details, /^activerecord\/test\/cases\/base_test\.rb\b/);
+assert.equal(railsFirstHit["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+
+const phoenixFirstHit = evalTree({
+  "installer/test/phx_new_ecto_test.exs": "defmodule PhxNewEctoTest do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+});
+assert.equal(phoenixFirstHit["test-files-exist"].pass, true, phoenixFirstHit["test-files-exist"].message);
+assert.match(phoenixFirstHit["test-files-exist"].message, /test\/foo_test\.exs/);
+assert.equal(/installer\//.test(phoenixFirstHit["test-files-exist"].message), false);
+assert.match(phoenixFirstHit["test-files-exist"].details, /^test\/foo_test\.exs\b/);
+
+const ectoFirstHit = evalTree({
+  "examples/friends/test/friends_test.exs": "defmodule FriendsTest do\nend\n",
+  "test/ecto_test.exs": "defmodule EctoTest do\nend\n",
+});
+assert.equal(ectoFirstHit["test-files-exist"].pass, true, ectoFirstHit["test-files-exist"].message);
+assert.match(ectoFirstHit["test-files-exist"].message, /test\/ecto_test\.exs/);
+assert.equal(/examples\//.test(ectoFirstHit["test-files-exist"].message), false);
+assert.equal(ectoFirstHit["test-files-exist"].details.startsWith("test/ecto_test.exs"), true);
+
+const nlohmannFirstHit = evalTree({
+  "tests/abi/config/custom.cpp": "int main() { return 0; }\n",
+  "tests/src/unit-json.cpp": "TEST_CASE(\"json\") {}\n",
+});
+assert.equal(nlohmannFirstHit["test-files-exist"].pass, true, nlohmannFirstHit["test-files-exist"].message);
+assert.match(nlohmannFirstHit["test-files-exist"].message, /tests\/src\/unit-json\.cpp/);
+assert.equal(/\/abi\//.test(nlohmannFirstHit["test-files-exist"].message), false);
+assert.match(nlohmannFirstHit["test-files-exist"].details, /^tests\/src\/unit-json\.cpp\b/);
+
+const installerOnly = evalTree({
+  "installer/test/phx_new_ecto_test.exs": "defmodule PhxNewEctoTest do\nend\n",
+});
+assert.equal(installerOnly["test-files-exist"].pass, true, installerOnly["test-files-exist"].message);
+assert.match(installerOnly["test-files-exist"].message, /installer\/test\/phx_new_ecto_test\.exs/);
+
+const examplesOnly = evalTree({
+  "examples/friends/test/friends_test.exs": "defmodule FriendsTest do\nend\n",
+});
+assert.equal(examplesOnly["test-files-exist"].pass, true, examplesOnly["test-files-exist"].message);
+assert.match(examplesOnly["test-files-exist"].message, /examples\/friends\/test\/friends_test\.exs/);
+
+const abiOnly = evalTree({
+  "tests/abi/config/custom.cpp": "int main() { return 0; }\n",
+});
+assert.equal(abiOnly["test-files-exist"].pass, true, abiOnly["test-files-exist"].message);
+assert.match(abiOnly["test-files-exist"].message, /tests\/abi\/config\/custom\.cpp/);
+
+const fmtCTest = evalTree({ "test/c-test.c": "int main() { return 0; }\n" });
+assert.equal(fmtCTest["test-files-exist"].pass, true, fmtCTest["test-files-exist"].message);
+assert.match(fmtCTest["test-files-exist"].message, /test\/c-test\.c/);
+
+const catch2SelfTest = evalTree({
+  "tests/SelfTest/IntrospectiveTests/Algorithms.tests.cpp": "TEST_CASE(\"algo\") {}\n",
+});
+assert.equal(catch2SelfTest["test-files-exist"].pass, true, catch2SelfTest["test-files-exist"].message);
+assert.match(catch2SelfTest["test-files-exist"].message, /Algorithms\.tests\.cpp/);
+
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
 assertPass("test-script", { Justfile: "test:\n    pytest\n" }, /Justfile/);
 assertPass(
@@ -2505,6 +2570,10 @@ assert.match(checksReadme, /`src\/\*\.cpp` and `src\/\*\.cc` do not/);
 assert.match(checksReadme, /`testdata\/user_test\.rb` does not count/);
 assert.match(checksReadme, /deduped by path/);
 assert.match(checksReadme, /distinct-path count/);
+assert.match(checksReadme, /reported first hit prefers a product-suite path/);
+assert.match(checksReadme, /installer.*examples.*abi/);
+assert.match(checksReadme, /An installer-only or examples-only or abi-only tree still passes/);
+assert.match(checksReadme, /Do not add a `test\/test_\*\.rb` glob/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
