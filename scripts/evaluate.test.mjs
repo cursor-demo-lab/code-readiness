@@ -685,6 +685,7 @@ for (const glob of [
   "test/**/*.cpp",
   "**/tests/**/*.cpp",
   "spec/**/*_spec.rb",
+  "**/*_spec.rb",
   "**/test/**/*_test.rb",
   "test/test_*.rb",
   "**/test/test_*.rb",
@@ -746,6 +747,8 @@ assert.equal(globMatch("src/foo.cpp", "**/*.tests.cpp"), false);
 assert.equal(globMatch("src/foo.cpp", "test/**/*.cpp"), false);
 assert.equal(globMatch("src/foo.cpp", "**/tests/**/*.cpp"), false);
 assert.equal(globMatch("spec/models/user_spec.rb", "spec/**/*_spec.rb"), true);
+assert.equal(globMatch("spec/models/user_spec.rb", "**/*_spec.rb"), true);
+assert.equal(globMatch("test/foo_spec.rb", "**/*_spec.rb"), true);
 assert.equal(globMatch("test/models/user_test.rb", "**/test/**/*_test.rb"), true);
 assert.equal(globMatch("activerecord/test/cases/base_test.rb", "**/test/**/*_test.rb"), true);
 assert.equal(globMatch("lib/user.rb", "**/test/**/*_test.rb"), false);
@@ -2579,6 +2582,59 @@ assert.equal(
   packageJsonTsOverGoTfe["test-files-exist"].message,
 );
 
+const railsSpecOverJsTfe = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "test/foo_spec.rb": "RSpec.describe Foo do\nend\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(railsSpecOverJsTfe["test-files-exist"].pass, true, railsSpecOverJsTfe["test-files-exist"].message);
+assert.equal(railsSpecOverJsTfe["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(railsSpecOverJsTfe["test-files-exist"].message, /foo_spec\.rb/);
+assert.equal(
+  /foo\.test\.js/.test(railsSpecOverJsTfe["test-files-exist"].message),
+  false,
+  railsSpecOverJsTfe["test-files-exist"].message,
+);
+assert.match(railsSpecOverJsTfe["test-files-exist"].details, /^test\/foo_spec\.rb\b/);
+assert.match(railsSpecOverJsTfe["test-files-exist"].details, /foo\.test\.js/);
+
+const railsJsOnlyTfe = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(railsJsOnlyTfe["test-files-exist"].pass, true, railsJsOnlyTfe["test-files-exist"].message);
+assert.match(railsJsOnlyTfe["test-files-exist"].message, /foo\.test\.js/);
+
+const railsSpecOverSpecTs = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "test/foo_spec.rb": "RSpec.describe Foo do\nend\n",
+  "assets/foo.spec.ts": "test('ok');\n",
+});
+assert.equal(railsSpecOverSpecTs["test-files-exist"].pass, true, railsSpecOverSpecTs["test-files-exist"].message);
+assert.match(railsSpecOverSpecTs["test-files-exist"].message, /foo_spec\.rb/);
+assert.equal(
+  /foo\.spec\.ts/.test(railsSpecOverSpecTs["test-files-exist"].message),
+  false,
+  railsSpecOverSpecTs["test-files-exist"].message,
+);
+
+const railsTestOverSameDirJs = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "test/foo_test.rb": "class FooTest < Minitest::Test\nend\n",
+  "test/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  railsTestOverSameDirJs["test-files-exist"].pass,
+  true,
+  railsTestOverSameDirJs["test-files-exist"].message,
+);
+assert.match(railsTestOverSameDirJs["test-files-exist"].message, /foo_test\.rb/);
+assert.equal(
+  /foo\.test\.js/.test(railsTestOverSameDirJs["test-files-exist"].message),
+  false,
+  railsTestOverSameDirJs["test-files-exist"].message,
+);
+
 const mixExUnitOverJestTfe = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   "test/foo_test.exs": "defmodule FooTest do\nend\n",
@@ -4221,6 +4277,7 @@ assert.match(rootReadme, /A golangci-only tree still passes/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
 assert.match(rootReadme, /A Mix tree with only JS tests still passes/);
+assert.match(rootReadme, /A Rails tree with only JS tests still passes/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -4269,6 +4326,7 @@ assert.match(skillMd, /A golangci-only tree still passes/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
 assert.match(skillMd, /A Mix tree with only JS tests still passes/);
+assert.match(skillMd, /A Rails tree with only JS tests still passes/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -4377,7 +4435,7 @@ assert.match(checksReadme, /required_ruby_version/);
 assert.match(checksReadme, /resources\/exceptions\/renderer/);
 assert.match(checksReadme, /shallowest product-tree/);
 assert.match(checksReadme, /CocoaPods/);
-assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\/\*_test\.rb` \/ `test\/test_\*\.rb` \/ `\*\*\/test\/test_\*\.rb`/);
+assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\/\*_test\.rb` \/ `test\/test_\*\.rb` \/ `\*\*\/test\/test_\*\.rb`/);
 assert.match(checksReadme, /`\.cc` and `\.cxx` extensions/);
 assert.match(checksReadme, /`src\/\*\.cpp` and `src\/\*\.cc` do not/);
 assert.match(checksReadme, /`testdata\/user_test\.rb` does not count/);
@@ -4397,6 +4455,7 @@ assert.match(checksReadme, /sidecar Go tests/);
 assert.match(checksReadme, /`linter` first-hit prefers/);
 assert.match(checksReadme, /A golangci-only tree still passes/);
 assert.match(checksReadme, /A Mix tree with only JS tests still passes/);
+assert.match(checksReadme, /A Rails tree with only JS tests still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
