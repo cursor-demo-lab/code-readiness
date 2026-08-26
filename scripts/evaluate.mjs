@@ -147,6 +147,7 @@ const CONTAINER_FIRST_HIT_DEFER_SEGMENTS = [
   ...STYLE_FIRST_HIT_SAMPLE_SEGMENTS,
 ];
 const SETUP_FIRST_HIT_DEFER_SEGMENTS = ["support", "android", "examples"];
+const SETUP_PY_DEFER_SEGMENTS = ["modules", "module", "plugins", "plugin"];
 const TEST_FILE_FIRST_HIT_FUZZ_BENCH_SEGMENTS = ["benchmarks", "benchmark", "bench", "fuzz", "fuzzing"];
 const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = [
   "installer",
@@ -211,6 +212,17 @@ function isDeferredSetupConfig(file) {
   return pathHasSegments(file, SETUP_FIRST_HIT_DEFER_SEGMENTS);
 }
 
+function isDeferredNestedSetupPy(file) {
+  // Application modules named setup.py (lib/foo/modules/setup.py) are not the
+  // product installer. Defer them when pyproject.toml / Makefile / root
+  // setup.py exist; a modules-only tree still names that file.
+  return posixBasename(file) === "setup.py" && pathHasSegments(file, SETUP_PY_DEFER_SEGMENTS);
+}
+
+function isDeferredSetupHit(file) {
+  return isDeferredSetupConfig(file) || isDeferredNestedSetupPy(file);
+}
+
 function isSetupDotnetProjectHit(file) {
   const name = posixBasename(file);
   return globMatch(name, "*.csproj") || globMatch(name, "*.sln");
@@ -239,7 +251,7 @@ function preferProductSetupProjects(files) {
 }
 
 function productSetupHits(files) {
-  const productHits = files.filter((file) => !isDeferredSetupConfig(file));
+  const productHits = files.filter((file) => !isDeferredSetupHit(file));
   const ranked = productHits.length > 0 ? productHits : files;
   return preferProductSetupProjects(ranked);
 }
@@ -952,7 +964,7 @@ function evalCriterion(criterion, ctx) {
     : containerFirstHit
       ? usableHits.filter((file) => !isDeferredContainerConfig(file))
       : setupFirstHit
-        ? usableHits.filter((file) => !isDeferredSetupConfig(file))
+        ? usableHits.filter((file) => !isDeferredSetupHit(file))
         : usableHits;
   if (productFileHits.length > 0) {
     return hit(`Found ${firstFileHit(criterion, productFileHits, ctx.languages, ctx.files, ctx.repoRoot)}`);
