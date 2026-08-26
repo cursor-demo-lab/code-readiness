@@ -1896,6 +1896,51 @@ const twoNestedLint = evalTree({
 assert.equal(twoNestedLint.linter.pass, true, twoNestedLint.linter.message);
 assert.match(twoNestedLint.linter.message, /apps\/web\/\.golangci\.yml/);
 assert.equal(/packages/.test(twoNestedLint.linter.message), false);
+
+const jsPrimaryBothLinters = evalTree({
+  "eslint.config.js": "export default [];\n",
+  ".golangci.yml": "linters: {}\n",
+  "package.json": { name: "app" },
+});
+assert.equal(jsPrimaryBothLinters.linter.pass, true, jsPrimaryBothLinters.linter.message);
+assert.match(jsPrimaryBothLinters.linter.message, /eslint\.config\.js/);
+assert.equal(/golangci/.test(jsPrimaryBothLinters.linter.message), false);
+
+const biomePrimaryBothLinters = evalTree({
+  "biome.json": "{}\n",
+  ".golangci.yml": "linters: {}\n",
+  "package.json": { name: "app" },
+});
+assert.equal(biomePrimaryBothLinters.linter.pass, true, biomePrimaryBothLinters.linter.message);
+assert.match(biomePrimaryBothLinters.linter.message, /biome\.json/);
+assert.equal(/golangci/.test(biomePrimaryBothLinters.linter.message), false);
+
+const oxlintPrimaryBothLinters = evalTree({
+  ".oxlintrc.json": "{}\n",
+  ".golangci.yml": "linters: {}\n",
+  "package.json": { name: "app" },
+});
+assert.equal(oxlintPrimaryBothLinters.linter.pass, true, oxlintPrimaryBothLinters.linter.message);
+assert.match(oxlintPrimaryBothLinters.linter.message, /\.oxlintrc\.json/);
+assert.equal(/golangci/.test(oxlintPrimaryBothLinters.linter.message), false);
+
+assertPass("linter", { ".golangci.yml": "linters: {}\n" }, /\.golangci\.yml/);
+
+const tsGolangciOnly = evalTree({
+  "package.json": { name: "typescript" },
+  ".golangci.yml": "linters: {}\n",
+});
+assert.equal(tsGolangciOnly.linter.pass, true, tsGolangciOnly.linter.message);
+assert.match(tsGolangciOnly.linter.message, /\.golangci\.yml/);
+
+const goPrimaryBothLinters = evalTree({
+  "go.mod": "module example.com/x\n",
+  ".golangci.yml": "linters: {}\n",
+  "packages/web/eslint.config.js": "export default [];\n",
+});
+assert.equal(goPrimaryBothLinters.linter.pass, true, goPrimaryBothLinters.linter.message);
+assert.match(goPrimaryBothLinters.linter.message, /\.golangci\.yml/);
+assert.equal(/eslint/.test(goPrimaryBothLinters.linter.message), false);
 const mixedRootAndAssetsLint = evalTree({
   "eslint.config.js": "export default [];\n",
   "assets/eslint.config.js": "export default [];\n",
@@ -4084,6 +4129,8 @@ assert.match(rootReadme, /A JS-only jest tree still passes/);
 assert.match(rootReadme, /A Mix tree with only jest/);
 assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
+assert.match(rootReadme, /`linter` first-hit prefers/);
+assert.match(rootReadme, /A golangci-only tree still passes/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
@@ -4129,6 +4176,8 @@ assert.match(skillMd, /A JS-only jest tree still passes/);
 assert.match(skillMd, /A Mix tree with only jest/);
 assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
+assert.match(skillMd, /`linter` first-hit prefers/);
+assert.match(skillMd, /A golangci-only tree still passes/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
 assert.match(skillMd, /`type-checker` first-hit among/);
@@ -4256,6 +4305,8 @@ assert.match(checksReadme, /catch-alls do not count `tsconfig\.spec\.json` \/ `t
 assert.match(checksReadme, /detectLanguages` includes typescript\/javascript/);
 assert.match(checksReadme, /A Go-only test tree still passes/);
 assert.match(checksReadme, /sidecar Go tests/);
+assert.match(checksReadme, /`linter` first-hit prefers/);
+assert.match(checksReadme, /A golangci-only tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
