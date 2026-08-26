@@ -655,6 +655,15 @@ assert.ok(secretsDetection.anyFiles.includes(".gitleaks.yml"));
 assert.ok(secretsDetection.anyFiles.includes(".detect-secrets.cfg"));
 assert.ok(secretsDetection.anyFiles.includes(".gitguardian.yml"));
 
+const ciRunsTests = catalog.criteria.find((row) => row.id === "ci-runs-tests");
+assert.match(ciRunsTests.ciGrep, /hereby/);
+assert.match(ciRunsTests.ciGrep, /pytest/);
+assert.match(ciRunsTests.ciGrep, /jest/);
+assert.match(ciRunsTests.ciGrep, /vitest/);
+assert.match(ciRunsTests.ciGrep, /go\\s\+test/);
+assert.match(ciRunsTests.ciGrep, /mvn\\s\+test/);
+assert.equal(/microsoft|TypeScript/i.test(ciRunsTests.ciGrep), false);
+
 const ciRunsLinters = catalog.criteria.find((row) => row.id === "ci-runs-linters");
 assert.match(ciRunsLinters.ciGrep, /golangci-lint/);
 assert.match(ciRunsLinters.ciGrep, /biome\\s\+check/);
@@ -4806,6 +4815,65 @@ assertPass(
   /CI config matched/,
 );
 assertFail("ci-runs-linters", { ".github/workflows/ci.yml": "run: prettier --check .\n" });
+
+assertPass(
+  "ci-runs-tests",
+  {
+    ".github/workflows/ci.yml": [
+      "name: CI",
+      "on: [push]",
+      "jobs:",
+      "  test:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: npx hereby test:tsc",
+      "",
+    ].join("\n"),
+  },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-tests",
+  { ".github/workflows/ci.yml": "run: hereby test\n" },
+  /CI config matched/,
+);
+assertFail("ci-runs-tests", {
+  ".github/workflows/ci.yml": [
+    "name: CI",
+    "on: [push]",
+    "jobs:",
+    "  build:",
+    "    runs-on: ubuntu-latest",
+    "    steps:",
+    "      - run: npx hereby build",
+    "",
+  ].join("\n"),
+});
+assertPass(
+  "ci-runs-tests",
+  { ".github/workflows/ci.yml": "run: jest\n" },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-tests",
+  { ".github/workflows/ci.yml": "run: pytest\n" },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-tests",
+  { ".github/workflows/ci.yml": "run: go test ./...\n" },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-tests",
+  { ".github/workflows/ci.yml": "run: vitest\n" },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-tests",
+  { ".github/workflows/ci.yml": "run: mvn test\n" },
+  /CI config matched/,
+);
 
 assertPass("dead-code-detection", { ".vulture": "# whitelist\n" }, /\.vulture/);
 assertPass("dead-code-detection", { "pyproject.toml": "vulture = \"2.0\"\n" }, /vulture/);
