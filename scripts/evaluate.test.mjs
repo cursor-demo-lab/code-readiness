@@ -1866,6 +1866,63 @@ assert.equal(mixFmt.formatter.pass, true, mixFmt.formatter.message);
 assert.match(mixFmt.formatter.message, /\.formatter\.exs/);
 assert.equal(mixFmt.linter.pass, false, "mix formatter is not a linter");
 assert.equal(/built-in formatting/.test(mixFmt.formatter.message), false);
+const mixFmtBeatsPrettier = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  ".formatter.exs": "[inputs: \"**/*.{ex,exs}\"]\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(mixFmtBeatsPrettier.formatter.pass, true, mixFmtBeatsPrettier.formatter.message);
+assert.match(mixFmtBeatsPrettier.formatter.message, /\.formatter\.exs/);
+assert.equal(
+  /prettier/.test(mixFmtBeatsPrettier.formatter.message),
+  false,
+  mixFmtBeatsPrettier.formatter.message,
+);
+const mixFmtBeatsBiome = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  ".formatter.exs": "[inputs: \"**/*.{ex,exs}\"]\n",
+  "biome.json": '{ "formatter": { "enabled": true } }\n",
+});
+assert.equal(mixFmtBeatsBiome.formatter.pass, true, mixFmtBeatsBiome.formatter.message);
+assert.match(mixFmtBeatsBiome.formatter.message, /\.formatter\.exs/);
+assert.equal(/biome/.test(mixFmtBeatsBiome.formatter.message), false, mixFmtBeatsBiome.formatter.message);
+const mixPrettierOnly = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(mixPrettierOnly.formatter.pass, true, mixPrettierOnly.formatter.message);
+assert.match(mixPrettierOnly.formatter.message, /prettier\.config\.js/);
+const jsOnlyPrettier = evalTree({
+  "package.json": { name: "app" },
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(jsOnlyPrettier.formatter.pass, true, jsOnlyPrettier.formatter.message);
+assert.match(jsOnlyPrettier.formatter.message, /prettier\.config\.js/);
+const jsLinterWithPrettier = evalTree({
+  "package.json": { name: "app" },
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+  ".golangci.yml": "linters: {}\n",
+  "eslint.config.js": "export default [];\n",
+});
+assert.equal(jsLinterWithPrettier.linter.pass, true, jsLinterWithPrettier.linter.message);
+assert.match(jsLinterWithPrettier.linter.message, /eslint\.config\.js/);
+assert.equal(/golangci/.test(jsLinterWithPrettier.linter.message), false, jsLinterWithPrettier.linter.message);
+const mixExUnitStillBeatsJest = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  mixExUnitStillBeatsJest["test-framework"].pass,
+  true,
+  mixExUnitStillBeatsJest["test-framework"].message,
+);
+assert.match(mixExUnitStillBeatsJest["test-framework"].message, /foo_test\.exs/);
+assert.equal(
+  /jest\.config/.test(mixExUnitStillBeatsJest["test-framework"].message),
+  false,
+  mixExUnitStillBeatsJest["test-framework"].message,
+);
 const spotlessPom = evalTree({ "pom.xml": "<project><plugin>spotless</plugin></project>\n" });
 assert.equal(spotlessPom.formatter.pass, true, spotlessPom.formatter.message);
 assert.equal(spotlessPom.linter.pass, false, "spotless is a formatter, not a linter");
@@ -4274,6 +4331,9 @@ assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
 assert.match(rootReadme, /`linter` first-hit prefers/);
 assert.match(rootReadme, /A golangci-only tree still passes/);
+assert.match(rootReadme, /`formatter` first-hit prefers/);
+assert.match(rootReadme, /A Mix tree with only prettier/);
+assert.match(rootReadme, /A JS-only prettier tree still passes/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
 assert.match(rootReadme, /A Mix tree with only JS tests still passes/);
@@ -4323,6 +4383,9 @@ assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
 assert.match(skillMd, /`linter` first-hit prefers/);
 assert.match(skillMd, /A golangci-only tree still passes/);
+assert.match(skillMd, /`formatter` first-hit prefers/);
+assert.match(skillMd, /A Mix tree with only prettier/);
+assert.match(skillMd, /A JS-only prettier tree still passes/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
 assert.match(skillMd, /A Mix tree with only JS tests still passes/);
@@ -4456,6 +4519,8 @@ assert.match(checksReadme, /`linter` first-hit prefers/);
 assert.match(checksReadme, /A golangci-only tree still passes/);
 assert.match(checksReadme, /A Mix tree with only JS tests still passes/);
 assert.match(checksReadme, /A Rails tree with only JS tests still passes/);
+assert.match(checksReadme, /A Mix tree with only prettier/);
+assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
