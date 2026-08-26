@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
-import { evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
+import { CASE_INSENSITIVE_NAME_IDS, evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
 import { ciFiles, detectLanguages, detectManifestLanguages, findMatches, globMatch, testFiles } from "./walk.mjs";
 
@@ -404,7 +404,15 @@ assert.ok(testScript.fileRegex.some((rule) => rule.file === "Taskfile.yml"));
 const readme = catalog.criteria.find((row) => row.id === "readme");
 assert.ok(readme.anyFiles.includes("README.md"));
 assert.ok(readme.anyFiles.includes("README.rst"));
+assert.ok(readme.anyFiles.includes("README.markdown"));
+assert.ok(readme.anyFiles.includes("README.mkd"));
 assert.equal(readme.minBytes, 500);
+
+assert.deepEqual(
+  [...CASE_INSENSITIVE_NAME_IDS].sort(),
+  ["contributing", "license", "readme"],
+  "casing is only ignored for the doc names where it carries no meaning",
+);
 
 const license = catalog.criteria.find((row) => row.id === "license");
 assert.ok(license.anyFiles.includes("LICENSE-MIT"));
@@ -1705,8 +1713,44 @@ assertPass(
 assertFail("contributing", { "CONTRIBUTING.md": "" });
 assertFail("contributing", { ".github/CONTRIBUTING.md": "" });
 assertFail("contributing", { "docs/CONTRIBUTING.md": "  \n\t\n" });
+assertPass("contributing", { "contributing.md": "How to contribute\n" }, /^Found contributing\.md$/);
+assertPass(
+  "contributing",
+  { ".github/contributing.md": "How to contribute\n" },
+  /^Found \.github\/contributing\.md$/,
+);
+assertPass("contributing", { "docs/Contributing.md": "How to contribute\n" }, /docs\/Contributing\.md/);
+assertPass("contributing", { "Contributing.rst": "How to contribute\n" }, /Contributing\.rst/);
+assertFail("contributing", { "contributing.md": "" });
+assertFail("contributing", { ".github/contributing.md": "   \n" });
 assertPass("readme", { "README.rst": `${"A".repeat(520)}\n` }, /README\.rst/);
 assertFail("readme", { "README.rst": "short\n" });
+assertPass("readme", { "README.markdown": `${"A".repeat(520)}\n` }, /README\.markdown found/);
+assertPass("readme", { "README.mkd": `${"A".repeat(520)}\n` }, /README\.mkd found/);
+assertPass("readme", { "ReadMe.md": `${"A".repeat(520)}\n` }, /^ReadMe\.md found/);
+assertFail("readme", { "README.markdown": "short\n" });
+assertFail("readme", { "readme.markdown": `${"A".repeat(400)}\n` });
+const mixedCaseReadmeDepth = evalTree({
+  "readme.md": `${"A".repeat(520)}\n`,
+  "packages/foo/README.md": `${"B".repeat(520)}\n`,
+});
+assert.match(mixedCaseReadmeDepth.readme.message, /^readme\.md found/);
+const markdownOverNestedReadme = evalTree({
+  "README.markdown": `${"A".repeat(520)}\n`,
+  "docs/readme.md": `${"B".repeat(520)}\n`,
+});
+assert.match(markdownOverNestedReadme.readme.message, /^README\.markdown found/);
+const shortRootReadme = evalTree({
+  "README.md": "short\n",
+  "docs/README.md": `${"B".repeat(520)}\n`,
+});
+assert.equal(shortRootReadme.readme.pass, true, shortRootReadme.readme.message);
+assert.match(shortRootReadme.readme.message, /docs\/README\.md found/);
+const mixedCaseContribDepth = evalTree({
+  "contributing.md": "How to contribute\n",
+  "docs/CONTRIBUTING.md": "How to contribute\n",
+});
+assert.equal(mixedCaseContribDepth.contributing.message, "Found contributing.md");
 
 assertPass("api-docs", { "svc/openapi.yaml": "openapi: 3.0.0\n" }, /openapi\.yaml/);
 assertPass("api-docs", { "svc/openapi.yml": "openapi: 3.0.0\n" }, /openapi\.yml/);
@@ -2203,6 +2247,24 @@ const mixedRootCopyingAndPkgLic = evalTree({
 assert.equal(mixedRootCopyingAndPkgLic.license.pass, true, mixedRootCopyingAndPkgLic.license.message);
 assert.match(mixedRootCopyingAndPkgLic.license.message, /COPYING/);
 assert.equal(/packages/.test(mixedRootCopyingAndPkgLic.license.message), false);
+assertPass("license", { "License.txt": "MIT License\n" }, /^Found License\.txt$/);
+assertPass("license", { "Licence.md": "MIT License\n" }, /Licence\.md/);
+assertPass("license", { license: "MIT\n" }, /^Found license$/);
+assertPass("license", { "packages/app/License.txt": "MIT\n" }, /packages\/app\/License\.txt/);
+assertFail("license", { "third_party/bar/License.txt": "MIT License\n" });
+const mixedVendorLooseLic = evalTree({
+  "vendor/foo/License.txt": "BSD\n",
+  "License.txt": "MIT License\n",
+});
+assert.equal(mixedVendorLooseLic.license.pass, true, mixedVendorLooseLic.license.message);
+assert.equal(/vendor/.test(mixedVendorLooseLic.license.message), false);
+// The LICENSE-* glob stays case-sensitive so a credential file is not a license.
+assertFail("license", { "license-key.txt": "sekrit\n" });
+assertFail("license", { "licenses/notes.txt": "third party notes\n" });
+// Case-insensitive doc names must not reach ids where casing is semantic.
+assertFail("setup-script", { makefile: "setup:\n\techo hi\n" });
+assertFail("version-pinned", { "package.swift": "// swift-tools-version:5.9\n" });
+
 const twoNestedLic = evalTree({
   "docs/LICENSE": "MIT\n",
   "packages/app/nested/LICENSE": "MIT\n",
