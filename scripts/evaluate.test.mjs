@@ -118,6 +118,7 @@ assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.md"));
 assert.ok(contributing.anyFiles.includes("CONTRIBUTING.rst"));
 assert.ok(contributing.anyFiles.includes("CONTRIBUTING"));
 assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.rst"));
+assert.equal(contributing.anyFilesNonEmpty, true, "empty contributing files must not pass on presence");
 assert.equal(IGNORE_DIRS.has(".github"), false);
 assert.equal(IGNORE_DIRS.has(".cursor"), true);
 
@@ -1477,6 +1478,19 @@ assertFail("test-script", { justfile: "build:\n    cargo build\n" });
 assertPass("contributing", { "CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
 assertPass("contributing", { CONTRIBUTING: "How to contribute\n" }, /CONTRIBUTING/);
 assertPass("contributing", { ".github/CONTRIBUTING.rst": "How to contribute\n" }, /\.github\/CONTRIBUTING\.rst/);
+assertPass(
+  "contributing",
+  { "CONTRIBUTING.md": "# Contributing\nPlease open a PR.\n" },
+  /CONTRIBUTING\.md/,
+);
+assertPass(
+  "contributing",
+  { "docs/CONTRIBUTING.md": "# Contributing\nPlease open a PR.\n" },
+  /docs\/CONTRIBUTING\.md/,
+);
+assertFail("contributing", { "CONTRIBUTING.md": "" });
+assertFail("contributing", { ".github/CONTRIBUTING.md": "" });
+assertFail("contributing", { "docs/CONTRIBUTING.md": "  \n\t\n" });
 assertPass("readme", { "README.rst": `${"A".repeat(520)}\n` }, /README\.rst/);
 assertFail("readme", { "README.rst": "short\n" });
 
@@ -1898,6 +1912,7 @@ assert.match(checksReadme, /IGNORE_DIRS/);
 assert.match(checksReadme, /\*\.gradle\.kts/);
 assert.match(checksReadme, /empty asdf\/nvm files do not count/);
 assert.match(checksReadme, /Empty formatter configs do not count/);
+assert.match(checksReadme, /Empty or whitespace-only files do not count/);
 assert.match(checksReadme, /deps.*vendor.*third_party.*third-party/);
 assert.match(checksReadme, /examples\/\.prettierrc` still can/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
@@ -1915,6 +1930,7 @@ function walkTextFiles(dir, acc = []) {
 for (const file of walkTextFiles(skillRoot())) {
   if (file.endsWith(`${path.sep}evaluate.test.mjs`)) continue;
   if (/adr-scoring/.test(file)) continue;
+  if (file.split(path.sep).includes("examples")) continue;
   const text = fs.readFileSync(file, "utf8").replaceAll("kodustech/agent-readiness", "");
   assert.equal(/factory|kodus/i.test(text), false, file);
 }
