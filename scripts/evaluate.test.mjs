@@ -391,6 +391,8 @@ assert.ok(setupScript.fileContains.some((rule) => rule.file === "pyproject.toml"
 const testScript = catalog.criteria.find((row) => row.id === "test-script");
 assert.equal(testScript.packageJsonPath, "scripts.test");
 assert.equal(testScript.makefileTarget, "test");
+assert.ok(testScript.anyFiles.includes("*.csproj"));
+assert.ok(testScript.anyFiles.includes("*.sln"));
 assert.ok(testScript.anyFiles.includes("scripts/test"));
 assert.ok(testScript.anyFiles.includes("scripts/test.sh"));
 assert.ok(testScript.anyFiles.includes("scripts/test-*"));
@@ -1641,6 +1643,16 @@ assert.equal(mixedRootAndFormatPrettier.formatter.pass, true, mixedRootAndFormat
 assert.match(mixedRootAndFormatPrettier.formatter.message, /Found \.prettierrc/);
 assert.equal(/tests\/format/.test(mixedRootAndFormatPrettier.formatter.message), false);
 assertPass("formatter", { "tests/format/.prettierrc": "{}\n" }, /tests\/format\/\.prettierrc/);
+assertPass(
+  "formatter",
+  { "packages/app/.prettierrc.json": "{}\n" },
+  /packages\/app\/\.prettierrc\.json/,
+);
+assertPass(
+  "linter",
+  { "packages/app/eslint.config.mjs": "export default [];\n" },
+  /packages\/app\/eslint\.config\.mjs/,
+);
 
 assertPass("pre-commit-hooks", { "lefthook.toml": "[pre-commit]\n" }, /lefthook\.toml/);
 assertPass("pre-commit-hooks", { ".lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /\.lefthook\.yaml/);
@@ -1654,6 +1666,16 @@ assertPass("pre-commit-hooks", { "package.json": { "lint-staged": { "*.js": "esl
 assertPass("pre-commit-hooks", { "package.json": { "simple-git-hooks": { "pre-commit": "lint" } } }, /simple-git-hooks/);
 assertFail("pre-commit-hooks", { Makefile: "lint:\n\teslint .\n" });
 
+assertPass("test-framework", { "vitest.config.ts": "export default {}\n" }, /vitest\.config\.ts/);
+assertPass("test-framework", { "jest.config.js": "export default {}\n" }, /jest\.config\.js/);
+assertFail("test-framework", { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" });
+const nestLikeFramework = evalTree({
+  "package.json": { scripts: { test: "jest" }, devDependencies: { jest: "29.0.0" } },
+  "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n",
+});
+assert.equal(nestLikeFramework["test-framework"].pass, true, nestLikeFramework["test-framework"].message);
+assert.match(nestLikeFramework["test-framework"].message, /package\.json/);
+assert.equal(/vitest\.config/.test(nestLikeFramework["test-framework"].message), false);
 assertPass("test-framework", { "phpunit.xml": "<phpunit></phpunit>\n" }, /phpunit\.xml/);
 assertPass("test-framework", { "phpunit.xml.dist": "<phpunit></phpunit>\n" }, /phpunit\.xml\.dist/);
 assertPass("test-framework", { ".rspec": "--require spec_helper\n" }, /\.rspec/);
@@ -1823,6 +1845,17 @@ assertPass(
   /Taskfile\.yml/,
 );
 assertFail("test-script", { justfile: "build:\n    cargo build\n" });
+assertPass("test-script", { "Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertFail("test-script", { "Src/Foo/Foo.csproj": "<Project></Project>\n" });
+assertFail("test-script", { "deps/jemalloc/msvc/foo.sln": "Microsoft Visual Studio Solution\n" });
+const redisLikeTestScript = evalTree({
+  Makefile: "test:\n\t@echo ok\n",
+  "tests/test_helper.c": "int main() { return 0; }\n",
+  "deps/jemalloc/msvc/foo.sln": "Microsoft Visual Studio Solution\n",
+});
+assert.equal(redisLikeTestScript["test-script"].pass, true, redisLikeTestScript["test-script"].message);
+assert.match(redisLikeTestScript["test-script"].message, /Makefile/);
+assert.equal(/\.sln/.test(redisLikeTestScript["test-script"].message), false);
 
 assertPass("contributing", { "CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
 assertPass("contributing", { CONTRIBUTING: "How to contribute\n" }, /CONTRIBUTING/);
@@ -2199,6 +2232,9 @@ assertFail("version-pinned", { "Package.swift": "import PackageDescription\n" })
 
 assertPass("setup-script", { "Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
 assertPass("setup-script", { "Src/Lib/Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertPass("setup-script", { "Src/Foo/Foo.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertPass("setup-script", { "Foo.sln": "Microsoft Visual Studio Solution\n" }, /\.sln/);
+assertFail("setup-script", { "deps/jemalloc/msvc/foo.sln": "Microsoft Visual Studio Solution\n" });
 assertPass(
   "version-pinned",
   { "Src/Lib/Lib.csproj": "<Project><TargetFramework>net8.0</TargetFramework></Project>\n" },
@@ -2781,6 +2817,8 @@ assert.match(checksReadme, /assets-only/);
 assert.match(checksReadme, /packages-only linter/);
 assert.match(checksReadme, /Do not reject empty linter configs/);
 assert.match(checksReadme, /eslint\.config\.\*/);
+assert.match(checksReadme, /match the basename at any depth for `linter` and `formatter` only/);
+assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.match(checksReadme, /C\+\+\/CMake-dominant/);
