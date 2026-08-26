@@ -193,9 +193,14 @@ function isSetupDotnetProjectHit(file) {
   return globMatch(name, "*.csproj") || globMatch(name, "*.sln");
 }
 
+function isSetupHarnessProject(file) {
+  return /console|demo/i.test(posixBasename(file));
+}
+
 function setupDotnetProjectRank(file) {
-  if (isDeferredTestScriptProject(file)) return 2;
-  if (isTestScriptProjectHit(file)) return 1;
+  if (isDeferredTestScriptProject(file)) return 3;
+  if (isTestScriptProjectHit(file)) return 2;
+  if (isSetupHarnessProject(file)) return 1;
   return 0;
 }
 
