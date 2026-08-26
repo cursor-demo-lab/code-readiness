@@ -376,6 +376,9 @@ assert.ok(setupScript.anyFiles.includes("mix.exs"));
 assert.ok(setupScript.anyFiles.includes("composer.json"));
 assert.ok(setupScript.anyFiles.includes("Package.swift"));
 assert.ok(setupScript.anyFiles.includes("build.sbt"));
+assert.ok(setupScript.anyFiles.includes("build.gradle"));
+assert.ok(setupScript.anyFiles.includes("build.gradle.kts"));
+assert.ok(setupScript.anyFiles.includes("gradlew"));
 assert.ok(
   setupScript.anyFiles.some((pattern) => pattern.includes(".csproj")),
   "setup-script must accept *.csproj, not only *.sln",
@@ -391,8 +394,14 @@ assert.ok(setupScript.fileContains.some((rule) => rule.file === "pyproject.toml"
 const testScript = catalog.criteria.find((row) => row.id === "test-script");
 assert.equal(testScript.packageJsonPath, "scripts.test");
 assert.equal(testScript.makefileTarget, "test");
-assert.ok(testScript.anyFiles.includes("*.csproj"));
-assert.ok(testScript.anyFiles.includes("*.sln"));
+assert.equal(testScript.anyFiles.includes("build.gradle"), false);
+assert.equal(testScript.anyFiles.includes("build.gradle.kts"), false);
+assert.equal(testScript.anyFiles.includes("*.csproj"), false);
+assert.equal(testScript.anyFiles.includes("*.sln"), false);
+assert.ok(testScript.anyFiles.includes("**/*Tests.csproj"));
+assert.ok(testScript.anyFiles.includes("**/*Test.csproj"));
+assert.ok(testScript.anyFiles.includes("**/*Tests.sln"));
+assert.ok(testScript.anyFiles.includes("gradlew"));
 assert.ok(testScript.anyFiles.includes("scripts/test"));
 assert.ok(testScript.anyFiles.includes("scripts/test.sh"));
 assert.ok(testScript.anyFiles.includes("scripts/test-*"));
@@ -1853,9 +1862,25 @@ assertPass(
   /Taskfile\.yml/,
 );
 assertFail("test-script", { justfile: "build:\n    cargo build\n" });
-assertPass("test-script", { "Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertFail("test-script", { "support/build.gradle": "apply plugin: \"com.android.library\"\n" });
+assertFail("test-script", { "build.gradle": "apply plugin: \"java\"\n" });
+assertFail("test-script", { "build.gradle.kts": "plugins { java }\n" });
+assertFail("test-script", { "Lib.csproj": "<Project></Project>\n" });
+assertFail("test-script", { "Foo.csproj": "<Project></Project>\n" });
 assertFail("test-script", { "Src/Foo/Foo.csproj": "<Project></Project>\n" });
+assertFail("test-script", { "Foo.sln": "Microsoft Visual Studio Solution\n" });
 assertFail("test-script", { "deps/jemalloc/msvc/foo.sln": "Microsoft Visual Studio Solution\n" });
+assertPass("test-script", { "Foo.Tests.csproj": "<Project></Project>\n" }, /Foo\.Tests\.csproj/);
+assertPass("test-script", { "Foo.Test.csproj": "<Project></Project>\n" }, /Foo\.Test\.csproj/);
+assertPass(
+  "test-script",
+  { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
+  /Newtonsoft\.Json\.Tests\.csproj/,
+);
+assertPass("test-script", { "Foo.Tests.sln": "Microsoft Visual Studio Solution\n" }, /Foo\.Tests\.sln/);
+assertPass("test-script", { Makefile: "test:\n\t@echo ok\n" }, /Makefile/);
+assertPass("test-script", { "scripts/test.sh": "pytest\n" }, /scripts\/test\.sh/);
+assertPass("test-script", { gradlew: "#!/bin/sh\n" }, /gradlew/);
 const redisLikeTestScript = evalTree({
   Makefile: "test:\n\t@echo ok\n",
   "tests/test_helper.c": "int main() { return 0; }\n",
@@ -2241,6 +2266,11 @@ assertFail("version-pinned", { "Package.swift": "import PackageDescription\n" })
 assertPass("setup-script", { "Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
 assertPass("setup-script", { "Src/Lib/Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
 assertPass("setup-script", { "Src/Foo/Foo.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertPass(
+  "setup-script",
+  { "support/build.gradle": "apply plugin: \"com.android.library\"\n" },
+  /support\/build\.gradle/,
+);
 assertPass("setup-script", { "Foo.sln": "Microsoft Visual Studio Solution\n" }, /\.sln/);
 assertFail("setup-script", { "deps/jemalloc/msvc/foo.sln": "Microsoft Visual Studio Solution\n" });
 assertPass(
@@ -2860,6 +2890,9 @@ assert.match(checksReadme, /Do not add a `test\/test_\*\.rb` glob/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
+assert.match(checksReadme, /`test-script` is a runner/);
+assert.match(checksReadme, /`\*Tests\.csproj` \/ `\*Test\.csproj`/);
+assert.match(checksReadme, /A `build\.gradle` \/ `build\.gradle\.kts` or product `\*\.csproj`/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
