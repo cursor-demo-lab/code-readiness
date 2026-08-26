@@ -236,7 +236,9 @@
         "phpunit.xml",
         "phpunit.xml.dist",
         ".rspec",
-        "spec/spec_helper.rb"
+        "spec/spec_helper.rb",
+        "**/*Tests.csproj",
+        "**/*Test.csproj"
       ],
       "anyGlobs": [
         "**/*_test.go",
@@ -254,6 +256,7 @@
         { "file": "build.gradle.kts", "includes": ["kotest", "junit", "jupiter", "testImplementation"] },
         { "file": "build.gradle", "includes": ["junit", "jupiter", "kotest", "testImplementation"] },
         { "file": "pom.xml", "includes": ["junit"] },
+        { "file": "**/*.csproj", "includes": ["xunit", "nunit", "MSTest"] },
         { "file": "Cargo.toml", "includes": ["[[test]]"] },
         { "file": "**/CMakeLists.txt", "includes": ["enable_testing", "add_test", "ctest"] }
       ],

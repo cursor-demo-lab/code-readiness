@@ -292,11 +292,24 @@ assert.ok(testFramework.anyFiles.includes("spec/spec_helper.rb"));
 assert.ok(testFramework.anyGlobs.includes("**/tests/**/*.rs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.rs"));
 assert.equal(testFramework.anyFiles.includes("Cargo.toml"), false);
+assert.equal(testFramework.anyFiles.includes("*.csproj"), false);
+assert.equal(testFramework.anyFiles.includes("**/*.csproj"), false);
+assert.ok(testFramework.anyFiles.includes("**/*Tests.csproj"));
+assert.ok(testFramework.anyFiles.includes("**/*Test.csproj"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node:test")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("junit")));
+assert.ok(
+  testFramework.fileContains.some(
+    (rule) =>
+      (rule.file === "*.csproj" || rule.file === "**/*.csproj") &&
+      rule.includes.includes("xunit") &&
+      rule.includes.includes("nunit") &&
+      rule.includes.includes("MSTest"),
+  ),
+);
 assert.equal(
   [...(testFramework.anyFiles ?? []), ...(testFramework.anyGlobs ?? [])].some((pattern) =>
     pattern.includes(".test.js"),
@@ -2082,6 +2095,63 @@ assertPass(
 assertPass("test-framework", { "tests/math_test.c": "int main() { return 0; }\n" }, /math_test\.c/);
 assertFail("test-framework", { "README.md": "Run the test suite often.\n" });
 assertFail("test-framework", { "CMakeLists.txt": "project(demo)\n" });
+assertFail("test-framework", { "Foo.csproj": "<Project></Project>\n" });
+assertFail("test-framework", { "Src/Foo/Foo.csproj": "<Project></Project>\n" });
+assertPass(
+  "test-framework",
+  { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
+  /Newtonsoft\.Json\.Tests\.csproj/,
+);
+assertPass(
+  "test-framework",
+  { "Foo.Tests.csproj": "<Project></Project>\n" },
+  /Foo\.Tests\.csproj/,
+);
+assertPass(
+  "test-framework",
+  { "Foo.Test.csproj": "<Project></Project>\n" },
+  /Foo\.Test\.csproj/,
+);
+assertPass(
+  "test-framework",
+  { "Foo.csproj": "<Project><PackageReference Include=\"xunit\" /></Project>\n" },
+  /xunit/,
+);
+assertPass(
+  "test-framework",
+  { "Src/Lib/Lib.csproj": "<Project><PackageReference Include=\"xunit\" /></Project>\n" },
+  /xunit/,
+);
+assertPass(
+  "test-framework",
+  { "Bar.csproj": "<Project><PackageReference Include=\"nunit\" /></Project>\n" },
+  /nunit/,
+);
+assertPass(
+  "test-framework",
+  { "Baz.csproj": "<Project><PackageReference Include=\"MSTest.TestFramework\" /></Project>\n" },
+  /MSTest/,
+);
+const newtonsoftLikeFramework = evalTree({
+  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
+  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+});
+assert.equal(
+  newtonsoftLikeFramework["test-framework"].pass,
+  true,
+  newtonsoftLikeFramework["test-framework"].message,
+);
+assert.match(newtonsoftLikeFramework["test-framework"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(
+  /FuzzTests/.test(newtonsoftLikeFramework["test-framework"].message),
+  false,
+  newtonsoftLikeFramework["test-framework"].message,
+);
+assertPass(
+  "test-framework",
+  { "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n" },
+  /Newtonsoft\.Json\.FuzzTests\.csproj/,
+);
 
 assertPass("test-files-exist", { "pkg/foo_test.py": "def test_ok():\n    assert True\n" });
 assertPass("test-files-exist", { "src/lib_test.rs": "#[test] fn ok() {}\n" });
@@ -2319,6 +2389,7 @@ assert.equal(benchAndTests["test-script"].pass, true, benchAndTests["test-script
 assert.match(benchAndTests["test-script"].message, /Foo\.Tests\.csproj/);
 assert.equal(/Benchmark/.test(benchAndTests["test-script"].message), false);
 assertPass("setup-script", { "Foo.csproj": "<Project></Project>\n" }, /Foo\.csproj/);
+assertFail("test-framework", { "Foo.csproj": "<Project></Project>\n" });
 const newtonsoftLikeSetup = evalTree({
   "Src/Newtonsoft.Json/Newtonsoft.Json.csproj": "<Project></Project>\n",
   "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
@@ -2342,6 +2413,13 @@ assert.equal(
   /FuzzTests/.test(newtonsoftLikeSetup["test-script"].message),
   false,
   newtonsoftLikeSetup["test-script"].message,
+);
+assert.equal(newtonsoftLikeSetup["test-framework"].pass, true, newtonsoftLikeSetup["test-framework"].message);
+assert.match(newtonsoftLikeSetup["test-framework"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(
+  /FuzzTests/.test(newtonsoftLikeSetup["test-framework"].message),
+  false,
+  newtonsoftLikeSetup["test-framework"].message,
 );
 assert.equal(newtonsoftLikeSetup.linter.pass, false, newtonsoftLikeSetup.linter.message);
 assertPass(
@@ -3875,6 +3953,8 @@ assert.match(rootReadme, /`test-script` first-hit among/);
 assert.match(rootReadme, /Fuzz-only tree still passes/);
 assert.match(rootReadme, /`test-framework` first-hit among/);
 assert.match(rootReadme, /A coverage-only or integration-only tree still passes/);
+assert.match(rootReadme, /`test-framework` also passes on/);
+assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -3913,6 +3993,8 @@ assert.match(skillMd, /`test-script` first-hit among/);
 assert.match(skillMd, /Fuzz-only tree still passes/);
 assert.match(skillMd, /`test-framework` first-hit among/);
 assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
+assert.match(skillMd, /`test-framework` also passes on/);
+assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -4049,6 +4131,8 @@ assert.match(checksReadme, /Fuzz-only or Tests-only tree still passes/);
 assert.match(checksReadme, /`test-script` first-hit among/);
 assert.match(checksReadme, /Fuzz-only tree still passes/);
 assert.match(checksReadme, /`test-framework` first-hit among `vitest\.config\.\*` \/ `jest\.config\.\*`/);
+assert.match(checksReadme, /`test-framework` also passes on `\*Tests\.csproj` \/ `\*Test\.csproj`/);
+assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
