@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadCatalog, skillRoot } from "./catalog.mjs";
+import { catalogPath, loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import { CASE_INSENSITIVE_NAME_IDS, evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
 import { buildReport, chatFixFile, chatLines } from "./report.mjs";
@@ -2728,8 +2728,8 @@ assertFail("test-framework", { "Foo.csproj": "<Project></Project>\n" });
 assertFail("test-framework", { "Src/Foo/Foo.csproj": "<Project></Project>\n" });
 assertPass(
   "test-framework",
-  { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
-  /Newtonsoft\.Json\.Tests\.csproj/,
+  { "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n" },
+  /Lib\.Tests\.csproj/,
 );
 assertPass(
   "test-framework",
@@ -2761,25 +2761,25 @@ assertPass(
   { "Baz.csproj": "<Project><PackageReference Include=\"MSTest.TestFramework\" /></Project>\n" },
   /MSTest/,
 );
-const newtonsoftLikeFramework = evalTree({
-  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
-  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+const testsOverFuzzFramework = evalTree({
+  "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n",
+  "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n",
 });
 assert.equal(
-  newtonsoftLikeFramework["test-framework"].pass,
+  testsOverFuzzFramework["test-framework"].pass,
   true,
-  newtonsoftLikeFramework["test-framework"].message,
+  testsOverFuzzFramework["test-framework"].message,
 );
-assert.match(newtonsoftLikeFramework["test-framework"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.match(testsOverFuzzFramework["test-framework"].message, /Lib\.Tests\.csproj/);
 assert.equal(
-  /FuzzTests/.test(newtonsoftLikeFramework["test-framework"].message),
+  /FuzzTests/.test(testsOverFuzzFramework["test-framework"].message),
   false,
-  newtonsoftLikeFramework["test-framework"].message,
+  testsOverFuzzFramework["test-framework"].message,
 );
 assertPass(
   "test-framework",
-  { "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n" },
-  /Newtonsoft\.Json\.FuzzTests\.csproj/,
+  { "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n" },
+  /Lib\.FuzzTests\.csproj/,
 );
 
 assertPass("test-files-exist", { "pkg/foo_test.py": "def test_ok():\n    assert True\n" });
@@ -3736,28 +3736,28 @@ assertPass("test-script", { "Foo.Tests.csproj": "<Project></Project>\n" }, /Foo\
 assertPass("test-script", { "Foo.Test.csproj": "<Project></Project>\n" }, /Foo\.Test\.csproj/);
 assertPass(
   "test-script",
-  { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
-  /Newtonsoft\.Json\.Tests\.csproj/,
+  { "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n" },
+  /Lib\.Tests\.csproj/,
 );
-const newtonsoftLikeTestScript = evalTree({
-  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
-  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+const testsOverFuzzScript = evalTree({
+  "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n",
+  "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n",
 });
 assert.equal(
-  newtonsoftLikeTestScript["test-script"].pass,
+  testsOverFuzzScript["test-script"].pass,
   true,
-  newtonsoftLikeTestScript["test-script"].message,
+  testsOverFuzzScript["test-script"].message,
 );
-assert.match(newtonsoftLikeTestScript["test-script"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.match(testsOverFuzzScript["test-script"].message, /Lib\.Tests\.csproj/);
 assert.equal(
-  /FuzzTests/.test(newtonsoftLikeTestScript["test-script"].message),
+  /FuzzTests/.test(testsOverFuzzScript["test-script"].message),
   false,
-  newtonsoftLikeTestScript["test-script"].message,
+  testsOverFuzzScript["test-script"].message,
 );
 assertPass(
   "test-script",
-  { "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n" },
-  /Newtonsoft\.Json\.FuzzTests\.csproj/,
+  { "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n" },
+  /Lib\.FuzzTests\.csproj/,
 );
 const benchAndTests = evalTree({
   "Src/Foo.BenchmarkTests/Foo.BenchmarkTests.csproj": "<Project></Project>\n",
@@ -3768,54 +3768,54 @@ assert.match(benchAndTests["test-script"].message, /Foo\.Tests\.csproj/);
 assert.equal(/Benchmark/.test(benchAndTests["test-script"].message), false);
 assertPass("setup-script", { "Foo.csproj": "<Project></Project>\n" }, /Foo\.csproj/);
 assertFail("test-framework", { "Foo.csproj": "<Project></Project>\n" });
-const newtonsoftLikeSetup = evalTree({
-  "Src/Newtonsoft.Json/Newtonsoft.Json.csproj": "<Project></Project>\n",
-  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
-  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
+const nestedLibOverTestsAndFuzz = evalTree({
+  "Src/Lib/Lib.csproj": "<Project></Project>\n",
+  "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n",
+  "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n",
 });
-assert.equal(newtonsoftLikeSetup["setup-script"].pass, true, newtonsoftLikeSetup["setup-script"].message);
-assert.match(newtonsoftLikeSetup["setup-script"].message, /Newtonsoft\.Json\.csproj/);
+assert.equal(nestedLibOverTestsAndFuzz["setup-script"].pass, true, nestedLibOverTestsAndFuzz["setup-script"].message);
+assert.match(nestedLibOverTestsAndFuzz["setup-script"].message, /Lib\.csproj/);
 assert.equal(
-  /FuzzTests/.test(newtonsoftLikeSetup["setup-script"].message),
+  /FuzzTests/.test(nestedLibOverTestsAndFuzz["setup-script"].message),
   false,
-  newtonsoftLikeSetup["setup-script"].message,
+  nestedLibOverTestsAndFuzz["setup-script"].message,
 );
 assert.equal(
-  /Tests\.csproj/.test(newtonsoftLikeSetup["setup-script"].message),
+  /Tests\.csproj/.test(nestedLibOverTestsAndFuzz["setup-script"].message),
   false,
-  newtonsoftLikeSetup["setup-script"].message,
+  nestedLibOverTestsAndFuzz["setup-script"].message,
 );
-assert.equal(newtonsoftLikeSetup["test-script"].pass, true, newtonsoftLikeSetup["test-script"].message);
-assert.match(newtonsoftLikeSetup["test-script"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(nestedLibOverTestsAndFuzz["test-script"].pass, true, nestedLibOverTestsAndFuzz["test-script"].message);
+assert.match(nestedLibOverTestsAndFuzz["test-script"].message, /Lib\.Tests\.csproj/);
 assert.equal(
-  /FuzzTests/.test(newtonsoftLikeSetup["test-script"].message),
+  /FuzzTests/.test(nestedLibOverTestsAndFuzz["test-script"].message),
   false,
-  newtonsoftLikeSetup["test-script"].message,
+  nestedLibOverTestsAndFuzz["test-script"].message,
 );
-assert.equal(newtonsoftLikeSetup["test-framework"].pass, true, newtonsoftLikeSetup["test-framework"].message);
-assert.match(newtonsoftLikeSetup["test-framework"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(nestedLibOverTestsAndFuzz["test-framework"].pass, true, nestedLibOverTestsAndFuzz["test-framework"].message);
+assert.match(nestedLibOverTestsAndFuzz["test-framework"].message, /Lib\.Tests\.csproj/);
 assert.equal(
-  /FuzzTests/.test(newtonsoftLikeSetup["test-framework"].message),
+  /FuzzTests/.test(nestedLibOverTestsAndFuzz["test-framework"].message),
   false,
-  newtonsoftLikeSetup["test-framework"].message,
+  nestedLibOverTestsAndFuzz["test-framework"].message,
 );
-assert.equal(newtonsoftLikeSetup.linter.pass, false, newtonsoftLikeSetup.linter.message);
+assert.equal(nestedLibOverTestsAndFuzz.linter.pass, false, nestedLibOverTestsAndFuzz.linter.message);
 assertPass(
   "setup-script",
-  { "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n" },
-  /Newtonsoft\.Json\.FuzzTests\.csproj/,
+  { "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n" },
+  /Lib\.FuzzTests\.csproj/,
 );
 assertPass(
   "setup-script",
-  { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
-  /Newtonsoft\.Json\.Tests\.csproj/,
+  { "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n" },
+  /Lib\.Tests\.csproj/,
 );
 const testsAndFuzzSetup = evalTree({
-  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
-  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+  "Src/Lib.FuzzTests/Lib.FuzzTests.csproj": "<Project></Project>\n",
+  "Src/Lib.Tests/Lib.Tests.csproj": "<Project></Project>\n",
 });
 assert.equal(testsAndFuzzSetup["setup-script"].pass, true, testsAndFuzzSetup["setup-script"].message);
-assert.match(testsAndFuzzSetup["setup-script"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.match(testsAndFuzzSetup["setup-script"].message, /Lib\.Tests\.csproj/);
 assert.equal(/FuzzTests/.test(testsAndFuzzSetup["setup-script"].message), false);
 const benchAndProductSetup = evalTree({
   "Src/Foo/Foo.csproj": "<Project></Project>\n",
@@ -4135,32 +4135,32 @@ assertPass("ai-context", { "packages/app/AGENTS.md": "# agents\n" }, /packages\/
 assertPass("linter", { "apps/web/biome.json": "{}\n" }, /apps\/web\/biome\.json/);
 assertPass("type-checker", { "packages/lib/tsconfig.json": "{}\n" }, /packages\/lib\/tsconfig\.json/);
 assert.equal(evalTree({ "packages/lib/tsconfig.json": "{}\n" })["type-checker"].skipped, false);
-const typescriptProductAndTest = evalTree({
-  "packages/typescript/test/tsconfig.json": "{}\n",
-  "packages/typescript/tsconfig.json": "{}\n",
+const productAndTestTsconfig = evalTree({
+  "packages/foo/test/tsconfig.json": "{}\n",
+  "packages/foo/tsconfig.json": "{}\n",
 });
 assert.equal(
-  typescriptProductAndTest["type-checker"].pass,
+  productAndTestTsconfig["type-checker"].pass,
   true,
-  typescriptProductAndTest["type-checker"].message,
+  productAndTestTsconfig["type-checker"].message,
 );
 assert.match(
-  typescriptProductAndTest["type-checker"].message,
-  /^Found packages\/typescript\/tsconfig\.json$/,
+  productAndTestTsconfig["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
 );
 assert.equal(
-  /test\//.test(typescriptProductAndTest["type-checker"].message),
+  /test\//.test(productAndTestTsconfig["type-checker"].message),
   false,
-  typescriptProductAndTest["type-checker"].message,
+  productAndTestTsconfig["type-checker"].message,
 );
 assertPass(
   "type-checker",
-  { "packages/typescript/test/tsconfig.json": "{}\n" },
-  /^Found packages\/typescript\/test\/tsconfig\.json$/,
+  { "packages/foo/test/tsconfig.json": "{}\n" },
+  /^Found packages\/foo\/test\/tsconfig\.json$/,
 );
 const rootTsconfigWins = evalTree({
   "tsconfig.json": "{}\n",
-  "packages/typescript/test/tsconfig.json": "{}\n",
+  "packages/foo/test/tsconfig.json": "{}\n",
   "packages/lib/tsconfig.json": "{}\n",
 });
 assert.equal(rootTsconfigWins["type-checker"].pass, true, rootTsconfigWins["type-checker"].message);
@@ -4169,10 +4169,10 @@ assert.equal(/packages\//.test(rootTsconfigWins["type-checker"].message), false)
 assertPass(
   "type-checker",
   {
-    "packages/typescript/tests/tsconfig.json": "{}\n",
-    "packages/typescript/tsconfig.json": "{}\n",
+    "packages/foo/tests/tsconfig.json": "{}\n",
+    "packages/foo/tsconfig.json": "{}\n",
   },
-  /^Found packages\/typescript\/tsconfig\.json$/,
+  /^Found packages\/foo\/tsconfig\.json$/,
 );
 assertPass(
   "type-checker",
@@ -4194,9 +4194,9 @@ assertPass(
   "type-checker",
   {
     "test/tsconfig.json": "{}\n",
-    "packages/typescript/tsconfig.json": "{}\n",
+    "packages/foo/tsconfig.json": "{}\n",
   },
-  /^Found packages\/typescript\/tsconfig\.json$/,
+  /^Found packages\/foo\/tsconfig\.json$/,
 );
 assertPass("type-checker", { "test/tsconfig.json": "{}\n" }, /^Found test\/tsconfig\.json$/);
 assertPass("type-checker", { "tests/tsconfig.json": "{}\n" }, /^Found tests\/tsconfig\.json$/);
@@ -5014,7 +5014,7 @@ assert.match(mixedVendorLic.license.message, /LICENSE\.txt/);
 assert.equal(/deps/.test(mixedVendorLic.license.message), false);
 const mixedRootAndPkgLic = evalTree({
   "LICENSE.txt": "Apache-2.0\n",
-  "packages/vscode-typescript/LICENSE": "MIT\n",
+  "packages/lib/LICENSE": "MIT\n",
 });
 assert.equal(mixedRootAndPkgLic.license.pass, true, mixedRootAndPkgLic.license.message);
 assert.match(mixedRootAndPkgLic.license.message, /LICENSE\.txt/);
@@ -5641,7 +5641,7 @@ assert.match(checksReadme, /sample \/ examples \/ docs samples/);
 assert.match(checksReadme, /vitest\.config\.coverage\.mts/);
 assert.match(checksReadme, /A coverage-only or integration-only tree still passes/);
 assert.match(checksReadme, /`type-checker` first-hit among `tsconfig\.json` \/ `jsconfig\.json`/);
-assert.match(checksReadme, /packages\/typescript\/tsconfig\.json/);
+assert.match(checksReadme, /packages\/foo\/tsconfig\.json/);
 assert.match(checksReadme, /A test-only tree still passes/);
 assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(checksReadme, /root-anchored/);
@@ -5720,6 +5720,16 @@ assert.match(checksReadme, /A Python tree with only jest/);
 assert.match(checksReadme, /`test-framework` also passes on `\*Tests\.csproj` \/ `\*Test\.csproj`/);
 assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
+
+const productRepoLiteral =
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|vscode-typescript|microsoft\/TypeScript/i;
+for (const file of [
+  path.join(skillRoot(), "scripts", "evaluate.mjs"),
+  catalogPath(),
+]) {
+  const text = fs.readFileSync(file, "utf8");
+  assert.equal(productRepoLiteral.test(text), false, file);
+}
 
 function walkTextFiles(dir, acc = []) {
   for (const name of fs.readdirSync(dir)) {
