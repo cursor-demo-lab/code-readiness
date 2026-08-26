@@ -438,6 +438,24 @@
       "effort": "low"
     },
     {
+      "id": "issue-templates",
+      "name": "Issue and PR templates",
+      "pillarId": "documentation",
+      "level": 3,
+      "requiresLLM": false,
+      "anyFiles": [
+        ".github/ISSUE_TEMPLATE/**",
+        ".github/PULL_REQUEST_TEMPLATE/**",
+        ".github/ISSUE_TEMPLATE.md",
+        ".github/ISSUE_TEMPLATE",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        ".github/pull_request_template.md"
+      ],
+      "fail": "No GitHub issue or pull request template found.",
+      "fix": "Add .github/ISSUE_TEMPLATE.md or .github/ISSUE_TEMPLATE/.",
+      "effort": "low"
+    },
+    {
       "id": "ai-context",
       "name": "AI context files",
       "pillarId": "documentation",

@@ -138,6 +138,7 @@ const OPEN_BY_ID: Record<string, string> = {
   contributing: "CONTRIBUTING.md",
   "api-docs": "openapi.yaml",
   codeowners: "CODEOWNERS",
+  "issue-templates": ".github/ISSUE_TEMPLATE.md",
   "ai-context": "AGENTS.md",
   "architecture-docs": "ARCHITECTURE.md",
   "lock-file": "package-lock.json",
@@ -259,6 +260,8 @@ const WHY_FOR_AGENTS: Record<string, string> = {
     "Agents guess the public surface. OpenAPI or TypeDoc is a typed map of what callers expect.",
   codeowners:
     "Agents do not know who can review a path. CODEOWNERS routes the PR and names the expert.",
+  "issue-templates":
+    "Agents need the issue/PR contract to open work the repo already accepts.",
   "architecture-docs":
     "Agents change the wrong layer. ADRs tell them the intended seams.",
   containerization:
@@ -311,6 +314,9 @@ const CONCRETE_PATHS = [
   ".github/dependabot.yml",
   ".github/settings.yml",
   ".github/CODEOWNERS",
+  ".github/ISSUE_TEMPLATE.md",
+  ".github/ISSUE_TEMPLATE/",
+  ".github/PULL_REQUEST_TEMPLATE.md",
   ".cursor/environment.json",
   ".devcontainer/devcontainer.json",
   ".pre-commit-config.yaml",
