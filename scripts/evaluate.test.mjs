@@ -304,6 +304,11 @@ assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json"
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"packageManager\"")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("rust-version")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Gemfile" && rule.includes.includes("ruby \"")));
+assert.ok(
+  versionPinned.fileContains.some(
+    (rule) => rule.file === "**/*.gemspec" && rule.includes.includes("required_ruby_version"),
+  ),
+);
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "mix.exs" && rule.includes.includes("elixir:")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "composer.json" && rule.includes.includes("\"php\":")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Package.swift" && rule.includes.includes("swift-tools-version")));
@@ -1797,6 +1802,16 @@ assertPass("version-pinned", { Gemfile: 'ruby "3.2.0"\n' }, /ruby "/);
 assertPass("version-pinned", { Gemfile: "ruby '3.2.0'\n" }, /ruby '/);
 assertFail("version-pinned", { Gemfile: 'source "https://rubygems.org"\ngem "jekyll"\n' });
 assertFail("version-pinned", { "testdata/Gemfile": 'ruby "3.2.0"\n' });
+assertPass(
+  "version-pinned",
+  { "jekyll.gemspec": 's.required_ruby_version = ">= 2.7.0"\n' },
+  /required_ruby_version/,
+);
+assertFail("version-pinned", { "jekyll.gemspec": 's.name = "jekyll"\n' });
+assertFail(
+  "version-pinned",
+  { Gemfile: 'source "https://rubygems.org"\ngemspec :name => "jekyll"\n' },
+);
 
 assertPass("setup-script", { "mix.exs": "defmodule Plug.MixProject do\nend\n" }, /mix\.exs/);
 assertPass(
@@ -1896,6 +1911,44 @@ assert.equal(detectManifestLanguages(["Package.swift", "Sources/Foo/Foo.swift"])
 assert.equal(detectLanguages(["Package.swift", "Sources/Foo/Foo.swift"]).has("swift"), true);
 assert.equal(detectManifestLanguages(["Package.swift"]).has("swift"), true);
 assert.equal(detectLanguages(["Package.swift"]).has("swift"), true);
+
+const laravelLike = evalTree({
+  "composer.json": { require: { php: "^8.2" } },
+  "src/Illuminate/Foundation/resources/exceptions/renderer/package.json": {
+    private: true,
+    engines: { node: ">=22.19.0" },
+    scripts: { build: "vite build" },
+  },
+});
+assert.equal(laravelLike["setup-script"].pass, true, laravelLike["setup-script"].message);
+assert.match(laravelLike["setup-script"].message, /composer\.json/);
+assert.equal(laravelLike["version-pinned"].pass, true, laravelLike["version-pinned"].message);
+assert.match(laravelLike["version-pinned"].message, /composer\.json/);
+assert.match(laravelLike["version-pinned"].message, /"php":/);
+assert.equal(/package\.json/.test(laravelLike["version-pinned"].message), false);
+assert.equal(/renderer/.test(laravelLike["version-pinned"].message), false);
+assertFail(
+  "version-pinned",
+  {
+    "src/Illuminate/Foundation/resources/exceptions/renderer/package.json": {
+      engines: { node: ">=22.19.0" },
+    },
+  },
+);
+
+const alamofireLike = evalTree({
+  "Package.swift": "// swift-tools-version:5.9\nimport PackageDescription\n",
+  ".ruby-version": "2.7.0\n",
+  "Source/Alamofire/AF.swift": "public struct AF {}\n",
+});
+assert.equal(alamofireLike["setup-script"].pass, true, alamofireLike["setup-script"].message);
+assert.match(alamofireLike["setup-script"].message, /Package\.swift/);
+assert.equal(alamofireLike["version-pinned"].pass, true, alamofireLike["version-pinned"].message);
+assert.match(alamofireLike["version-pinned"].message, /swift-tools-version/);
+assert.equal(/\.ruby-version/.test(alamofireLike["version-pinned"].message), false);
+assert.equal(alamofireLike["type-checker"].pass, true, alamofireLike["type-checker"].message);
+assert.match(alamofireLike["type-checker"].message, /Swift has a built-in static type system/);
+assertPass("version-pinned", { ".ruby-version": "3.2.0\n" }, /\.ruby-version/);
 
 assertPass("containerization", { "compose.yaml": "services: {}\n" }, /compose\.yaml/);
 assertPass("containerization", { "compose.yml": "services: {}\n" }, /compose\.yml/);
@@ -2151,6 +2204,10 @@ assert.match(checksReadme, /Gemfile/);
 assert.match(checksReadme, /build\.sbt/);
 assert.match(checksReadme, /swift-tools-version/);
 assert.match(checksReadme, /CMAKE_CXX_STANDARD/);
+assert.match(checksReadme, /required_ruby_version/);
+assert.match(checksReadme, /resources\/exceptions\/renderer/);
+assert.match(checksReadme, /shallowest product-tree/);
+assert.match(checksReadme, /CocoaPods/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
