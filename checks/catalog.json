@@ -125,6 +125,7 @@
         ".swiftformat",
         ".scalafmt.conf",
         ".php-cs-fixer.php",
+        ".formatter.exs",
         ".style.yapf"
       ],
       "anyFilesNonEmpty": true,
