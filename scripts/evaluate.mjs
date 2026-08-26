@@ -336,6 +336,24 @@ function deferJsFrameworkSidecarHits(repoFiles) {
   return files.includes("mix.exs") && files.some(isElixirTestFile);
 }
 
+function isRubyTestFile(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, "*_spec.rb") ||
+    globMatch(name, "*_test.rb") ||
+    name === "test_helper.rb"
+  );
+}
+
+function deferJsTestSidecarForRuby(repoFiles) {
+  const files = repoFiles ?? [];
+  return files.includes("Gemfile") && files.some(isRubyTestFile);
+}
+
+function deferJsTestSidecarHits(repoFiles) {
+  return deferJsFrameworkSidecarHits(repoFiles) || deferJsTestSidecarForRuby(repoFiles);
+}
+
 function productTestFrameworkHits(files, languages, repoFiles) {
   const configHits = files.filter(isTestFrameworkConfigHit);
   const preferredConfigs = configHits.filter((file) => !isDeferredTestFrameworkSidecar(file));
@@ -402,7 +420,7 @@ function matchesLanguageTestGlob(file) {
 }
 
 function testFileSidecarLanguageRank(file, languages, repoFiles) {
-  if (deferJsFrameworkSidecarHits(repoFiles) && isJsTsTestFile(file)) return 1;
+  if (deferJsTestSidecarHits(repoFiles) && isJsTsTestFile(file)) return 1;
   if (!hasJsTsProductLanguage(languages) || !isGoTestFile(file)) return 0;
   return 1;
 }
