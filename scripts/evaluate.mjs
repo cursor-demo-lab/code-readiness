@@ -273,7 +273,8 @@ function productTestFrameworkHits(files) {
     preferredConfigs.length > 0
       ? files.filter((file) => !isTestFrameworkConfigHit(file) || !isDeferredTestFrameworkSidecar(file))
       : files;
-  return productStyleHits(withoutSidecars);
+  // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer.
+  return productTestScriptHits(withoutSidecars);
 }
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
