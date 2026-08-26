@@ -52,7 +52,7 @@ Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. E
 
 `maturity_level` also includes `l1Passed`, `l1Total`, `l2Passed`, `l2Total`, `l1CapReasons`, and `l1Capped`. `l1Capped` is true when the band is 1, the L2 gate already passes, and L1 counted checks still fail (readme, linter, test-files-exist, type-checker). The canvas treats that cap as the primary visual. L1 is 80% of counted L1 rows (4/4, or 3/3 when type-checker skips).
 
-Print engine labels (Functional / Documented / Standardized / Optimized / Autonomous). For a single repo short of the next sequential gate, the Callout names remaining fail ids from `criterion_results` at `maturity_level.nextLevel`: would be Documented except editorconfig, ai-context. Rank `TodoListCard` items the same way: remaining fails at `nextLevel` first, then other fails. Never lead with a fail that is not on the current gate if gate fails exist. `l1CapReasons` only for when `l1Capped` is true. `editorconfig` skips when a prescriptive linter already passes (third state, not a pass); nest stays L2 with `editorconfig` no longer in `l2_fails`. Canvas WHY_FOR_AGENTS: only recommend `.editorconfig` when there is no linter; a linter is the agent-runnable style oracle. Todo ranking is already gate-first; do not lead with `editorconfig` if it is skipped. Do not dummy `.editorconfig`.
+Print engine labels (Functional / Documented / Standardized / Optimized / Autonomous). For a single repo short of the next sequential gate, the Callout names remaining fail ids from `criterion_results` at `maturity_level.nextLevel`: would be Documented except editorconfig, ai-context. Rank `TodoListCard` items the same way: remaining fails at `nextLevel` first, then other fails. Never lead with a fail that is not on the current gate if gate fails exist. Chat line 2 is criterion + file, gate-first; never lead with `.editorconfig` when `linter` is the L1 fail. `l1CapReasons` only for when `l1Capped` is true. `editorconfig` skips when a prescriptive linter already passes (third state, not a pass); nest stays L2 with `editorconfig` no longer in `l2_fails`. Canvas WHY_FOR_AGENTS: only recommend `.editorconfig` when there is no linter; a linter is the agent-runnable style oracle. Todo ranking is already gate-first; do not lead with `editorconfig` if it is skipped. Do not dummy `.editorconfig`.
 
 The canvas owns the category breakdown. Each of the seven pillar Cards lists remaining counted fails with a fix (criterion id + file) and why it helps agents. Every catalog criterion has a technical `WHY_FOR_AGENTS` sentence. Remaining fails name a concrete file from `OPEN_BY_ID` / `CONCRETE_PATHS` / catalog `anyFiles`, not a blank. Do not dump that breakdown in chat. The 27-repo eval is the honesty gate, not the user-facing report.
 
@@ -99,7 +99,7 @@ See `canvas/CANVAS.md`.
 ### 5. Chat: three lines plus the canvas link
 
 1. Level and score
-2. Top gate-ranked fix: the first remaining fail at `nextLevel` (or the first `l1CapReasons` id when `l1Capped`), plus the concrete file to add or open
+2. Top **gate-ranked** remaining fail as `criterion + file` (first remaining fail at `nextLevel`, or the L1 fail such as `linter` when that gate is still open). Never lead with `.editorconfig` when `linter` is the L1 fail. Do not dummy `.editorconfig`.
 3. Markdown link from the save-result URL, or the absolute local `.canvas.tsx` path on desktop
 
 If this is the first `.canvas.tsx` in the workspace canvases directory, add one sentence: a canvas is a live React panel beside chat.

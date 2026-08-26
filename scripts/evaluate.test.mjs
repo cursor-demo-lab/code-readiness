@@ -5,7 +5,7 @@ import path from "node:path";
 import { loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import { CASE_INSENSITIVE_NAME_IDS, evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
-import { buildReport } from "./report.mjs";
+import { buildReport, chatFixFile, chatLines } from "./report.mjs";
 import { ciFiles, detectLanguages, detectManifestLanguages, findMatches, globMatch, testFiles } from "./walk.mjs";
 
 const tmpDirs = [];
@@ -815,6 +815,135 @@ assert.equal(
   l1MissRecs.some((row) => row.criterionId === "editorconfig"),
   false,
   "skipped editorconfig must not lead the todo list",
+);
+
+function writeDocumentedMinus(dir, { linter = true, agents = true, ci = true, husky = true } = {}) {
+  fs.writeFileSync(path.join(dir, "LICENSE"), "MIT\n");
+  fs.writeFileSync(
+    path.join(dir, "README.md"),
+    `${"A".repeat(520)}\n# sample\nsetup and usage.\n`,
+  );
+  const devDependencies = { jest: "29.0.0", prettier: "3.0.0" };
+  if (linter) devDependencies.eslint = "9.0.0";
+  fs.writeFileSync(
+    path.join(dir, "package.json"),
+    JSON.stringify({
+      scripts: { test: "node test.js", dev: "node ." },
+      devDependencies,
+    }),
+  );
+  fs.writeFileSync(path.join(dir, "package-lock.json"), "{}\n");
+  if (linter) fs.writeFileSync(path.join(dir, "eslint.config.js"), "export default [];\n");
+  fs.writeFileSync(path.join(dir, ".prettierrc"), "{}\n");
+  fs.writeFileSync(path.join(dir, "app.test.js"), "test('ok', () => {});\n");
+  fs.writeFileSync(path.join(dir, "CONTRIBUTING.md"), "# contributing\n");
+  fs.writeFileSync(path.join(dir, ".env.example"), "FOO=\n");
+  fs.writeFileSync(path.join(dir, ".nvmrc"), "20\n");
+  if (ci) {
+    fs.mkdirSync(path.join(dir, ".github", "workflows"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".github", "workflows", "ci.yml"), "name: ci\n");
+  }
+  if (agents) fs.writeFileSync(path.join(dir, "AGENTS.md"), "# agents\n");
+  if (husky) fs.mkdirSync(path.join(dir, ".husky"));
+}
+
+function assertChatThreeLines(lines) {
+  assert.equal(lines.length, 3, `chat must be exactly three lines, got ${lines.length}`);
+  assert.match(lines[0], /^Level \d+ /);
+  assert.match(lines[1], /^Top fix: /);
+  assert.match(lines[2], /^Canvas: /);
+}
+
+const l1CapLintRoot = tmp("code-readiness-l1-cap-lint-");
+writeDocumentedMinus(l1CapLintRoot, { linter: false });
+const l1CapLintEval = evaluateRepo(l1CapLintRoot);
+const l1CapLintById = resultById(l1CapLintEval);
+const l1CapLintReport = buildReport(l1CapLintEval, {
+  repoRoot: l1CapLintRoot,
+  repoName: "l1-cap-lint",
+});
+assert.equal(l1CapLintById.linter.pass, false, l1CapLintById.linter.message);
+assert.equal(l1CapLintById.editorconfig.pass, false);
+assert.equal(l1CapLintById.editorconfig.skipped, false, "linter fail must not skip editorconfig");
+assert.equal(l1CapLintReport.maturity_level.level, 1);
+assert.ok(l1CapLintReport.maturity_level.l1CapReasons.includes("linter"));
+assert.ok(l1CapLintReport.languages.includes("javascript"));
+const l1CapLintRecs = recommend(l1CapLintEval.results, l1CapLintReport.maturity_level.level);
+assert.equal(
+  l1CapLintRecs[0]?.criterionId,
+  "linter",
+  "L1 fail must rank before editorconfig",
+);
+assert.notEqual(l1CapLintRecs[0]?.criterionId, "editorconfig");
+const l1CapLintChat = chatLines(l1CapLintReport, "./code-readiness.canvas.tsx");
+assertChatThreeLines(l1CapLintChat);
+assert.match(l1CapLintChat[1], /linter/);
+assert.match(l1CapLintChat[1], /eslint\.config\.js/);
+assert.equal(
+  /editorconfig/i.test(l1CapLintChat[1]),
+  false,
+  "L1 linter fail must not lead chat with editorconfig",
+);
+
+const l2GateAgentsRoot = tmp("code-readiness-l2-gate-agents-");
+writeDocumentedMinus(l2GateAgentsRoot, { agents: false, ci: false, husky: false });
+const l2GateAgentsEval = evaluateRepo(l2GateAgentsRoot);
+const l2GateAgentsById = resultById(l2GateAgentsEval);
+const l2GateAgentsReport = buildReport(l2GateAgentsEval, {
+  repoRoot: l2GateAgentsRoot,
+  repoName: "l2-gate-agents",
+});
+assert.equal(l2GateAgentsById.linter.pass, true, l2GateAgentsById.linter.message);
+assert.equal(l2GateAgentsById.editorconfig.skipped, true);
+assert.equal(l2GateAgentsById["ai-context"].pass, false);
+assert.equal(l2GateAgentsReport.maturity_level.level, 1, "L2 gate still open");
+assert.equal(l2GateAgentsReport.maturity_level.l1Capped, false);
+const l2GateAgentsRecs = recommend(
+  l2GateAgentsEval.results,
+  l2GateAgentsReport.maturity_level.level,
+);
+assert.equal(
+  l2GateAgentsRecs[0]?.criterionId,
+  "ai-context",
+  "L2-gated remaining fail must be ai-context, not a lower-priority id",
+);
+const l2GateAgentsChat = chatLines(l2GateAgentsReport, "./code-readiness.canvas.tsx");
+assertChatThreeLines(l2GateAgentsChat);
+assert.match(l2GateAgentsChat[1], /ai-context/);
+assert.match(l2GateAgentsChat[1], /AGENTS\.md/);
+assert.equal(/editorconfig/i.test(l2GateAgentsChat[1]), false);
+
+assert.equal(
+  chatFixFile(
+    {
+      languages: ["python"],
+      criterion_results: [{ criterionId: "linter", message: "No linter configuration found." }],
+    },
+    { criterionId: "linter" },
+  ),
+  "ruff.toml",
+);
+assert.equal(
+  chatFixFile(
+    {
+      languages: [],
+      criterion_results: [{ criterionId: "linter", message: "Looked for .golangci.yml" }],
+    },
+    { criterionId: "linter" },
+  ),
+  ".golangci.yml",
+  "no languages: take a language-neutral path from the fail message / first-hit",
+);
+assert.equal(
+  chatFixFile(
+    {
+      languages: [],
+      criterion_results: [{ criterionId: "linter", message: "No .editorconfig found." }],
+    },
+    { criterionId: "linter" },
+  ),
+  "eslint.config.js",
+  "never dummy .editorconfig while linter is the gate",
 );
 
 const pyGuidedRoot = tmp("code-readiness-py-guided-");
@@ -2933,6 +3062,8 @@ assert.match(skillMd, /only for when `l1Capped` is true/);
 assert.match(skillMd, /prescriptive linter/);
 assert.match(skillMd, /WHY_FOR_AGENTS/);
 assert.match(skillMd, /Do not dummy `\.editorconfig`/);
+assert.match(skillMd, /criterion \+ file/);
+assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 fail/);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
 assert.equal(/Nest is that shape|L2 10\/13/.test(skillMd), false);
 assert.equal(
