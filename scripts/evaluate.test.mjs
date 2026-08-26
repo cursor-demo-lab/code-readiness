@@ -2258,7 +2258,7 @@ assert.match(checksReadme, /swift-tools-version/);
 assert.match(checksReadme, /CMAKE_CXX_STANDARD/);
 assert.match(checksReadme, /PROPERTY CXX_STANDARD/);
 assert.match(checksReadme, /PROPERTIES CXX_STANDARD/);
-assert.match(checksReadme, /CXX_STANDARDS does not count/);
+assert.match(checksReadme, /helper identifier `CXX_STANDARDS` does not count/);
 assert.match(checksReadme, /required_ruby_version/);
 assert.match(checksReadme, /resources\/exceptions\/renderer/);
 assert.match(checksReadme, /shallowest product-tree/);
