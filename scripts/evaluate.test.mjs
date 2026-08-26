@@ -36,6 +36,36 @@ const CORE_IDS = [
 
 const catalog = loadCatalog();
 assert.equal(catalog.pillars.length, 7);
+assert.deepEqual(
+  catalog.pillars.map((pillar) => pillar.id),
+  [
+    "style-linting",
+    "testing",
+    "documentation",
+    "dev-environment",
+    "ci-cd",
+    "code-health",
+    "security",
+  ],
+);
+const stylePillar = catalog.pillars.find((pillar) => pillar.id === "style-linting");
+assert.ok(stylePillar);
+assert.equal(stylePillar.id, "style-linting");
+assert.equal(stylePillar.name, "Style & Validation");
+assert.deepEqual(
+  catalog.criteria
+    .filter((row) => row.pillarId === "style-linting")
+    .map((row) => row.id)
+    .sort(),
+  [
+    "editorconfig",
+    "formatter",
+    "linter",
+    "naming-conventions",
+    "pre-commit-hooks",
+    "type-checker",
+  ],
+);
 assert.equal(catalog.criteria.length, 40);
 assert.equal(catalog.v1SkipLLM, true);
 assert.equal(catalog.level1Threshold, 0.8);
@@ -2293,6 +2323,18 @@ assert.equal(
   ownersFailReport.pillar_scores.find((pillar) => pillar.pillarId === "security").name,
   "Security",
 );
+assert.equal(
+  ownersFailReport.pillar_scores.find((pillar) => pillar.pillarId === "style-linting").name,
+  "Style & Validation",
+);
+assert.equal(
+  ownersFailReport.criterion_results.find((row) => row.criterionId === "linter").pillarName,
+  "Style & Validation",
+);
+assert.equal(
+  ownersFailReport.criterion_results.find((row) => row.criterionId === "linter").pillarId,
+  "style-linting",
+);
 assertPass(
   "issue-templates",
   { ".github/ISSUE_TEMPLATE.md": "## Bug\n" },
@@ -3368,6 +3410,7 @@ assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
+assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
@@ -3389,6 +3432,10 @@ assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 
 assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
 assert.match(skillMd, /`containerization` first-hit prefers/);
 assert.match(skillMd, /integration-only tree still passes/);
+assert.match(skillMd, /Style & Validation/);
+assert.match(skillMd, /catalog id stays `style-linting`/);
+assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
+assert.equal(/Style & Linting/.test(skillMd), false);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
 assert.equal(/Nest is that shape|L2 10\/13/.test(skillMd), false);
 assert.equal(
@@ -3407,9 +3454,14 @@ assert.match(canvasMd, /Every catalog criterion has a technical/);
 assert.match(canvasMd, /Remaining counted fails name a concrete file/);
 assert.match(canvasMd, /language-honest/);
 assert.match(canvasMd, /AGENTS\.md/);
+assert.match(canvasMd, /Style & Validation \(`style-linting`\)/);
+assert.equal(/Style & Linting/.test(canvasMd), false);
+assert.equal(/Style & Linting/.test(canvasTemplate), false);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.equal((checksReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.match(checksReadme, /Style & Validation \(`style-linting`\)/);
+assert.equal(/Style & Linting/.test(checksReadme), false);
 assert.match(checksReadme, /would be L2 except/);
 assert.match(checksReadme, /L2 fail ids/);
 assert.match(checksReadme, /not `l1CapReasons`/);

@@ -2,6 +2,8 @@
 
 `checks/catalog.json` is the scoring spec. The agent evaluates every criterion with Read, glob, and grep only. Do not install packages. Do not run `npx`. Do not run tests, linters, or scanners.
 
+The seven pillars are Style & Validation (`style-linting`), Testing, Documentation, Developer Environment, CI/CD, Code Health, and Security. Display names are user-facing; scoring keys are the ids. Do not add a ninth pillar.
+
 v1 skips `requiresLLM` criteria. Those are a third state: skipped, excluded from the denominator, not fails. Keep `v1SkipLLM`.
 
 ## How to evaluate a row

@@ -66,7 +66,7 @@ Data: `UsageBar`, `Swatch`, `PieChart`, `BarChart`, `TodoListCard`, `Collapsible
 
 Do not use `DiffView`, `RadarChart`, hex colors, gradients, or emoji chrome.
 
-Mix open sections with the seven named pillar Cards. Do not wrap the page, stats, charts, or tables in Card.
+Mix open sections with the seven named pillar Cards. CardHeader names come from the catalog: Style & Validation (`style-linting`), Testing, Documentation, Developer Environment, CI/CD, Code Health, Security. Do not wrap the page, stats, charts, or tables in Card.
 
 ### Intended look (Cursor Light)
 

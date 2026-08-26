@@ -46,7 +46,7 @@ If you cannot produce real check results, stop. Do not emit a canvas.
 
 ### 3. Score as documented
 
-Keep the catalog's seven pillars and level names. Do not invent a second band.
+Keep the catalog's seven pillars and level names. Do not invent a second band. Pillar 1 display name is Style & Validation; catalog id stays `style-linting`.
 
 Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. Every level is 80% sequential, including L1. L1 is readme, linter, test-files-exist, and type-checker (skip when there is no conventional checker file). license and lock-file are L2. Minimum level is always 1.
 

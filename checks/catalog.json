@@ -8,7 +8,7 @@
   "pillars": [
     {
       "id": "style-linting",
-      "name": "Style & Linting"
+      "name": "Style & Validation"
     },
     {
       "id": "testing",
