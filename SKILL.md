@@ -70,7 +70,7 @@ Stable filename `code-readiness.canvas.tsx` (kebab-case). Title Case of the stem
 
 Sidecar is the split for this repeatable report: stable TSX plus `{ "report": payload }` and `useCanvasState("report", null)`. Inline data is the managed `/canvas` default. We use a sidecar because the report reruns.
 
-Import only from `"cursor/canvas"`. Call `useHostTheme()`. Invented exports are the most common runtime failure. After writing `.canvas.tsx` with the write-file tool, the footer `Canvas TypeScript check:` is the ship gate. Fix errors and re-save.
+Import only from `"cursor/canvas"`. Call `useHostTheme()`. Invented exports are the most common runtime failure. After writing `.canvas.tsx` with the write-file tool, the footer `Canvas TypeScript check:` is the ship gate. Fix errors and re-save. Declare each top-level binding once: a second `const WHY_FOR_AGENTS` or `const OPEN_BY_ID` is a module-load `SyntaxError`, so the panel renders nothing and the score never reaches the user.
 
 - Also: `LineChart` of pillar %, `computeDAGLayout` L1–L5 SVG, `Link` when `repo_identity` has a URL, `TextInput` fail search, `Checkbox` L1-capped filter.
 
