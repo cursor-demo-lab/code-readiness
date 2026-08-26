@@ -2633,6 +2633,41 @@ assertPass(
   { "__tests__/tsconfig.json": "{}\n" },
   /^Found __tests__\/tsconfig\.json$/,
 );
+const pkgAndFixtureTsconfig = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "fixtures/tsconfig.json": "{}\n",
+});
+assert.equal(
+  pkgAndFixtureTsconfig["type-checker"].pass,
+  true,
+  pkgAndFixtureTsconfig["type-checker"].message,
+);
+assert.match(
+  pkgAndFixtureTsconfig["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /fixtures/.test(pkgAndFixtureTsconfig["type-checker"].message),
+  false,
+  pkgAndFixtureTsconfig["type-checker"].message,
+);
+const rootAndTestdataTsconfig = evalTree({
+  "testdata/tsconfig.json": "{}\n",
+  "tsconfig.json": "{}\n",
+});
+assert.equal(
+  rootAndTestdataTsconfig["type-checker"].pass,
+  true,
+  rootAndTestdataTsconfig["type-checker"].message,
+);
+assert.match(rootAndTestdataTsconfig["type-checker"].message, /^Found tsconfig\.json$/);
+assert.equal(
+  /testdata\//.test(rootAndTestdataTsconfig["type-checker"].message),
+  false,
+  rootAndTestdataTsconfig["type-checker"].message,
+);
+assertPass("type-checker", { "fixtures/tsconfig.json": "{}\n" }, /^Found fixtures\/tsconfig\.json$/);
+assertPass("type-checker", { "testdata/tsconfig.json": "{}\n" }, /^Found testdata\/tsconfig\.json$/);
 assertPass("linter", { "crates/foo/.golangci.yml": "linters: {}\n" }, /crates\/foo\/\.golangci\.yml/);
 assertPass("security-policy", { "security/SECURITY.md": "# Security\n" }, /security\/SECURITY\.md/);
 const nestedEditor = evalTree({ "packages/foo/.editorconfig": "root = true\n" });
@@ -3791,6 +3826,7 @@ assert.match(rootReadme, /`test-framework` first-hit among/);
 assert.match(rootReadme, /A coverage-only or integration-only tree still passes/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
+assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -3826,6 +3862,7 @@ assert.match(skillMd, /`test-framework` first-hit among/);
 assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
+assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -3912,6 +3949,7 @@ assert.match(checksReadme, /A coverage-only or integration-only tree still passe
 assert.match(checksReadme, /`type-checker` first-hit among `tsconfig\.json` \/ `jsconfig\.json`/);
 assert.match(checksReadme, /packages\/typescript\/tsconfig\.json/);
 assert.match(checksReadme, /A test-only tree still passes/);
+assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);

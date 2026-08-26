@@ -46,7 +46,7 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 
 `test-framework` first-hit among `vitest.config.*` / `jest.config.*` defers a basename containing `coverage` / `coverage.` / `integration` when another product runner exists (`vitest.config.mts` over `vitest.config.coverage.mts`). A coverage-only or integration-only tree still passes.
 
-`type-checker` first-hit among `tsconfig.json` / `jsconfig.json` defers a path with a whole segment named `test` / `tests` / `spec` / `__tests__` when another tsconfig exists outside those segments (`packages/typescript/tsconfig.json` over `packages/typescript/test/tsconfig.json`). A test-only tree still passes.
+`type-checker` first-hit among `tsconfig.json` / `jsconfig.json` defers a path with a whole segment named `test` / `tests` / `spec` / `__tests__` / `fixtures` / `testdata` when another tsconfig exists outside those segments (`packages/typescript/tsconfig.json` over `packages/typescript/test/tsconfig.json`, `packages/foo/tsconfig.json` over `fixtures/tsconfig.json`). A test-only tree still passes. A fixtures-only or testdata-only tree still passes.
 
 If a run would display Level 5, the canvas adds a disclaimer. That band can trip on `bundle-analysis` alone because quality checks are skipped.
 
