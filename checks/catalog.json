@@ -169,7 +169,7 @@
       "anyFiles": ["tsconfig.json", "mypy.ini", ".mypy.ini", "pyrightconfig.json"],
       "fileContains": [
         { "file": "setup.cfg", "includes": ["[mypy]"] },
-        { "file": "pyproject.toml", "includes": ["[tool.mypy]", "[tool.pyright]"] }
+        { "file": "pyproject.toml", "includes": ["[tool.mypy]", "[tool.pyright]", "[tool.ty]", "[tool.basedpyright]"] }
       ],
       "tsconfigStrict": true,
       "languagesPass": {
@@ -181,7 +181,7 @@
         "swift": "Swift has a built-in static type system."
       },
       "fail": "No type checker configured.",
-      "fix": "Add a root tsconfig.json, or add mypy or pyright.",
+      "fix": "Add a root tsconfig.json, or add mypy, ty, pyright, or basedpyright.",
       "effort": "medium"
     },
     {

@@ -273,14 +273,8 @@ assert.equal(
 const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
 assert.ok(typeChecker.anyFiles.includes("tsconfig.json"));
 assert.equal(typeChecker.anyFiles.includes("**/tsconfig.json"), false);
-assert.equal(
-  typeChecker.fileContains.some((rule) => (rule.includes ?? []).some((token) => /\[tool\.ty\b/.test(token))),
-  false,
-);
-assert.equal(
-  typeChecker.fileContains.some((rule) => (rule.includes ?? []).some((token) => /basedpyright/i.test(token))),
-  false,
-);
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.ty]")));
+assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.basedpyright]")));
 assert.ok(typeChecker.anyFiles.includes("mypy.ini"));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "setup.cfg" && rule.includes.includes("[mypy]")));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.mypy]")));
@@ -1368,6 +1362,40 @@ fs.writeFileSync(path.join(mypyRoot, "pyproject.toml"), "[tool.mypy]\nstrict = t
 const mypyById = resultById(evaluateRepo(mypyRoot));
 assert.equal(mypyById["type-checker"].pass, true, mypyById["type-checker"].message);
 assert.match(mypyById["type-checker"].message, /pyproject\.toml/);
+assert.match(mypyById["type-checker"].message, /\[tool\.mypy\]/);
+
+const pyrightRoot = tmp("code-readiness-pyright-");
+fs.writeFileSync(path.join(pyrightRoot, "pyproject.toml"), "[tool.pyright]\ntypeCheckingMode = \"strict\"\n");
+const pyrightById = resultById(evaluateRepo(pyrightRoot));
+assert.equal(pyrightById["type-checker"].pass, true, pyrightById["type-checker"].message);
+assert.match(pyrightById["type-checker"].message, /\[tool\.pyright\]/);
+
+const tyRoot = tmp("code-readiness-ty-");
+fs.writeFileSync(path.join(tyRoot, "pyproject.toml"), "[tool.ty]\n");
+const tyById = resultById(evaluateRepo(tyRoot));
+assert.equal(tyById["type-checker"].pass, true, tyById["type-checker"].message);
+assert.equal(tyById["type-checker"].skipped, false);
+assert.match(tyById["type-checker"].message, /\[tool\.ty\]/);
+
+const basedPyrightRoot = tmp("code-readiness-basedpyright-");
+fs.writeFileSync(path.join(basedPyrightRoot, "pyproject.toml"), "[tool.basedpyright]\n");
+const basedPyrightById = resultById(evaluateRepo(basedPyrightRoot));
+assert.equal(basedPyrightById["type-checker"].pass, true, basedPyrightById["type-checker"].message);
+assert.equal(basedPyrightById["type-checker"].skipped, false);
+assert.match(basedPyrightById["type-checker"].message, /\[tool\.basedpyright\]/);
+
+const ruffOnlyRoot = tmp("code-readiness-ruff-only-");
+fs.writeFileSync(path.join(ruffOnlyRoot, "pyproject.toml"), "[tool.ruff]\nline-length = 88\n");
+const ruffOnlyById = resultById(evaluateRepo(ruffOnlyRoot));
+assert.equal(ruffOnlyById["type-checker"].skipped, true, ruffOnlyById["type-checker"].message);
+assert.match(ruffOnlyById["type-checker"].message, /no conventional type-checker file/i);
+assert.equal(ruffOnlyById.linter.pass, true, ruffOnlyById.linter.message);
+
+const emptyPyprojectRoot = tmp("code-readiness-empty-pyproject-");
+fs.writeFileSync(path.join(emptyPyprojectRoot, "pyproject.toml"), "");
+const emptyPyprojectById = resultById(evaluateRepo(emptyPyprojectRoot));
+assert.equal(emptyPyprojectById["type-checker"].skipped, true, emptyPyprojectById["type-checker"].message);
+assert.match(emptyPyprojectById["type-checker"].message, /no conventional type-checker file/i);
 
 const looseTsRoot = tmp("code-readiness-ts-loose-");
 fs.writeFileSync(
