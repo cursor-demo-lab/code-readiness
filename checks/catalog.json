@@ -127,6 +127,20 @@
         ".php-cs-fixer.php",
         ".style.yapf"
       ],
+      "anyFilesNonEmpty": true,
+      "ignorePathSegments": [
+        "deps",
+        "vendor",
+        "vendors",
+        "third_party",
+        "third-party",
+        "thirdparty",
+        "3rdparty",
+        "3rd-party",
+        "3rd_party",
+        "extern",
+        "external"
+      ],
       "fileContains": [
         { "file": "biome.json", "includes": ["formatter"] },
         { "file": "biome.jsonc", "includes": ["formatter"] },
