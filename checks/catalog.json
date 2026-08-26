@@ -120,6 +120,8 @@
         "rustfmt.toml",
         ".rustfmt.toml",
         ".rubocop.yml",
+        ".rubocop.yaml",
+        ".standard.yml",
         ".clang-format",
         ".swift-format",
         ".swiftformat",

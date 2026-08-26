@@ -240,6 +240,8 @@ assert.ok(formatter.anyFiles.includes("dprint.json"));
 assert.ok(formatter.anyFiles.includes("rustfmt.toml"));
 assert.ok(formatter.anyFiles.includes(".rustfmt.toml"));
 assert.ok(formatter.anyFiles.includes(".rubocop.yml"));
+assert.ok(formatter.anyFiles.includes(".rubocop.yaml"));
+assert.ok(formatter.anyFiles.includes(".standard.yml"));
 assert.ok(formatter.anyFiles.includes(".clang-format"));
 assert.ok(formatter.anyFiles.includes(".swift-format"));
 assert.ok(formatter.anyFiles.includes(".swiftformat"));
@@ -1907,6 +1909,58 @@ const jsOnlyPrettier = evalTree({
 });
 assert.equal(jsOnlyPrettier.formatter.pass, true, jsOnlyPrettier.formatter.message);
 assert.match(jsOnlyPrettier.formatter.message, /prettier\.config\.js/);
+const railsFmtBeatsPrettier = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  ".rubocop.yml": "AllCops:\n  NewCops: enable\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(railsFmtBeatsPrettier.formatter.pass, true, railsFmtBeatsPrettier.formatter.message);
+assert.match(railsFmtBeatsPrettier.formatter.message, /\.rubocop\.yml/);
+assert.equal(
+  /prettier/.test(railsFmtBeatsPrettier.formatter.message),
+  false,
+  railsFmtBeatsPrettier.formatter.message,
+);
+const railsFmtBeatsBiome = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  ".rubocop.yml": "AllCops:\n  NewCops: enable\n",
+  "biome.json": '{ "formatter": { "enabled": true } }\n',
+});
+assert.equal(railsFmtBeatsBiome.formatter.pass, true, railsFmtBeatsBiome.formatter.message);
+assert.match(railsFmtBeatsBiome.formatter.message, /\.rubocop\.yml/);
+assert.equal(/biome/.test(railsFmtBeatsBiome.formatter.message), false, railsFmtBeatsBiome.formatter.message);
+const railsYamlBeatsPrettier = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  ".rubocop.yaml": "AllCops:\n  NewCops: enable\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(railsYamlBeatsPrettier.formatter.pass, true, railsYamlBeatsPrettier.formatter.message);
+assert.match(railsYamlBeatsPrettier.formatter.message, /\.rubocop\.yaml/);
+assert.equal(
+  /prettier/.test(railsYamlBeatsPrettier.formatter.message),
+  false,
+  railsYamlBeatsPrettier.formatter.message,
+);
+const railsStandardBeatsPrettier = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  ".standard.yml": "ruby_version: 3.2\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(railsStandardBeatsPrettier.formatter.pass, true, railsStandardBeatsPrettier.formatter.message);
+assert.match(railsStandardBeatsPrettier.formatter.message, /\.standard\.yml/);
+assert.equal(
+  /prettier/.test(railsStandardBeatsPrettier.formatter.message),
+  false,
+  railsStandardBeatsPrettier.formatter.message,
+);
+const railsPrettierOnly = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(railsPrettierOnly.formatter.pass, true, railsPrettierOnly.formatter.message);
+assert.match(railsPrettierOnly.formatter.message, /prettier\.config\.js/);
+assertPass("formatter", { ".rubocop.yaml": "AllCops:\n  NewCops: enable\n" }, /\.rubocop\.yaml/);
+assertPass("formatter", { ".standard.yml": "ruby_version: 3.2\n" }, /\.standard\.yml/);
 const jsLinterWithPrettier = evalTree({
   "package.json": { name: "app" },
   "prettier.config.js": "export default { tabWidth: 2 };\n",
@@ -5118,6 +5172,7 @@ assert.match(rootReadme, /`linter` first-hit prefers/);
 assert.match(rootReadme, /A golangci-only tree still passes/);
 assert.match(rootReadme, /`formatter` first-hit prefers/);
 assert.match(rootReadme, /A Mix tree with only prettier/);
+assert.match(rootReadme, /A Rails tree with only prettier/);
 assert.match(rootReadme, /A JS-only prettier tree still passes/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
@@ -5180,6 +5235,7 @@ assert.match(skillMd, /`linter` first-hit prefers/);
 assert.match(skillMd, /A golangci-only tree still passes/);
 assert.match(skillMd, /`formatter` first-hit prefers/);
 assert.match(skillMd, /A Mix tree with only prettier/);
+assert.match(skillMd, /A Rails tree with only prettier/);
 assert.match(skillMd, /A JS-only prettier tree still passes/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
@@ -5329,6 +5385,7 @@ assert.match(checksReadme, /A C# tree with only JS tests still passes/);
 assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A C# tree with only jest/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
+assert.match(checksReadme, /A Rails tree with only prettier/);
 assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
