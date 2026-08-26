@@ -238,14 +238,17 @@
         ".rspec",
         "spec/spec_helper.rb",
         "**/*Tests.csproj",
-        "**/*Test.csproj"
+        "**/*Test.csproj",
+        "test/test_helper.exs"
       ],
       "anyGlobs": [
         "**/*_test.go",
         "**/tests/**/*.rs",
         "**/*_test.rs",
         "tests/**/*_test.c",
-        "tests/**/*_test.cpp"
+        "tests/**/*_test.cpp",
+        "**/*_test.exs",
+        "**/*_spec.exs"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },

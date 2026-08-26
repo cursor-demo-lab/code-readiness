@@ -296,6 +296,9 @@ assert.equal(testFramework.anyFiles.includes("*.csproj"), false);
 assert.equal(testFramework.anyFiles.includes("**/*.csproj"), false);
 assert.ok(testFramework.anyFiles.includes("**/*Tests.csproj"));
 assert.ok(testFramework.anyFiles.includes("**/*Test.csproj"));
+assert.ok(testFramework.anyFiles.includes("test/test_helper.exs"));
+assert.ok(testFramework.anyGlobs.includes("**/*_test.exs"));
+assert.ok(testFramework.anyGlobs.includes("**/*_spec.exs"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
@@ -1973,6 +1976,63 @@ assertFail("pre-commit-hooks", { Makefile: "lint:\n\teslint .\n" });
 
 assertPass("test-framework", { "vitest.config.ts": "export default {}\n" }, /vitest\.config\.ts/);
 assertPass("test-framework", { "jest.config.js": "export default {}\n" }, /jest\.config\.js/);
+const phoenixLikeFramework = evalTree({
+  "mix.exs": "defmodule Phoenix.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  phoenixLikeFramework["test-framework"].pass,
+  true,
+  phoenixLikeFramework["test-framework"].message,
+);
+assert.match(
+  phoenixLikeFramework["test-framework"].message,
+  /foo_test\.exs|test_helper/,
+);
+assert.equal(
+  /jest\.config/.test(phoenixLikeFramework["test-framework"].message),
+  false,
+  phoenixLikeFramework["test-framework"].message,
+);
+const phoenixHelperFramework = evalTree({
+  "mix.exs": "defmodule Phoenix.MixProject do\nend\n",
+  "test/test_helper.exs": "ExUnit.start()\n",
+  "assets/jest.config.js": "export default {}\n",
+});
+assert.equal(
+  phoenixHelperFramework["test-framework"].pass,
+  true,
+  phoenixHelperFramework["test-framework"].message,
+);
+assert.match(phoenixHelperFramework["test-framework"].message, /test_helper\.exs/);
+assert.equal(
+  /jest\.config/.test(phoenixHelperFramework["test-framework"].message),
+  false,
+  phoenixHelperFramework["test-framework"].message,
+);
+const phoenixSpecFramework = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_spec.exs": "defmodule FooSpec do\nend\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(
+  phoenixSpecFramework["test-framework"].pass,
+  true,
+  phoenixSpecFramework["test-framework"].message,
+);
+assert.match(phoenixSpecFramework["test-framework"].message, /foo_spec\.exs/);
+assert.equal(
+  /vitest\.config/.test(phoenixSpecFramework["test-framework"].message),
+  false,
+  phoenixSpecFramework["test-framework"].message,
+);
+const mixJestOnly = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(mixJestOnly["test-framework"].pass, true, mixJestOnly["test-framework"].message);
+assert.match(mixJestOnly["test-framework"].message, /jest\.config\.js/);
 assertPass(
   "test-framework",
   { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" },
@@ -4019,6 +4079,9 @@ assert.match(rootReadme, /`test-script` first-hit among/);
 assert.match(rootReadme, /Fuzz-only tree still passes/);
 assert.match(rootReadme, /`test-framework` first-hit among/);
 assert.match(rootReadme, /A coverage-only or integration-only tree still passes/);
+assert.match(rootReadme, /Mix\/Elixir-primary/);
+assert.match(rootReadme, /A JS-only jest tree still passes/);
+assert.match(rootReadme, /A Mix tree with only jest/);
 assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
@@ -4061,6 +4124,9 @@ assert.match(skillMd, /`test-script` first-hit among/);
 assert.match(skillMd, /Fuzz-only tree still passes/);
 assert.match(skillMd, /`test-framework` first-hit among/);
 assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
+assert.match(skillMd, /Mix\/Elixir-primary/);
+assert.match(skillMd, /A JS-only jest tree still passes/);
+assert.match(skillMd, /A Mix tree with only jest/);
 assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
@@ -4204,6 +4270,9 @@ assert.match(checksReadme, /Fuzz-only or Tests-only tree still passes/);
 assert.match(checksReadme, /`test-script` first-hit among/);
 assert.match(checksReadme, /Fuzz-only tree still passes/);
 assert.match(checksReadme, /`test-framework` first-hit among `vitest\.config\.\*` \/ `jest\.config\.\*`/);
+assert.match(checksReadme, /Mix\/Elixir-primary/);
+assert.match(checksReadme, /A JS-only jest tree still passes/);
+assert.match(checksReadme, /A Mix tree with only jest/);
 assert.match(checksReadme, /`test-framework` also passes on `\*Tests\.csproj` \/ `\*Test\.csproj`/);
 assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);

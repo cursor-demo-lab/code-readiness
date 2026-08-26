@@ -286,6 +286,20 @@ function deferGoTestSidecarHits(languages, repoFiles) {
   return hasJsTsProductLanguage(languages) && treeHasJsTsTests(repoFiles ?? []);
 }
 
+function isElixirTestFile(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, "*_test.exs") ||
+    globMatch(name, "*_spec.exs") ||
+    name === "test_helper.exs"
+  );
+}
+
+function deferJsFrameworkSidecarHits(repoFiles) {
+  const files = repoFiles ?? [];
+  return files.includes("mix.exs") && files.some(isElixirTestFile);
+}
+
 function productTestFrameworkHits(files, languages, repoFiles) {
   const configHits = files.filter(isTestFrameworkConfigHit);
   const preferredConfigs = configHits.filter((file) => !isDeferredTestFrameworkSidecar(file));
@@ -296,7 +310,11 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   const withoutGoSidecar = deferGoTestSidecarHits(languages, repoFiles)
     ? withoutSidecars.filter((file) => !isGoTestFile(file))
     : withoutSidecars;
-  const ranked = withoutGoSidecar.length > 0 ? withoutGoSidecar : withoutSidecars;
+  const afterGo = withoutGoSidecar.length > 0 ? withoutGoSidecar : withoutSidecars;
+  const withoutJsSidecar = deferJsFrameworkSidecarHits(repoFiles)
+    ? afterGo.filter((file) => !isTestFrameworkConfigHit(file))
+    : afterGo;
+  const ranked = withoutJsSidecar.length > 0 ? withoutJsSidecar : afterGo;
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer.
   return productTestScriptHits(ranked);
 }
@@ -662,10 +680,13 @@ function evalCriterion(criterion, ctx) {
     : fileHits;
   const deferGoFramework =
     criterion.id === "test-framework" && deferGoTestSidecarHits(ctx.languages, ctx.files);
+  const deferMixJsFramework =
+    criterion.id === "test-framework" && deferJsFrameworkSidecarHits(ctx.files);
   const productFileHits = styleFirstHit
     ? usableHits.filter((file) => {
         if (isDeferredStyleConfig(file)) return false;
         if (deferGoFramework && isGoTestFile(file)) return false;
+        if (deferMixJsFramework && isTestFrameworkConfigHit(file)) return false;
         return true;
       })
     : containerFirstHit
