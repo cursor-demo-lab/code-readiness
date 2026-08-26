@@ -3253,6 +3253,7 @@ for (const file of exampleCanvasFiles) {
 
 const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
 assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
@@ -3290,9 +3291,6 @@ assert.match(canvasMd, /Every catalog criterion has a technical/);
 assert.match(canvasMd, /Remaining counted fails name a concrete file/);
 assert.match(canvasMd, /language-honest/);
 assert.match(canvasMd, /AGENTS\.md/);
-
-const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
-assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.equal((checksReadme.match(/issue-templates/g) ?? []).length, 1);
