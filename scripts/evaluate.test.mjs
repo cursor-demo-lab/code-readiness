@@ -2694,6 +2694,45 @@ assertPass(
   { "support/build.gradle": "apply plugin: \"com.android.library\"\n" },
   /support\/build\.gradle/,
 );
+const fmtLikeSetup = evalTree({
+  "CMakeLists.txt": "cmake_minimum_required(VERSION 3.8)\nproject(FMT CXX)\n",
+  "support/build.gradle": "apply plugin: \"com.android.library\"\n",
+});
+assert.equal(fmtLikeSetup["setup-script"].pass, true, fmtLikeSetup["setup-script"].message);
+assert.match(fmtLikeSetup["setup-script"].message, /CMakeLists\.txt/);
+assert.equal(/support\//.test(fmtLikeSetup["setup-script"].message), false, fmtLikeSetup["setup-script"].message);
+assert.equal(fmtLikeSetup["test-script"].pass, false, fmtLikeSetup["test-script"].message);
+const makefileOverSupport = evalTree({
+  Makefile: "all:\n\t@echo ok\n",
+  "support/build.gradle": "apply plugin: \"com.android.library\"\n",
+});
+assert.equal(makefileOverSupport["setup-script"].pass, true, makefileOverSupport["setup-script"].message);
+assert.match(makefileOverSupport["setup-script"].message, /Makefile/);
+assert.equal(/support\//.test(makefileOverSupport["setup-script"].message), false);
+const packageJsonOverSupport = evalTree({
+  "package.json": { scripts: { test: "node --test" } },
+  "support/build.gradle": "apply plugin: \"com.android.library\"\n",
+});
+assert.equal(packageJsonOverSupport["setup-script"].pass, true, packageJsonOverSupport["setup-script"].message);
+assert.match(packageJsonOverSupport["setup-script"].message, /scripts\.test/);
+assert.equal(/support\//.test(packageJsonOverSupport["setup-script"].message), false);
+const cmakeOverAndroid = evalTree({
+  "CMakeLists.txt": "project(demo)\n",
+  "android/build.gradle": "apply plugin: \"com.android.library\"\n",
+});
+assert.equal(cmakeOverAndroid["setup-script"].pass, true, cmakeOverAndroid["setup-script"].message);
+assert.match(cmakeOverAndroid["setup-script"].message, /CMakeLists\.txt/);
+assert.equal(/android\//.test(cmakeOverAndroid["setup-script"].message), false);
+assertPass(
+  "setup-script",
+  { "android/build.gradle": "apply plugin: \"com.android.library\"\n" },
+  /android\/build\.gradle/,
+);
+assertPass(
+  "setup-script",
+  { "examples/CMakeLists.txt": "project(demo)\n" },
+  /examples\/CMakeLists\.txt/,
+);
 assertPass("setup-script", { "Foo.sln": "Microsoft Visual Studio Solution\n" }, /\.sln/);
 assertFail("setup-script", { "deps/jemalloc/msvc/foo.sln": "Microsoft Visual Studio Solution\n" });
 assertPass(
@@ -3410,6 +3449,8 @@ assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
+assert.match(rootReadme, /`setup-script` first-hit prefers/);
+assert.match(rootReadme, /support-only tree still passes/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -3432,6 +3473,8 @@ assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 
 assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
 assert.match(skillMd, /`containerization` first-hit prefers/);
 assert.match(skillMd, /integration-only tree still passes/);
+assert.match(skillMd, /`setup-script` first-hit prefers/);
+assert.match(skillMd, /support-only tree still passes/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -3544,6 +3587,9 @@ assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
 assert.match(checksReadme, /`test-script` is a runner/);
 assert.match(checksReadme, /`\*Tests\.csproj` \/ `\*Test\.csproj`/);
 assert.match(checksReadme, /A `build\.gradle` \/ `build\.gradle\.kts` or product `\*\.csproj`/);
+assert.match(checksReadme, /`setup-script` first-hit is the shallowest product-tree/);
+assert.match(checksReadme, /support\/build\.gradle/);
+assert.match(checksReadme, /support-only tree still passes/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {

@@ -50,6 +50,8 @@ Hill-climb: `containerization` (L3 Developer Environment) also passes on `.curso
 
 Hill-climb after PR #56: nest and phoenix PASS `containerization` on `integration/docker-compose.yml` / `integration_test/docker-compose.yml`. That is a test harness, not a product boot environment. Product boot is `.devcontainer` / `.devcontainer/devcontainer.json` / `.cursor/environment.json` / a root `Dockerfile` / `docker-compose.yml` / `compose.yml`. First-hit now prefers those files and defers `tests/**` / `test/**` / `integration/**` / `integration_test/**` the way formatter defers `tests/format`. An integration-only tree still PASSES and names that file. Message-only when a product boot also exists. Do not fail nest/phoenix for integration-only compose. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `issue-templates` stays L3 (10 counted).
 
+Hill-climb after PR #59: fmtlib/fmt PASSes `setup-script` on `support/build.gradle` (Android NDK sidecar) even though root `CMakeLists.txt` exists. Catalog `anyFiles` lists `build.gradle` before `CMakeLists.txt`, so first-hit named the NDK library. First-hit now prefers the shallowest product-tree setup file and defers `support/**` / `android/**` / `examples/**` the way containerization defers `integration/**`. A support-only tree still PASSES and names that file. Message-only. Do not fail fmt `setup-script`. `test-script` still FAILs `support/build.gradle` (not a runner); do not put `build.gradle` back on `test-script`. Stay L1 because `test-script` FAILs. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `issue-templates` stays L3, `codeowners` stays Security.
+
 ## Explicitly refused
 
 - New criterion ids
