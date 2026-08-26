@@ -3599,6 +3599,138 @@ assert.equal(
   javaFixturesDefer["test-files-exist"].message,
 );
 
+function assertJavaFirstHit(files, needle, opts = {}) {
+  const byId = evalTree(files);
+  for (const id of ["test-framework", "test-files-exist"]) {
+    assert.equal(byId[id].pass, true, `${id} should pass: ${byId[id].message}`);
+    assert.match(byId[id].message, needle, `${id}: ${byId[id].message}`);
+    if (opts.not) {
+      assert.equal(opts.not.test(byId[id].message), false, `${id}: ${byId[id].message}`);
+    }
+  }
+  return byId;
+}
+
+const javaSrcTestOverMain = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "src/main/java/DynamicTest.java": "class DynamicTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /DynamicTest/ },
+);
+assert.equal(javaSrcTestOverMain["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+
+const javaSrcTestOverTestlib = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-testlib/src/AbstractTests.java": "class AbstractTests {}\n",
+  },
+  /FooTest\.java/,
+  { not: /AbstractTests/ },
+);
+assert.match(javaSrcTestOverTestlib["test-files-exist"].details, /^src\/test\/java\/FooTest\.java\b/);
+
+const javaSrcTestOverMock = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-mock/src/test/java/MockTest.java": "class MockTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /MockTest/ },
+);
+
+const javaSrcTestOverPy = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "docker/docker_build_test.py": "def test_ok():\n    assert True\n",
+  },
+  /FooTest\.java/,
+  { not: /docker_build_test/ },
+);
+assert.equal(javaSrcTestOverPy["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(javaSrcTestOverPy["test-files-exist"].details, /docker_build_test\.py/);
+
+const javaTestlibOnly = evalTree({
+  "foo-testlib/src/AbstractTests.java": "class AbstractTests {}\n",
+});
+assert.equal(javaTestlibOnly["test-framework"].pass, true, javaTestlibOnly["test-framework"].message);
+assert.match(javaTestlibOnly["test-framework"].message, /AbstractTests\.java/);
+assert.equal(javaTestlibOnly["test-files-exist"].pass, true, javaTestlibOnly["test-files-exist"].message);
+assert.match(javaTestlibOnly["test-files-exist"].message, /AbstractTests\.java/);
+
+const javaMainOnly = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/main/java/DynamicTest.java": "class DynamicTest {}\n",
+});
+assert.equal(javaMainOnly["test-framework"].pass, true, javaMainOnly["test-framework"].message);
+assert.match(javaMainOnly["test-framework"].message, /DynamicTest\.java/);
+assert.equal(javaMainOnly["test-files-exist"].pass, true, javaMainOnly["test-files-exist"].message);
+assert.match(javaMainOnly["test-files-exist"].message, /DynamicTest\.java/);
+
+const javaPyOnly = evalTree({
+  "pom.xml": "<project></project>\n",
+  "docker/docker_build_test.py": "def test_ok():\n    assert True\n",
+});
+assert.equal(javaPyOnly["test-framework"].pass, true, javaPyOnly["test-framework"].message);
+assert.match(javaPyOnly["test-framework"].message, /docker_build_test\.py/);
+assert.equal(javaPyOnly["test-files-exist"].pass, true, javaPyOnly["test-files-exist"].message);
+assert.match(javaPyOnly["test-files-exist"].message, /docker_build_test\.py/);
+
+const javaSrcTestOverIntegration = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-integration-tests/src/test/java/ITTest.java": "class ITTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /ITTest/ },
+);
+assert.equal(javaSrcTestOverIntegration["test-files-exist"].pass, true);
+
+const javaSrcTestOverSupport = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-support/src/test/java/SupportTest.java": "class SupportTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /SupportTest/ },
+);
+assert.equal(javaSrcTestOverSupport["test-files-exist"].pass, true);
+
+const javaSrcTestOverTestlibCase = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-TestLib/src/AbstractTests.java": "class AbstractTests {}\n",
+  },
+  /FooTest\.java/,
+  { not: /AbstractTests/ },
+);
+assert.equal(javaSrcTestOverTestlibCase["test-framework"].pass, true);
+
+const mixExUnitStillNamesExsAfterJavaRank = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+});
+assert.equal(
+  mixExUnitStillNamesExsAfterJavaRank["test-framework"].pass,
+  true,
+  mixExUnitStillNamesExsAfterJavaRank["test-framework"].message,
+);
+assert.match(mixExUnitStillNamesExsAfterJavaRank["test-framework"].message, /foo_test\.exs/);
+assert.equal(
+  mixExUnitStillNamesExsAfterJavaRank["test-files-exist"].pass,
+  true,
+  mixExUnitStillNamesExsAfterJavaRank["test-files-exist"].message,
+);
+assert.match(mixExUnitStillNamesExsAfterJavaRank["test-files-exist"].message, /foo_test\.exs/);
+
 const mixExUnitOverJestTfe = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   "test/foo_test.exs": "defmodule FooTest do\nend\n",
@@ -5671,6 +5803,10 @@ assert.match(rootReadme, /A Python tree with only JS tests still passes/);
 assert.match(rootReadme, /Python-primary/);
 assert.match(rootReadme, /A Java tree with only JS tests still passes/);
 assert.match(rootReadme, /Java-primary/);
+assert.match(rootReadme, /A Java tree with only Python tests still passes/);
+assert.match(rootReadme, /src\/test\/java\/FooTest\.java/);
+assert.match(rootReadme, /A testlib-only tree still passes/);
+assert.match(rootReadme, /foo-testlib/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
 assert.match(rootReadme, /C#-primary/);
 assert.match(rootReadme, /A C# tree with only jest/);
@@ -5742,6 +5878,10 @@ assert.match(skillMd, /A Python tree with only JS tests still passes/);
 assert.match(skillMd, /Python-primary/);
 assert.match(skillMd, /A Java tree with only JS tests still passes/);
 assert.match(skillMd, /Java-primary/);
+assert.match(skillMd, /A Java tree with only Python tests still passes/);
+assert.match(skillMd, /src\/test\/java\/FooTest\.java/);
+assert.match(skillMd, /A testlib-only tree still passes/);
+assert.match(skillMd, /foo-testlib/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
 assert.match(skillMd, /C#-primary/);
 assert.match(skillMd, /A C# tree with only jest/);
@@ -5886,6 +6026,10 @@ assert.match(checksReadme, /A Python tree with only JS tests still passes/);
 assert.match(checksReadme, /Python-primary/);
 assert.match(checksReadme, /A Java tree with only JS tests still passes/);
 assert.match(checksReadme, /Java-primary/);
+assert.match(checksReadme, /A Java tree with only Python tests still passes/);
+assert.match(checksReadme, /src\/test\/java\/FooTest\.java/);
+assert.match(checksReadme, /A testlib-only tree still passes/);
+assert.match(checksReadme, /foo-testlib/);
 assert.match(checksReadme, /A C# tree with only JS tests still passes/);
 assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A C# tree with only jest/);
