@@ -104,10 +104,21 @@ const aiContext = catalog.criteria.find((row) => row.id === "ai-context");
 assert.ok(aiContext);
 assert.equal(aiContext.anyFiles.includes("AGENTS.md"), true);
 assert.equal(aiContext.anyFiles.includes(".github/AGENTS.md"), true);
+assert.ok(aiContext.anyFiles.includes("CLAUDE.md"));
+assert.ok(aiContext.anyFiles.includes(".github/copilot-instructions.md"));
+assert.ok(aiContext.anyFiles.includes(".cursorrules"));
 assert.ok(aiContext.anyFiles.includes("GEMINI.md"));
 assert.ok(aiContext.anyFiles.includes(".github/instructions/**/*.md"));
 assert.ok(aiContext.anyFiles.includes(".windsurfrules"));
 assert.ok(aiContext.anyFiles.includes("WARP.md"));
+assert.ok(
+  aiContext.anyFiles.indexOf("AGENTS.md") < aiContext.anyFiles.indexOf("CLAUDE.md"),
+  "AGENTS.md must precede CLAUDE.md so first-hit names the onboarding doc",
+);
+assert.ok(
+  aiContext.anyFiles.indexOf(".github/AGENTS.md") < aiContext.anyFiles.indexOf("CLAUDE.md"),
+  ".github/AGENTS.md must precede CLAUDE.md",
+);
 assert.equal(/does not look for AGENTS\.md/i.test(aiContext.fix), false);
 
 const contributing = catalog.criteria.find((row) => row.id === "contributing");
@@ -2273,6 +2284,15 @@ assertFail("e2e-tests", { "src/main/java/com/example/integration/Foo.java": "cla
 const nestedBiomeSkipEditor = evalTree({ "apps/web/biome.json": "{}\n" });
 assert.equal(nestedBiomeSkipEditor.linter.pass, true);
 assert.equal(nestedBiomeSkipEditor.editorconfig.skipped, true, nestedBiomeSkipEditor.editorconfig.message);
+const bothAgentsAndClaude = evalTree({
+  "CLAUDE.md": "# claude\n",
+  "AGENTS.md": "# agents\n",
+});
+assert.equal(bothAgentsAndClaude["ai-context"].pass, true, bothAgentsAndClaude["ai-context"].message);
+assert.match(bothAgentsAndClaude["ai-context"].message, /^Found AGENTS\.md$/);
+assert.equal(/CLAUDE\.md/.test(bothAgentsAndClaude["ai-context"].message), false);
+assertPass("ai-context", { "CLAUDE.md": "# claude\n" }, /^Found CLAUDE\.md$/);
+assertPass("ai-context", { ".github/AGENTS.md": "# agents\n" }, /\.github\/AGENTS\.md/);
 assertPass("ai-context", { "GEMINI.md": "# gemini\n" }, /GEMINI\.md/);
 assertPass("ai-context", { ".github/instructions/js.md": "# js\n" }, /instructions/);
 assertPass("ai-context", { ".windsurfrules": "# rules\n" }, /windsurfrules/);
@@ -3214,6 +3234,9 @@ assert.match(canvasMd, /Remaining counted fails name a concrete file/);
 assert.match(canvasMd, /language-honest/);
 assert.match(canvasMd, /AGENTS\.md/);
 
+const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
+assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
+
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.match(checksReadme, /would be L2 except/);
 assert.match(checksReadme, /L2 fail ids/);
@@ -3253,6 +3276,7 @@ assert.match(checksReadme, /packages-only linter/);
 assert.match(checksReadme, /Do not reject empty linter configs/);
 assert.match(checksReadme, /eslint\.config\.\*/);
 assert.match(checksReadme, /match the basename at any depth for `linter`, `formatter`, and `test-framework`/);
+assert.match(checksReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(checksReadme, /`test-framework` first-hit prefers the shallowest product-tree/);
 assert.match(checksReadme, /sample \/ examples \/ docs samples/);
 assert.match(checksReadme, /root-anchored/);

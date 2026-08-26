@@ -58,7 +58,7 @@ The canvas owns the category breakdown. Each of the seven pillar Cards lists rem
 
 If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomous.
 
-`ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` counts. Do not add LLM scoring.
+`ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` is the preferred first-hit when both `AGENTS.md` and `CLAUDE.md` exist. Do not add LLM scoring.
 
 Forbidden UI copy: "9 pillars".
 
