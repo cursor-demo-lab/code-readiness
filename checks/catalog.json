@@ -429,7 +429,7 @@
     {
       "id": "codeowners",
       "name": "CODEOWNERS defined",
-      "pillarId": "documentation",
+      "pillarId": "security",
       "level": 3,
       "requiresLLM": false,
       "anyFiles": ["CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"],

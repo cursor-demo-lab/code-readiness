@@ -487,6 +487,16 @@ assert.equal(apiDocs.anyFiles.includes("mkdocs.yml"), false);
 assert.equal(apiDocs.anyFiles.includes("conf.py"), false);
 
 const codeowners = catalog.criteria.find((row) => row.id === "codeowners");
+assert.equal(codeowners.level, 3);
+assert.equal(codeowners.pillarId, "security");
+assert.equal(
+  codeowners.pillarId,
+  catalog.criteria.find((row) => row.id === "security-policy").pillarId,
+);
+assert.equal(
+  codeowners.pillarId,
+  catalog.criteria.find((row) => row.id === "secrets-detection").pillarId,
+);
 assert.ok(codeowners.anyFiles.includes("docs/CODEOWNERS"));
 assert.ok(codeowners.anyFiles.includes("CODEOWNERS"));
 assert.ok(codeowners.anyFiles.includes(".github/CODEOWNERS"));
@@ -2245,6 +2255,27 @@ assertFail("api-docs", { "mkdocs.yml": "site_name: docs\n" });
 assertFail("api-docs", { "conf.py": "project = 'docs'\n" });
 
 assertPass("codeowners", { "docs/CODEOWNERS": "* @team\n" }, /docs\/CODEOWNERS/);
+assertPass("codeowners", { CODEOWNERS: "* @team\n" }, /^Found CODEOWNERS$/);
+assertPass("codeowners", { ".github/CODEOWNERS": "* @team\n" }, /\.github\/CODEOWNERS/);
+const missingCodeowners = evalTree({});
+assert.equal(missingCodeowners.codeowners.pass, false);
+assert.equal(missingCodeowners.codeowners.skipped, false);
+assert.equal(missingCodeowners.codeowners.pillarId, "security");
+assert.equal(missingCodeowners.codeowners.level, 3);
+const ownersFailDir = tmp("code-readiness-owners-fail-");
+writeTree(ownersFailDir, {});
+const ownersFailReport = buildReport(evaluateRepo(ownersFailDir), {
+  repoRoot: ownersFailDir,
+  repoName: "owners-fail",
+});
+const ownersFailRow = ownersFailReport.criterion_results.find((row) => row.criterionId === "codeowners");
+assert.equal(ownersFailRow.pillarId, "security");
+assert.equal(ownersFailRow.pillarName, "Security");
+assert.equal(ownersFailRow.pass, false);
+assert.equal(
+  ownersFailReport.pillar_scores.find((pillar) => pillar.pillarId === "security").name,
+  "Security",
+);
 assertPass(
   "issue-templates",
   { ".github/ISSUE_TEMPLATE.md": "## Bug\n" },
