@@ -374,11 +374,26 @@ function deferJsFrameworkSidecarHits(repoFiles) {
   );
 }
 
+function isJavaTestFile(file) {
+  const name = posixBasename(file);
+  return globMatch(name, "*Test.java") || globMatch(name, "*Tests.java");
+}
+
+function treeHasJavaManifest(files) {
+  return files.includes("pom.xml") || files.includes("build.gradle") || files.includes("build.gradle.kts");
+}
+
+function deferJsTestSidecarForJava(repoFiles) {
+  const files = repoFiles ?? [];
+  return treeHasJavaManifest(files) && files.some(isJavaTestFile);
+}
+
 function deferJsTestSidecarHits(repoFiles) {
   return (
     deferJsFrameworkSidecarHits(repoFiles) ||
     deferJsTestSidecarForRuby(repoFiles) ||
-    deferJsTestSidecarForPython(repoFiles)
+    deferJsTestSidecarForPython(repoFiles) ||
+    deferJsTestSidecarForJava(repoFiles)
   );
 }
 
