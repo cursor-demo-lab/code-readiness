@@ -118,6 +118,7 @@ assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.md"));
 assert.ok(contributing.anyFiles.includes("CONTRIBUTING.rst"));
 assert.ok(contributing.anyFiles.includes("CONTRIBUTING"));
 assert.ok(contributing.anyFiles.includes(".github/CONTRIBUTING.rst"));
+assert.equal(contributing.anyFilesNonEmpty, true, "empty contributing files must not pass on presence");
 assert.equal(IGNORE_DIRS.has(".github"), false);
 assert.equal(IGNORE_DIRS.has(".cursor"), true);
 
@@ -1477,6 +1478,19 @@ assertFail("test-script", { justfile: "build:\n    cargo build\n" });
 assertPass("contributing", { "CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
 assertPass("contributing", { CONTRIBUTING: "How to contribute\n" }, /CONTRIBUTING/);
 assertPass("contributing", { ".github/CONTRIBUTING.rst": "How to contribute\n" }, /\.github\/CONTRIBUTING\.rst/);
+assertPass(
+  "contributing",
+  { "CONTRIBUTING.md": "# Contributing\nPlease open a PR.\n" },
+  /CONTRIBUTING\.md/,
+);
+assertPass(
+  "contributing",
+  { "docs/CONTRIBUTING.md": "# Contributing\nPlease open a PR.\n" },
+  /docs\/CONTRIBUTING\.md/,
+);
+assertFail("contributing", { "CONTRIBUTING.md": "" });
+assertFail("contributing", { ".github/CONTRIBUTING.md": "" });
+assertFail("contributing", { "docs/CONTRIBUTING.md": "  \n\t\n" });
 assertPass("readme", { "README.rst": `${"A".repeat(520)}\n` }, /README\.rst/);
 assertFail("readme", { "README.rst": "short\n" });
 

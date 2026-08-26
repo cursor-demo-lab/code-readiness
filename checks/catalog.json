@@ -391,6 +391,7 @@
         "docs/contributing*",
         "docs/**/contributing*"
       ],
+      "anyFilesNonEmpty": true,
       "fail": "No contributing guide found.",
       "fix": "Add CONTRIBUTING.md with workflow and PR guidelines.",
       "effort": "low"
