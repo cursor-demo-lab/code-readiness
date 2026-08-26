@@ -306,6 +306,8 @@ assert.ok(testFramework.anyGlobs.includes("**/test_*.py"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.py"));
 assert.ok(testFramework.anyGlobs.includes("**/*Test.java"));
 assert.ok(testFramework.anyGlobs.includes("**/*Tests.java"));
+assert.ok(testFramework.anyGlobs.includes("**/*Test.cs"));
+assert.ok(testFramework.anyGlobs.includes("**/*Tests.cs"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
@@ -2363,6 +2365,119 @@ assert.equal(
   /jest\.config/.test(railsStillBeatsJest["test-framework"].message),
   false,
   railsStillBeatsJest["test-framework"].message,
+);
+const csharpLikeFramework = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  csharpLikeFramework["test-framework"].pass,
+  true,
+  csharpLikeFramework["test-framework"].message,
+);
+assert.match(csharpLikeFramework["test-framework"].message, /FooTests\.cs/);
+assert.equal(
+  /jest\.config/.test(csharpLikeFramework["test-framework"].message),
+  false,
+  csharpLikeFramework["test-framework"].message,
+);
+const csharpSlnFramework = evalTree({
+  "Foo.sln": "\n",
+  "FooTest.cs": "class FooTest {}\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(
+  csharpSlnFramework["test-framework"].pass,
+  true,
+  csharpSlnFramework["test-framework"].message,
+);
+assert.match(csharpSlnFramework["test-framework"].message, /FooTest\.cs/);
+assert.equal(
+  /vitest\.config/.test(csharpSlnFramework["test-framework"].message),
+  false,
+  csharpSlnFramework["test-framework"].message,
+);
+const csharpHelperFramework = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/jest.config.js": "export default {}\n",
+});
+assert.equal(
+  csharpHelperFramework["test-framework"].pass,
+  true,
+  csharpHelperFramework["test-framework"].message,
+);
+assert.match(csharpHelperFramework["test-framework"].message, /FooTests\.cs/);
+assert.equal(
+  /jest\.config/.test(csharpHelperFramework["test-framework"].message),
+  false,
+  csharpHelperFramework["test-framework"].message,
+);
+const csharpJestOnly = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(csharpJestOnly["test-framework"].pass, true, csharpJestOnly["test-framework"].message);
+assert.match(csharpJestOnly["test-framework"].message, /jest\.config\.js/);
+const csharpFuzzStillJest = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FuzzTests.cs": "class FuzzTests {}\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  csharpFuzzStillJest["test-framework"].pass,
+  true,
+  csharpFuzzStillJest["test-framework"].message,
+);
+assert.match(csharpFuzzStillJest["test-framework"].message, /jest\.config\.js/);
+assert.equal(
+  /FuzzTests/.test(csharpFuzzStillJest["test-framework"].message),
+  false,
+  csharpFuzzStillJest["test-framework"].message,
+);
+const csharpBenchStillJest = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "BenchmarkTests.cs": "class BenchmarkTests {}\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  csharpBenchStillJest["test-framework"].pass,
+  true,
+  csharpBenchStillJest["test-framework"].message,
+);
+assert.match(csharpBenchStillJest["test-framework"].message, /jest\.config\.js/);
+const javaStillBeatsJest = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  javaStillBeatsJest["test-framework"].pass,
+  true,
+  javaStillBeatsJest["test-framework"].message,
+);
+assert.match(javaStillBeatsJest["test-framework"].message, /FooTest\.java/);
+assert.equal(
+  /jest\.config/.test(javaStillBeatsJest["test-framework"].message),
+  false,
+  javaStillBeatsJest["test-framework"].message,
+);
+const mixStillBeatsJest = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  mixStillBeatsJest["test-framework"].pass,
+  true,
+  mixStillBeatsJest["test-framework"].message,
+);
+assert.match(mixStillBeatsJest["test-framework"].message, /foo_test\.exs/);
+assert.equal(
+  /jest\.config/.test(mixStillBeatsJest["test-framework"].message),
+  false,
+  mixStillBeatsJest["test-framework"].message,
 );
 assertPass(
   "test-framework",
@@ -5014,6 +5129,7 @@ assert.match(rootReadme, /A Java tree with only JS tests still passes/);
 assert.match(rootReadme, /Java-primary/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
 assert.match(rootReadme, /C#-primary/);
+assert.match(rootReadme, /A C# tree with only jest/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -5075,6 +5191,7 @@ assert.match(skillMd, /A Java tree with only JS tests still passes/);
 assert.match(skillMd, /Java-primary/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
 assert.match(skillMd, /C#-primary/);
+assert.match(skillMd, /A C# tree with only jest/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -5210,6 +5327,7 @@ assert.match(checksReadme, /A Java tree with only JS tests still passes/);
 assert.match(checksReadme, /Java-primary/);
 assert.match(checksReadme, /A C# tree with only JS tests still passes/);
 assert.match(checksReadme, /C#-primary/);
+assert.match(checksReadme, /A C# tree with only jest/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
 assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);

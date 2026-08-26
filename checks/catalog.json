@@ -255,7 +255,9 @@
         "**/test_*.py",
         "**/*_test.py",
         "**/*Test.java",
-        "**/*Tests.java"
+        "**/*Tests.java",
+        "**/*Test.cs",
+        "**/*Tests.cs"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },
