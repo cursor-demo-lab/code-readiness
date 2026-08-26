@@ -42,7 +42,7 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 
 `setup-script` first-hit prefers the shallowest product-tree file (root `CMakeLists.txt` / `Makefile` / package.json). Nested `support/build.gradle` is not first-hit when a product setup file exists; a support-only tree still passes.
 
-`setup-script` first-hit among `*.csproj` / `*.sln` defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another csproj exists, and prefers the product project (`Newtonsoft.Json.csproj`) over `*.Tests.csproj` / `*.FuzzTests.csproj` when both exist. A Fuzz-only or Tests-only tree still passes.
+`setup-script` first-hit among `*.csproj` / `*.sln` prefers a product library over a basename containing `Console` / `Demo`, then `*Tests.csproj`, then a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` (`Lib.csproj` over `Lib.TestConsole.csproj` / `Lib.Tests.csproj` / `FuzzTests.csproj`). A Console-only tree still passes. A Fuzz-only or Tests-only tree still passes.
 
 `test-script` first-hit among `*Tests.csproj` / `*Test.csproj` / `*Tests.sln` defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another Tests project exists (`Newtonsoft.Json.Tests.csproj` over `Newtonsoft.Json.FuzzTests.csproj`). A Fuzz-only tree still passes.
 

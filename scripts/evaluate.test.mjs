@@ -3713,6 +3713,74 @@ const benchAndProductSetup = evalTree({
 assert.equal(benchAndProductSetup["setup-script"].pass, true, benchAndProductSetup["setup-script"].message);
 assert.match(benchAndProductSetup["setup-script"].message, /Foo\.csproj/);
 assert.equal(/Benchmark/.test(benchAndProductSetup["setup-script"].message), false);
+const libOverTestConsole = evalTree({
+  "Lib.csproj": "<Project></Project>\n",
+  "Lib.TestConsole.csproj": "<Project></Project>\n",
+});
+assert.equal(libOverTestConsole["setup-script"].pass, true, libOverTestConsole["setup-script"].message);
+assert.match(libOverTestConsole["setup-script"].message, /Lib\.csproj/);
+assert.equal(
+  /TestConsole/.test(libOverTestConsole["setup-script"].message),
+  false,
+  libOverTestConsole["setup-script"].message,
+);
+const nestedLibOverTestConsole = evalTree({
+  "Src/Lib/Lib.csproj": "<Project></Project>\n",
+  "Src/Lib.TestConsole/Lib.TestConsole.csproj": "<Project></Project>\n",
+});
+assert.equal(
+  nestedLibOverTestConsole["setup-script"].pass,
+  true,
+  nestedLibOverTestConsole["setup-script"].message,
+);
+assert.match(nestedLibOverTestConsole["setup-script"].message, /Lib\.csproj/);
+assert.equal(
+  /TestConsole/.test(nestedLibOverTestConsole["setup-script"].message),
+  false,
+  nestedLibOverTestConsole["setup-script"].message,
+);
+assertPass("setup-script", { "TestConsole.csproj": "<Project></Project>\n" }, /TestConsole\.csproj/);
+assertPass("setup-script", { "Lib.Demo.csproj": "<Project></Project>\n" }, /Lib\.Demo\.csproj/);
+const libOverDemo = evalTree({
+  "Lib.csproj": "<Project></Project>\n",
+  "Lib.Demo.csproj": "<Project></Project>\n",
+});
+assert.equal(libOverDemo["setup-script"].pass, true, libOverDemo["setup-script"].message);
+assert.match(libOverDemo["setup-script"].message, /Lib\.csproj/);
+assert.equal(/Demo/.test(libOverDemo["setup-script"].message), false, libOverDemo["setup-script"].message);
+const libOverTestsAndFuzz = evalTree({
+  "Lib.csproj": "<Project></Project>\n",
+  "Lib.Tests.csproj": "<Project></Project>\n",
+  "FuzzTests.csproj": "<Project></Project>\n",
+});
+assert.equal(libOverTestsAndFuzz["setup-script"].pass, true, libOverTestsAndFuzz["setup-script"].message);
+assert.match(libOverTestsAndFuzz["setup-script"].message, /Lib\.csproj/);
+assert.equal(
+  /Tests\.csproj/.test(libOverTestsAndFuzz["setup-script"].message),
+  false,
+  libOverTestsAndFuzz["setup-script"].message,
+);
+assert.equal(
+  /FuzzTests/.test(libOverTestsAndFuzz["setup-script"].message),
+  false,
+  libOverTestsAndFuzz["setup-script"].message,
+);
+assert.equal(libOverTestsAndFuzz["test-script"].pass, true, libOverTestsAndFuzz["test-script"].message);
+assert.match(libOverTestsAndFuzz["test-script"].message, /Lib\.Tests\.csproj/);
+assert.equal(/FuzzTests/.test(libOverTestsAndFuzz["test-script"].message), false);
+assert.equal(libOverTestsAndFuzz["test-framework"].pass, true, libOverTestsAndFuzz["test-framework"].message);
+assert.match(libOverTestsAndFuzz["test-framework"].message, /Lib\.Tests\.csproj/);
+assert.equal(/FuzzTests/.test(libOverTestsAndFuzz["test-framework"].message), false);
+const mixCmakeRanks = evalTree({
+  "mix.exs": "defmodule Plug.MixProject do\nend\n",
+  "CMakeLists.txt": "project(demo)\n",
+  "support/build.gradle": "apply plugin: \"com.android.library\"\n",
+});
+assert.equal(mixCmakeRanks["setup-script"].pass, true, mixCmakeRanks["setup-script"].message);
+assert.match(mixCmakeRanks["setup-script"].message, /CMakeLists\.txt/);
+assert.equal(/support\//.test(mixCmakeRanks["setup-script"].message), false, mixCmakeRanks["setup-script"].message);
+assert.equal(/mix\.exs/.test(mixCmakeRanks["setup-script"].message), false, mixCmakeRanks["setup-script"].message);
+assertPass("setup-script", { "mix.exs": "defmodule Plug.MixProject do\nend\n" }, /mix\.exs/);
 assertPass("test-script", { "Foo.Tests.sln": "Microsoft Visual Studio Solution\n" }, /Foo\.Tests\.sln/);
 assertPass("test-script", { Makefile: "test:\n\t@echo ok\n" }, /Makefile/);
 assertPass("test-script", { "scripts/test.sh": "pytest\n" }, /scripts\/test\.sh/);
@@ -5215,6 +5283,7 @@ assert.match(rootReadme, /shallowest leftover/);
 assert.match(rootReadme, /`setup-script` first-hit prefers/);
 assert.match(rootReadme, /support-only tree still passes/);
 assert.match(rootReadme, /`setup-script` first-hit among/);
+assert.match(rootReadme, /Console-only/);
 assert.match(rootReadme, /Fuzz-only or Tests-only tree still passes/);
 assert.match(rootReadme, /`test-script` first-hit among/);
 assert.match(rootReadme, /Fuzz-only tree still passes/);
@@ -5279,6 +5348,7 @@ assert.match(skillMd, /shallowest leftover/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
 assert.match(skillMd, /support-only tree still passes/);
 assert.match(skillMd, /`setup-script` first-hit among/);
+assert.match(skillMd, /Console-only/);
 assert.match(skillMd, /Fuzz-only or Tests-only tree still passes/);
 assert.match(skillMd, /`test-script` first-hit among/);
 assert.match(skillMd, /Fuzz-only tree still passes/);
@@ -5460,6 +5530,7 @@ assert.match(checksReadme, /`setup-script` first-hit is the shallowest product-t
 assert.match(checksReadme, /support\/build\.gradle/);
 assert.match(checksReadme, /support-only tree still passes/);
 assert.match(checksReadme, /`setup-script` first-hit among/);
+assert.match(checksReadme, /Console-only/);
 assert.match(checksReadme, /Fuzz-only or Tests-only tree still passes/);
 assert.match(checksReadme, /`test-script` first-hit among/);
 assert.match(checksReadme, /Fuzz-only tree still passes/);
