@@ -168,8 +168,7 @@ function productStyleHits(files) {
 
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
-  if (criterion.id === "linter") return shallowestHit(productStyleHits(fileHits));
-  if (criterion.id === "formatter") return productStyleHits(fileHits)[0];
+  if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   return fileHits[0];
 }
 
