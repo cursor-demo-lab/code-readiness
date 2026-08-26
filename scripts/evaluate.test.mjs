@@ -2241,6 +2241,63 @@ assert.match(
 );
 assert.match(canvasTemplate, /root `environment\.json` is not a hit/);
 
+const canvasTopLevelBindings = [
+  ...canvasTemplate.matchAll(
+    /^(?:export\s+(?:default\s+)?)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm,
+  ),
+].map((match) => match[1]);
+assert.ok(canvasTopLevelBindings.length > 10);
+const canvasDuplicateBindings = [
+  ...new Set(
+    canvasTopLevelBindings.filter(
+      (name, index) => canvasTopLevelBindings.indexOf(name) !== index,
+    ),
+  ),
+];
+assert.deepEqual(
+  canvasDuplicateBindings,
+  [],
+  `canvas template redeclares top-level binding(s): ${canvasDuplicateBindings.join(", ")}. A duplicate const is a module-load SyntaxError, so the canvas never renders.`,
+);
+assert.equal(
+  (canvasTemplate.match(/^const WHY_FOR_AGENTS: Record<string, string> = \{/gm) ?? [])
+    .length,
+  1,
+  "WHY_FOR_AGENTS must be declared exactly once",
+);
+const whyForAgentsBlock = canvasTemplate.slice(
+  canvasTemplate.indexOf("const WHY_FOR_AGENTS: Record<string, string> = {"),
+  canvasTemplate.indexOf("const WHY_FOR_AGENTS_FALLBACK"),
+);
+for (const key of [
+  "editorconfig:",
+  "linter:",
+  '"test-files-exist":',
+  '"branch-protection":',
+  "license:",
+]) {
+  assert.ok(
+    whyForAgentsBlock.includes(key),
+    `surviving WHY_FOR_AGENTS map lost ${key}`,
+  );
+}
+
+const exampleCanvasFiles = fs
+  .readdirSync(path.join(skillRoot(), "examples"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) =>
+    path.join(skillRoot(), "examples", entry.name, "code-readiness.canvas.tsx"),
+  )
+  .filter((file) => fs.existsSync(file));
+assert.ok(exampleCanvasFiles.length >= 20);
+for (const file of exampleCanvasFiles) {
+  assert.equal(
+    fs.readFileSync(file, "utf8"),
+    canvasTemplate,
+    `${file} drifted from canvas/code-readiness.canvas.tsx`,
+  );
+}
+
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
 assert.match(skillMd, /one repository/);

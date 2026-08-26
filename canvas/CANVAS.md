@@ -22,6 +22,8 @@ The canvas reads the sidecar with `useCanvasState("report", null)`. Filter UI us
 
 `scripts/emit-canvas.mjs` copies bytes. The write-file tool is still required for diagnostics and the save-result URL.
 
+The template is one module, so every top-level `const` / `function` / `class` name appears exactly once. A redeclared binding is a module-load `SyntaxError`, not a type warning: the panel renders nothing and the sidecar, the band, and the score never reach the user. Keep one `WHY_FOR_AGENTS` map and one `OPEN_BY_ID` map. `scripts/evaluate.test.mjs` fails on any duplicate top-level binding in the template and on any `examples/*/code-readiness.canvas.tsx` that no longer matches the template bytes, because `emit-canvas.mjs` copies bytes and a broken template is a broken canvas on every repo.
+
 ## Managed paths
 
 Local IDE, 3.1.15 or newer. Write exactly here, no extra folders, no other extensions:
