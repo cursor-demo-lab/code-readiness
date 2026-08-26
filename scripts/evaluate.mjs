@@ -134,6 +134,7 @@ const STYLE_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata", "assets"];
 const STYLE_FIRST_HIT_DOCS_SEGMENTS = ["docs", "doc"];
 const STYLE_FIRST_HIT_SAMPLE_SEGMENTS = ["sample", "samples", "example", "examples"];
 const CONTAINER_FIRST_HIT_DEFER_SEGMENTS = ["tests", "test", "integration", "integration_test"];
+const SETUP_FIRST_HIT_DEFER_SEGMENTS = ["support", "android", "examples"];
 const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
@@ -177,10 +178,20 @@ function productContainerHits(files) {
   return productHits.length > 0 ? productHits : files;
 }
 
+function isDeferredSetupConfig(file) {
+  return pathHasSegments(file, SETUP_FIRST_HIT_DEFER_SEGMENTS);
+}
+
+function productSetupHits(files) {
+  const productHits = files.filter((file) => !isDeferredSetupConfig(file));
+  return productHits.length > 0 ? productHits : files;
+}
+
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
+  if (criterion.id === "setup-script") return shallowestHit(productSetupHits(fileHits));
   return fileHits[0];
 }
 
@@ -485,6 +496,7 @@ function evalCriterion(criterion, ctx) {
   const pathIgnore = pathIgnoreFor(criterion);
   const styleFirstHit = isStyleFirstHitId(criterion.id);
   const containerFirstHit = criterion.id === "containerization";
+  const setupFirstHit = criterion.id === "setup-script";
   const fileHits = evalAnyFiles(
     ctx.repoRoot,
     ctx.files,
@@ -503,7 +515,9 @@ function evalCriterion(criterion, ctx) {
     ? usableHits.filter((file) => !isDeferredStyleConfig(file))
     : containerFirstHit
       ? usableHits.filter((file) => !isDeferredContainerConfig(file))
-      : usableHits;
+      : setupFirstHit
+        ? usableHits.filter((file) => !isDeferredSetupConfig(file))
+        : usableHits;
   if (productFileHits.length > 0) {
     return hit(`Found ${firstFileHit(criterion, productFileHits)}`);
   }

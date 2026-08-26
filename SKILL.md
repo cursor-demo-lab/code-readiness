@@ -64,6 +64,8 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `containerization` first-hit prefers `.devcontainer` / `.cursor/environment.json` / a root Dockerfile or compose file. Nested `integration/docker-compose.yml` is not the boot env when a product boot file exists; an integration-only tree still passes.
 
+`setup-script` first-hit prefers the shallowest product-tree file (root `CMakeLists.txt` / `Makefile` / package.json). Nested `support/build.gradle` is not first-hit when a product setup file exists; a support-only tree still passes.
+
 Forbidden UI copy: "9 pillars".
 
 Required attribution: local filesystem heuristics from checks/catalog.json; not `/doctor`.
