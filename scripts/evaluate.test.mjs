@@ -318,6 +318,7 @@ assert.ok(testFramework.anyGlobs.includes("**/*Tests.cs"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
+assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node -- --test")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node:test")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pom.xml" && rule.includes.includes("junit")));
 assert.ok(
@@ -1581,6 +1582,19 @@ const nodeTestById = resultById(evaluateRepo(nodeTestRoot));
 assert.equal(nodeTestById["test-framework"].pass, true, nodeTestById["test-framework"].message);
 assert.match(nodeTestById["test-framework"].message, /node --test/);
 
+const nodeDashDashTestRoot = tmp("code-readiness-nodedashtest-");
+fs.writeFileSync(
+  path.join(nodeDashDashTestRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node -- --test" } }),
+);
+const nodeDashDashTestById = resultById(evaluateRepo(nodeDashDashTestRoot));
+assert.equal(
+  nodeDashDashTestById["test-framework"].pass,
+  true,
+  nodeDashDashTestById["test-framework"].message,
+);
+assert.match(nodeDashDashTestById["test-framework"].message, /node -- --test/);
+
 const commanderTestRoot = tmp("code-readiness-commander-test-");
 fs.writeFileSync(
   path.join(commanderTestRoot, "package.json"),
@@ -1606,6 +1620,60 @@ assert.equal(noFrameworkById["test-framework"].pass, false, noFrameworkById["tes
 assert.match(noFrameworkById["test-framework"].message, /No test framework configuration found/);
 assert.equal(noFrameworkById["test-files-exist"].pass, true, noFrameworkById["test-files-exist"].message);
 assert.equal(noFrameworkById["test-script"].pass, true, noFrameworkById["test-script"].message);
+
+const nodeBuildOnlyRoot = tmp("code-readiness-nodebuild-");
+fs.writeFileSync(
+  path.join(nodeBuildOnlyRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node build" } }),
+);
+const nodeBuildOnlyById = resultById(evaluateRepo(nodeBuildOnlyRoot));
+assert.equal(nodeBuildOnlyById["test-framework"].pass, false, nodeBuildOnlyById["test-framework"].message);
+assert.match(nodeBuildOnlyById["test-framework"].message, /No test framework configuration found/);
+
+const nodeDashDashGlobRoot = tmp("code-readiness-nodedash-glob-");
+fs.writeFileSync(
+  path.join(nodeDashDashGlobRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node -- --test 'src/**/*.test.js'" } }),
+);
+const nodeDashDashGlobById = resultById(evaluateRepo(nodeDashDashGlobRoot));
+assert.equal(
+  nodeDashDashGlobById["test-framework"].pass,
+  true,
+  nodeDashDashGlobById["test-framework"].message,
+);
+assert.match(nodeDashDashGlobById["test-framework"].message, /node -- --test/);
+
+const nodeExtraDashRoot = tmp("code-readiness-nodeextradash-");
+fs.writeFileSync(
+  path.join(nodeExtraDashRoot, "package.json"),
+  JSON.stringify({ scripts: { test: "node -- -- --test" } }),
+);
+const nodeExtraDashById = resultById(evaluateRepo(nodeExtraDashRoot));
+assert.equal(nodeExtraDashById["test-framework"].pass, true, nodeExtraDashById["test-framework"].message);
+assert.match(nodeExtraDashById["test-framework"].message, /node -- --test/);
+
+const nodeDashDashOverExtRoot = tmp("code-readiness-nodedash-ext-");
+fs.writeFileSync(
+  path.join(nodeDashDashOverExtRoot, "package.json"),
+  JSON.stringify({ name: "Lib", scripts: { test: "node -- --test" } }),
+);
+fs.mkdirSync(path.join(nodeDashDashOverExtRoot, "packages", "ext"), { recursive: true });
+fs.writeFileSync(
+  path.join(nodeDashDashOverExtRoot, "packages", "ext", "package.json"),
+  JSON.stringify({ name: "Foo", scripts: { test: "node --test" } }),
+);
+const nodeDashDashOverExtById = resultById(evaluateRepo(nodeDashDashOverExtRoot));
+assert.equal(
+  nodeDashDashOverExtById["test-framework"].pass,
+  true,
+  nodeDashDashOverExtById["test-framework"].message,
+);
+assert.match(nodeDashDashOverExtById["test-framework"].message, /^package\.json contains node -- --test/);
+assert.equal(
+  /packages\/ext/.test(nodeDashDashOverExtById["test-framework"].message),
+  false,
+  nodeDashDashOverExtById["test-framework"].message,
+);
 
 const jestDepRoot = tmp("code-readiness-jest-dep-");
 fs.writeFileSync(
@@ -5788,6 +5856,7 @@ assert.match(rootReadme, /Python-primary/);
 assert.match(rootReadme, /A Python tree with only jest/);
 assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
+assert.match(rootReadme, /`node -- --test`/);
 assert.match(rootReadme, /`linter` first-hit prefers/);
 assert.match(rootReadme, /A golangci-only tree still passes/);
 assert.match(rootReadme, /`formatter` first-hit prefers/);
@@ -5863,6 +5932,7 @@ assert.match(skillMd, /Python-primary/);
 assert.match(skillMd, /A Python tree with only jest/);
 assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
+assert.match(skillMd, /`node -- --test`/);
 assert.match(skillMd, /`linter` first-hit prefers/);
 assert.match(skillMd, /A golangci-only tree still passes/);
 assert.match(skillMd, /`formatter` first-hit prefers/);
@@ -6062,6 +6132,9 @@ assert.match(checksReadme, /Python-primary/);
 assert.match(checksReadme, /A Python tree with only jest/);
 assert.match(checksReadme, /`test-framework` also passes on `\*Tests\.csproj` \/ `\*Test\.csproj`/);
 assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
+assert.match(checksReadme, /unquoted `node --test`/);
+assert.match(checksReadme, /`node -- --test`/);
+assert.match(checksReadme, /packages\/ext\/package\.json/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 const productRepoLiteral =
