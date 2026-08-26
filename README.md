@@ -36,7 +36,7 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 
 `ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` is the preferred first-hit when both `AGENTS.md` and `CLAUDE.md` exist. Do not add LLM scoring.
 
-`issue-templates` looks for `.github/ISSUE_TEMPLATE.md` or `.github/ISSUE_TEMPLATE/` (and the matching pull-request template paths). Agents need the issue/PR contract to open work the repo already accepts.
+`issue-templates` looks for `.github/ISSUE_TEMPLATE.md` or `.github/ISSUE_TEMPLATE/` (and the matching pull-request template paths). First-hit prefers a form (`bug_report.md` / `Bug_report.yml` / `formatting.md`) over `config.yml` / `config.yaml` when both exist; a config.yml-only tree still passes. Agents need the issue/PR contract to open work the repo already accepts.
 
 `containerization` first-hit prefers `.devcontainer` / `.cursor/environment.json` / a root Dockerfile or compose file. Nested `integration/docker-compose.yml` is not the boot env when a product boot file exists; an integration-only tree still passes.
 
