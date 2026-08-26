@@ -1615,6 +1615,28 @@ assertPass(
 );
 assertPass(
   "version-pinned",
+  { "crates/foo-demo/Cargo.toml": '[package]\nname = "foo-demo"\nrust-version = "1.71"\n' },
+  /rust-version/,
+);
+assertPass(
+  "version-pinned",
+  { "packages/my-sample-lib/pyproject.toml": '[project]\nrequires-python = ">=3.10"\n' },
+  /requires-python/,
+);
+assertPass(
+  "version-pinned",
+  {
+    "src/jupiter-starter/pom.xml":
+      "<project><maven.compiler.release>17</maven.compiler.release></project>\n",
+  },
+  /maven\.compiler\.release/,
+);
+assertFail(
+  "version-pinned",
+  { "examples/foo/pyproject.toml": '[project]\nrequires-python = ">=3.10"\n' },
+);
+assertPass(
+  "version-pinned",
   {
     "projects/lib/pom.xml":
       "<project><maven.compiler.release>17</maven.compiler.release></project>\n",

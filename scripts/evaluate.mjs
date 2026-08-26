@@ -98,8 +98,7 @@ function pathHasSegments(file, segments) {
 function pathHasIgnoredVersionPin(file) {
   return file.split("/").some((part) => {
     if (VERSION_PIN_IGNORE_SEGMENTS.includes(part)) return true;
-    if (part.endsWith("-tests") || part.endsWith("_tests")) return true;
-    return part.split(/[-_]/).some((token) => VERSION_PIN_IGNORE_SEGMENTS.includes(token));
+    return part.endsWith("-tests") || part.endsWith("_tests");
   });
 }
 
