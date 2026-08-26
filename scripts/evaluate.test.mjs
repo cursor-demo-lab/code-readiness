@@ -1899,7 +1899,7 @@ assert.match(checksReadme, /\*\.gradle\.kts/);
 assert.match(checksReadme, /empty asdf\/nvm files do not count/);
 assert.match(checksReadme, /Empty formatter configs do not count/);
 assert.match(checksReadme, /deps.*vendor.*third_party.*third-party/);
-assert.match(checksReadme, /examples\/\.prettierrc still can/);
+assert.match(checksReadme, /examples\/\.prettierrc` still can/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
