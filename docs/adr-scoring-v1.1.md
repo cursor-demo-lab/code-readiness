@@ -54,6 +54,8 @@ Hill-climb after PR #59: fmtlib/fmt PASSes `setup-script` on `support/build.grad
 
 Hill-climb after PR #60: JamesNK/Newtonsoft.Json PASSes `test-script` on `Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj` because walk order and same-depth lex sort hit FuzzTests before `Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj`. Both match `**/*Tests.csproj`. First-hit among those `*Tests.csproj` / `*Test.csproj` / `*Tests.sln` hits now defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another Tests project exists. A Fuzz-only tree still PASSES. Message-only. Do not restore product `*.csproj` on `test-script`. Stay L1 because `linter` FAILs. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `issue-templates` stays L3, `codeowners` stays Security.
 
+Hill-climb after PR #61: prettier/prettier PASSes `issue-templates` on `.github/ISSUE_TEMPLATE/config.yml` even though `formatting.md` / `integration.md` exist. `config.yml` is the GitHub issue chooser sidecar, not a template an agent would fill. First-hit now prefers a form (`bug_report.md` / `Bug_report.yml` / `formatting.md`) over `config.yml` / `config.yaml` when both exist; the shallowest form wins. A config.yml-only tree still PASSES and names that file. Message-only. Empty `.github/ISSUE_TEMPLATE/` is still not a hit (`skipDirectoryHits`). Do not fail `docs/ISSUE_TEMPLATE.md` or root `ISSUE_TEMPLATE.md`. Stay L3. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `codeowners` stays Security, `test-script` still defers FuzzTests, `setup-script` still prefers product-tree first-hit.
+
 ## Explicitly refused
 
 - New criterion ids

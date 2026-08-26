@@ -210,12 +210,23 @@ function productTestScriptHits(files) {
   return productStyleHits(withoutFuzzBench);
 }
 
+function isIssueTemplateChooserConfig(file) {
+  const name = posixBasename(file);
+  return name === "config.yml" || name === "config.yaml";
+}
+
+function productIssueTemplateHits(files) {
+  const forms = files.filter((file) => !isIssueTemplateChooserConfig(file));
+  return forms.length > 0 ? forms : files;
+}
+
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
   if (criterion.id === "setup-script") return shallowestHit(productSetupHits(fileHits));
+  if (criterion.id === "issue-templates") return shallowestHit(productIssueTemplateHits(fileHits));
   return fileHits[0];
 }
 

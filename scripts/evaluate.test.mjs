@@ -2393,6 +2393,59 @@ assertPass(
   { ".github/PULL_REQUEST_TEMPLATE/pr.md": "## Summary\n" },
   /\.github\/PULL_REQUEST_TEMPLATE\/pr\.md/,
 );
+const prettierLikeIssueTemplates = evalTree({
+  ".github/ISSUE_TEMPLATE/config.yml": "blank_issues_enabled: false\n",
+  ".github/ISSUE_TEMPLATE/formatting.md": "## Formatting\n",
+  ".github/ISSUE_TEMPLATE/integration.md": "## Integration\n",
+});
+assert.equal(
+  prettierLikeIssueTemplates["issue-templates"].pass,
+  true,
+  prettierLikeIssueTemplates["issue-templates"].message,
+);
+assert.match(prettierLikeIssueTemplates["issue-templates"].message, /formatting\.md/);
+assert.equal(
+  /config\.ya?ml/.test(prettierLikeIssueTemplates["issue-templates"].message),
+  false,
+  prettierLikeIssueTemplates["issue-templates"].message,
+);
+const bugReportAndConfig = evalTree({
+  ".github/ISSUE_TEMPLATE/Bug_report.yml": "name: Bug\n",
+  ".github/ISSUE_TEMPLATE/config.yml": "blank_issues_enabled: false\n",
+});
+assert.equal(bugReportAndConfig["issue-templates"].pass, true, bugReportAndConfig["issue-templates"].message);
+assert.match(bugReportAndConfig["issue-templates"].message, /Bug_report\.yml/);
+assert.equal(
+  /config\.ya?ml/.test(bugReportAndConfig["issue-templates"].message),
+  false,
+  bugReportAndConfig["issue-templates"].message,
+);
+const nestedFormAndConfig = evalTree({
+  ".github/ISSUE_TEMPLATE/config.yml": "blank_issues_enabled: false\n",
+  ".github/ISSUE_TEMPLATE/nested/deep.md": "## Deep\n",
+  ".github/ISSUE_TEMPLATE/formatting.md": "## Formatting\n",
+});
+assert.equal(nestedFormAndConfig["issue-templates"].pass, true, nestedFormAndConfig["issue-templates"].message);
+assert.match(nestedFormAndConfig["issue-templates"].message, /formatting\.md/);
+assert.equal(/nested\//.test(nestedFormAndConfig["issue-templates"].message), false);
+assertPass(
+  "issue-templates",
+  { ".github/ISSUE_TEMPLATE/config.yml": "blank_issues_enabled: false\n" },
+  /\.github\/ISSUE_TEMPLATE\/config\.yml/,
+);
+assertPass(
+  "issue-templates",
+  { ".github/ISSUE_TEMPLATE/config.yaml": "blank_issues_enabled: false\n" },
+  /\.github\/ISSUE_TEMPLATE\/config\.yaml/,
+);
+const emptyIssueDir = tmp("code-readiness-empty-issue-");
+fs.mkdirSync(path.join(emptyIssueDir, ".github", "ISSUE_TEMPLATE"), { recursive: true });
+const emptyIssueTemplates = resultById(evaluateRepo(emptyIssueDir));
+assert.equal(
+  emptyIssueTemplates["issue-templates"].pass,
+  false,
+  emptyIssueTemplates["issue-templates"].message,
+);
 assertFail("issue-templates", {});
 assertFail("issue-templates", { "docs/ISSUE_TEMPLATE.md": "## Bug\n" });
 assertFail("issue-templates", { "ISSUE_TEMPLATE.md": "## Bug\n" });
@@ -3474,6 +3527,8 @@ for (const file of exampleCanvasFiles) {
 
 const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
 assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.match(rootReadme, /First-hit prefers a form/);
+assert.match(rootReadme, /config\.yml-only tree still passes/);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
@@ -3501,6 +3556,8 @@ assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.match(skillMd, /criterion \+ file/);
 assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 fail/);
 assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
+assert.match(skillMd, /First-hit prefers a form/);
+assert.match(skillMd, /config\.yml-only tree still passes/);
 assert.match(skillMd, /`containerization` first-hit prefers/);
 assert.match(skillMd, /integration-only tree still passes/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
@@ -3535,6 +3592,9 @@ assert.equal(/Style & Linting/.test(canvasTemplate), false);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.equal((checksReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.match(checksReadme, /First-hit prefers a form/);
+assert.match(checksReadme, /config\.yml-only tree still passes/);
+assert.match(checksReadme, /empty `\.github\/ISSUE_TEMPLATE\/` directory is not a hit/);
 assert.match(checksReadme, /Style & Validation \(`style-linting`\)/);
 assert.equal(/Style & Linting/.test(checksReadme), false);
 assert.match(checksReadme, /would be L2 except/);
