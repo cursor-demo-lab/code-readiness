@@ -239,10 +239,31 @@ function productTestFrameworkHits(files) {
   return productStyleHits(withoutSidecars);
 }
 
+const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
+
+function isTypeCheckerConfigHit(file) {
+  const name = posixBasename(file);
+  return name === "tsconfig.json" || name === "jsconfig.json";
+}
+
+function isDeferredTypeCheckerConfig(file) {
+  return pathHasSegments(file, TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS);
+}
+
+function productTypeCheckerHits(files) {
+  const preferred = files.filter((file) => !isDeferredTypeCheckerConfig(file));
+  return preferred.length > 0 ? preferred : files;
+}
+
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
   if (criterion.id === "test-framework") return shallowestHit(productTestFrameworkHits(fileHits));
+  if (criterion.id === "type-checker") {
+    const configs = fileHits.filter(isTypeCheckerConfigHit);
+    if (configs.length > 0) return shallowestHit(productTypeCheckerHits(configs));
+    return fileHits[0];
+  }
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
   if (criterion.id === "setup-script") return shallowestHit(productSetupHits(fileHits));
