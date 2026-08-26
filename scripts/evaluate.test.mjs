@@ -2319,6 +2319,55 @@ assert.equal(benchAndTests["test-script"].pass, true, benchAndTests["test-script
 assert.match(benchAndTests["test-script"].message, /Foo\.Tests\.csproj/);
 assert.equal(/Benchmark/.test(benchAndTests["test-script"].message), false);
 assertPass("setup-script", { "Foo.csproj": "<Project></Project>\n" }, /Foo\.csproj/);
+const newtonsoftLikeSetup = evalTree({
+  "Src/Newtonsoft.Json/Newtonsoft.Json.csproj": "<Project></Project>\n",
+  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
+});
+assert.equal(newtonsoftLikeSetup["setup-script"].pass, true, newtonsoftLikeSetup["setup-script"].message);
+assert.match(newtonsoftLikeSetup["setup-script"].message, /Newtonsoft\.Json\.csproj/);
+assert.equal(
+  /FuzzTests/.test(newtonsoftLikeSetup["setup-script"].message),
+  false,
+  newtonsoftLikeSetup["setup-script"].message,
+);
+assert.equal(
+  /Tests\.csproj/.test(newtonsoftLikeSetup["setup-script"].message),
+  false,
+  newtonsoftLikeSetup["setup-script"].message,
+);
+assert.equal(newtonsoftLikeSetup["test-script"].pass, true, newtonsoftLikeSetup["test-script"].message);
+assert.match(newtonsoftLikeSetup["test-script"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(
+  /FuzzTests/.test(newtonsoftLikeSetup["test-script"].message),
+  false,
+  newtonsoftLikeSetup["test-script"].message,
+);
+assert.equal(newtonsoftLikeSetup.linter.pass, false, newtonsoftLikeSetup.linter.message);
+assertPass(
+  "setup-script",
+  { "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n" },
+  /Newtonsoft\.Json\.FuzzTests\.csproj/,
+);
+assertPass(
+  "setup-script",
+  { "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n" },
+  /Newtonsoft\.Json\.Tests\.csproj/,
+);
+const testsAndFuzzSetup = evalTree({
+  "Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj": "<Project></Project>\n",
+  "Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj": "<Project></Project>\n",
+});
+assert.equal(testsAndFuzzSetup["setup-script"].pass, true, testsAndFuzzSetup["setup-script"].message);
+assert.match(testsAndFuzzSetup["setup-script"].message, /Newtonsoft\.Json\.Tests\.csproj/);
+assert.equal(/FuzzTests/.test(testsAndFuzzSetup["setup-script"].message), false);
+const benchAndProductSetup = evalTree({
+  "Src/Foo/Foo.csproj": "<Project></Project>\n",
+  "Src/Foo.BenchmarkTests/Foo.BenchmarkTests.csproj": "<Project></Project>\n",
+});
+assert.equal(benchAndProductSetup["setup-script"].pass, true, benchAndProductSetup["setup-script"].message);
+assert.match(benchAndProductSetup["setup-script"].message, /Foo\.csproj/);
+assert.equal(/Benchmark/.test(benchAndProductSetup["setup-script"].message), false);
 assertPass("test-script", { "Foo.Tests.sln": "Microsoft Visual Studio Solution\n" }, /Foo\.Tests\.sln/);
 assertPass("test-script", { Makefile: "test:\n\t@echo ok\n" }, /Makefile/);
 assertPass("test-script", { "scripts/test.sh": "pytest\n" }, /scripts\/test\.sh/);
@@ -3820,6 +3869,8 @@ assert.match(rootReadme, /sample-only tree still passes/);
 assert.match(rootReadme, /shallowest leftover/);
 assert.match(rootReadme, /`setup-script` first-hit prefers/);
 assert.match(rootReadme, /support-only tree still passes/);
+assert.match(rootReadme, /`setup-script` first-hit among/);
+assert.match(rootReadme, /Fuzz-only or Tests-only tree still passes/);
 assert.match(rootReadme, /`test-script` first-hit among/);
 assert.match(rootReadme, /Fuzz-only tree still passes/);
 assert.match(rootReadme, /`test-framework` first-hit among/);
@@ -3856,6 +3907,8 @@ assert.match(skillMd, /sample-only tree still passes/);
 assert.match(skillMd, /shallowest leftover/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
 assert.match(skillMd, /support-only tree still passes/);
+assert.match(skillMd, /`setup-script` first-hit among/);
+assert.match(skillMd, /Fuzz-only or Tests-only tree still passes/);
 assert.match(skillMd, /`test-script` first-hit among/);
 assert.match(skillMd, /Fuzz-only tree still passes/);
 assert.match(skillMd, /`test-framework` first-hit among/);
@@ -3991,6 +4044,8 @@ assert.match(checksReadme, /A `build\.gradle` \/ `build\.gradle\.kts` or product
 assert.match(checksReadme, /`setup-script` first-hit is the shallowest product-tree/);
 assert.match(checksReadme, /support\/build\.gradle/);
 assert.match(checksReadme, /support-only tree still passes/);
+assert.match(checksReadme, /`setup-script` first-hit among/);
+assert.match(checksReadme, /Fuzz-only or Tests-only tree still passes/);
 assert.match(checksReadme, /`test-script` first-hit among/);
 assert.match(checksReadme, /Fuzz-only tree still passes/);
 assert.match(checksReadme, /`test-framework` first-hit among `vitest\.config\.\*` \/ `jest\.config\.\*`/);
