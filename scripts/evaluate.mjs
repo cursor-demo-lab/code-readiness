@@ -188,9 +188,32 @@ function isDeferredSetupConfig(file) {
   return pathHasSegments(file, SETUP_FIRST_HIT_DEFER_SEGMENTS);
 }
 
+function isSetupDotnetProjectHit(file) {
+  const name = posixBasename(file);
+  return globMatch(name, "*.csproj") || globMatch(name, "*.sln");
+}
+
+function setupDotnetProjectRank(file) {
+  if (isDeferredTestScriptProject(file)) return 2;
+  if (isTestScriptProjectHit(file)) return 1;
+  return 0;
+}
+
+function preferProductSetupProjects(files) {
+  const projectHits = files.filter(isSetupDotnetProjectHit);
+  if (projectHits.length === 0) return files;
+  let best = Infinity;
+  for (const file of projectHits) {
+    const rank = setupDotnetProjectRank(file);
+    if (rank < best) best = rank;
+  }
+  return files.filter((file) => !isSetupDotnetProjectHit(file) || setupDotnetProjectRank(file) === best);
+}
+
 function productSetupHits(files) {
   const productHits = files.filter((file) => !isDeferredSetupConfig(file));
-  return productHits.length > 0 ? productHits : files;
+  const ranked = productHits.length > 0 ? productHits : files;
+  return preferProductSetupProjects(ranked);
 }
 
 function isTestScriptProjectHit(file) {

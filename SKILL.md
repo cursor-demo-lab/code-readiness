@@ -66,6 +66,8 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `setup-script` first-hit prefers the shallowest product-tree file (root `CMakeLists.txt` / `Makefile` / package.json). Nested `support/build.gradle` is not first-hit when a product setup file exists; a support-only tree still passes.
 
+`setup-script` first-hit among `*.csproj` / `*.sln` defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another csproj exists, and prefers the product project (`Newtonsoft.Json.csproj`) over `*.Tests.csproj` / `*.FuzzTests.csproj` when both exist. A Fuzz-only or Tests-only tree still passes.
+
 `test-script` first-hit among `*Tests.csproj` / `*Test.csproj` / `*Tests.sln` defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another Tests project exists (`Newtonsoft.Json.Tests.csproj` over `Newtonsoft.Json.FuzzTests.csproj`). A Fuzz-only tree still passes.
 
 `test-framework` first-hit among `vitest.config.*` / `jest.config.*` defers a basename containing `coverage` / `coverage.` / `integration` when another product runner exists (`vitest.config.mts` over `vitest.config.coverage.mts`). A coverage-only or integration-only tree still passes.
