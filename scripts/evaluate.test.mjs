@@ -2509,6 +2509,93 @@ assert.equal(tsGoSidecarFramework["test-framework"].pass, true, tsGoSidecarFrame
 assert.match(tsGoSidecarFramework["test-framework"].message, /package\.json|"jest"/);
 assert.equal(/plugin_test\.go/.test(tsGoSidecarFramework["test-framework"].message), false);
 
+const mixExUnitOverJsTfe = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(mixExUnitOverJsTfe["test-files-exist"].pass, true, mixExUnitOverJsTfe["test-files-exist"].message);
+assert.equal(mixExUnitOverJsTfe["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(mixExUnitOverJsTfe["test-files-exist"].message, /foo_test\.exs/);
+assert.equal(
+  /foo\.test\.js/.test(mixExUnitOverJsTfe["test-files-exist"].message),
+  false,
+  mixExUnitOverJsTfe["test-files-exist"].message,
+);
+assert.match(mixExUnitOverJsTfe["test-files-exist"].details, /^test\/foo_test\.exs\b/);
+assert.match(mixExUnitOverJsTfe["test-files-exist"].details, /foo\.test\.js/);
+
+const mixJsOnlyTfe = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(mixJsOnlyTfe["test-files-exist"].pass, true, mixJsOnlyTfe["test-files-exist"].message);
+assert.match(mixJsOnlyTfe["test-files-exist"].message, /foo\.test\.js/);
+
+const mixExUnitOverSpecTs = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "assets/foo.spec.ts": "test('ok');\n",
+});
+assert.equal(mixExUnitOverSpecTs["test-files-exist"].pass, true, mixExUnitOverSpecTs["test-files-exist"].message);
+assert.match(mixExUnitOverSpecTs["test-files-exist"].message, /foo_test\.exs/);
+assert.equal(
+  /foo\.spec\.ts/.test(mixExUnitOverSpecTs["test-files-exist"].message),
+  false,
+  mixExUnitOverSpecTs["test-files-exist"].message,
+);
+
+const mixExUnitOverSameDirJs = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "test/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  mixExUnitOverSameDirJs["test-files-exist"].pass,
+  true,
+  mixExUnitOverSameDirJs["test-files-exist"].message,
+);
+assert.match(mixExUnitOverSameDirJs["test-files-exist"].message, /foo_test\.exs/);
+assert.equal(
+  /foo\.test\.js/.test(mixExUnitOverSameDirJs["test-files-exist"].message),
+  false,
+  mixExUnitOverSameDirJs["test-files-exist"].message,
+);
+
+const packageJsonTsOverGoTfe = evalTree({
+  "package.json": { name: "demo" },
+  "foo.test.ts": "test('ok');\n",
+  "plugin_test.go": "package plugin\n",
+});
+assert.equal(
+  packageJsonTsOverGoTfe["test-files-exist"].pass,
+  true,
+  packageJsonTsOverGoTfe["test-files-exist"].message,
+);
+assert.match(packageJsonTsOverGoTfe["test-files-exist"].message, /foo\.test\.ts/);
+assert.equal(
+  /plugin_test\.go/.test(packageJsonTsOverGoTfe["test-files-exist"].message),
+  false,
+  packageJsonTsOverGoTfe["test-files-exist"].message,
+);
+
+const mixExUnitOverJestTfe = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  mixExUnitOverJestTfe["test-framework"].pass,
+  true,
+  mixExUnitOverJestTfe["test-framework"].message,
+);
+assert.match(mixExUnitOverJestTfe["test-framework"].message, /foo_test\.exs/);
+assert.equal(
+  /jest\.config/.test(mixExUnitOverJestTfe["test-framework"].message),
+  false,
+  mixExUnitOverJestTfe["test-framework"].message,
+);
+
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
 assertPass("test-script", { Justfile: "test:\n    pytest\n" }, /Justfile/);
 assertPass(
@@ -4133,6 +4220,7 @@ assert.match(rootReadme, /`linter` first-hit prefers/);
 assert.match(rootReadme, /A golangci-only tree still passes/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
+assert.match(rootReadme, /A Mix tree with only JS tests still passes/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -4180,6 +4268,7 @@ assert.match(skillMd, /`linter` first-hit prefers/);
 assert.match(skillMd, /A golangci-only tree still passes/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
+assert.match(skillMd, /A Mix tree with only JS tests still passes/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -4307,6 +4396,7 @@ assert.match(checksReadme, /A Go-only test tree still passes/);
 assert.match(checksReadme, /sidecar Go tests/);
 assert.match(checksReadme, /`linter` first-hit prefers/);
 assert.match(checksReadme, /A golangci-only tree still passes/);
+assert.match(checksReadme, /A Mix tree with only JS tests still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);

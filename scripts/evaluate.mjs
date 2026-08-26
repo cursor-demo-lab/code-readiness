@@ -401,21 +401,23 @@ function matchesLanguageTestGlob(file) {
   );
 }
 
-function testFileSidecarLanguageRank(file, languages) {
+function testFileSidecarLanguageRank(file, languages, repoFiles) {
+  if (deferJsFrameworkSidecarHits(repoFiles) && isJsTsTestFile(file)) return 1;
   if (!hasJsTsProductLanguage(languages) || !isGoTestFile(file)) return 0;
   return 1;
 }
 
-function testFileFirstHitRank(file, languages) {
-  const sidecar = testFileSidecarLanguageRank(file, languages);
+function testFileFirstHitRank(file, languages, repoFiles) {
+  const sidecar = testFileSidecarLanguageRank(file, languages, repoFiles);
   const deferred = pathHasSegments(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ? 1 : 0;
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
   return sidecar * 4 + deferred * 2 + catchAllOnly;
 }
 
-function rankTestFileHits(files, languages) {
+function rankTestFileHits(files, languages, repoFiles) {
   return [...files].sort((a, b) => {
-    const rank = testFileFirstHitRank(a, languages) - testFileFirstHitRank(b, languages);
+    const rank =
+      testFileFirstHitRank(a, languages, repoFiles) - testFileFirstHitRank(b, languages, repoFiles);
     if (rank !== 0) return rank;
     return comparePathDepth(a, b);
   });
@@ -671,7 +673,7 @@ function evalCriterion(criterion, ctx) {
   }
 
   if (criterion.testFiles) {
-    const found = rankTestFileHits(testFiles(ctx.files), ctx.languages);
+    const found = rankTestFileHits(testFiles(ctx.files), ctx.languages, ctx.files);
     if (found.length > 0) {
       return hit(`Found ${found.length} test file(s): ${found[0]}`, found.slice(0, 8).join(", "));
     }
