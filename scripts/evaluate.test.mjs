@@ -686,6 +686,16 @@ assert.deepEqual(findMatches(["a.txt"], ["*.md"]), []);
 assert.deepEqual(testFiles(["src/test/scala/foo/BarSpec.scala"]), ["src/test/scala/foo/BarSpec.scala"]);
 assert.deepEqual(testFiles(["test/router.test.js"]), ["test/router.test.js"]);
 assert.deepEqual(testFiles(["tests/mesh_test.cxx"]), ["tests/mesh_test.cxx"]);
+assert.deepEqual(testFiles(["tsconfig.spec.json"]), []);
+assert.deepEqual(testFiles(["tsconfig.test.json"]), []);
+assert.deepEqual(testFiles(["jsconfig.spec.json"]), []);
+assert.deepEqual(testFiles(["packages/docs/tsconfig.test.json"]), []);
+assert.deepEqual(
+  testFiles(["tsconfig.spec.json", "src/app.controller.spec.ts"]),
+  ["src/app.controller.spec.ts"],
+);
+assert.deepEqual(testFiles(["foo.test.js"]), ["foo.test.js"]);
+assert.deepEqual(testFiles(["bar.spec.ts"]), ["bar.spec.ts"]);
 assert.deepEqual(ciFiles([".buildkite/pipeline.yml"]), [".buildkite/pipeline.yml"]);
 assert.deepEqual(
   ciFiles([".buildkite/pipeline.yml", ".github/workflows/ci.yml"]),
@@ -1966,6 +1976,33 @@ assert.match(jekyllOverFixtureJs["test-files-exist"].message, /test\/test_site\.
 assert.match(jekyllOverFixtureJs["test-files-exist"].details, /^test\/test_site\.rb\b/);
 assertFail("test-files-exist", { "testdata/test_site.rb": "# jekyll\n" });
 assertFail("test-files-exist", { "lib/test_site.rb": "# jekyll\n" });
+assertFail("test-files-exist", { "tsconfig.spec.json": "{}" });
+assertFail("test-files-exist", { "tsconfig.test.json": "{}" });
+assertFail("test-files-exist", { "packages/docs/tsconfig.test.json": "{}" });
+assertFail("test-files-exist", { "jsconfig.spec.json": "{}" });
+assertPass("test-files-exist", { "foo.test.js": "test('ok');\n" }, /foo\.test\.js/);
+assertPass("test-files-exist", { "bar.spec.ts": "test('ok');\n" }, /bar\.spec\.ts/);
+
+const nestTsconfigFirstHit = evalTree({
+  "tsconfig.spec.json": "{}",
+  "src/app.controller.spec.ts": "test('ok');\n",
+});
+assert.equal(nestTsconfigFirstHit["test-files-exist"].pass, true, nestTsconfigFirstHit["test-files-exist"].message);
+assert.match(nestTsconfigFirstHit["test-files-exist"].message, /Found 1 test file\(s\)/);
+assert.match(nestTsconfigFirstHit["test-files-exist"].message, /src\/app\.controller\.spec\.ts/);
+assert.equal(/tsconfig\.spec\.json/.test(nestTsconfigFirstHit["test-files-exist"].message), false);
+assert.equal(nestTsconfigFirstHit["test-files-exist"].details, "src/app.controller.spec.ts");
+
+const zodTsconfigFirstHit = evalTree({
+  "vitest.config.ts": "export default {};\n",
+  "packages/docs/tsconfig.test.json": "{}",
+  "src/index.test.ts": "test('ok');\n",
+});
+assert.equal(zodTsconfigFirstHit["test-files-exist"].pass, true, zodTsconfigFirstHit["test-files-exist"].message);
+assert.match(zodTsconfigFirstHit["test-files-exist"].message, /src\/index\.test\.ts/);
+assert.equal(/tsconfig\.test\.json/.test(zodTsconfigFirstHit["test-files-exist"].message), false);
+assert.match(zodTsconfigFirstHit["test-files-exist"].details, /^src\/index\.test\.ts\b/);
+assert.equal(zodTsconfigFirstHit["test-files-exist"].message.includes("Found 1 test file(s)"), true);
 assertPass("test-files-exist", { "test/format-test.cc": "TEST(FormatTest, Escape) {}\n" });
 assertPass("test-files-exist", { "absl/strings/str_cat_test.cc": "TEST(StrCat, Basics) {}\n" });
 assertPass("test-files-exist", { "tests/unit-conversions.cc": "TEST_CASE(\"conv\") {}\n" });
@@ -3249,6 +3286,7 @@ assert.match(checksReadme, /An installer-only or examples-only or abi-only tree 
 assert.match(checksReadme, /`test\/test_\*\.rb` \(and `\*\*\/test\/test_\*\.rb`\) counts Jekyll-style prefix tests/);
 assert.match(checksReadme, /still do not add `test\/test_\*\.rb` without the `test\/` segment/);
 assert.match(checksReadme, /Do not add `\*\*\/\*\.cpp`/);
+assert.match(checksReadme, /catch-alls do not count `tsconfig\.spec\.json` \/ `tsconfig\.test\.json`/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
