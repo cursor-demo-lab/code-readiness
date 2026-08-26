@@ -130,18 +130,41 @@ function shallowestHit(files) {
   return [...files].sort(comparePathDepth)[0];
 }
 
-const LINTER_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata"];
+const STYLE_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata", "assets"];
+const STYLE_FIRST_HIT_DOCS_SEGMENTS = ["docs", "doc"];
+const STYLE_FIRST_HIT_SAMPLE_SEGMENTS = ["sample", "samples", "example", "examples"];
 const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 
+function isStyleFirstHitId(id) {
+  return id === "linter" || id === "formatter";
+}
+
+function isDeferredStyleConfig(file) {
+  const parts = file.split("/");
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i];
+    if (STYLE_FIRST_HIT_DEFER_SEGMENTS.includes(part)) return true;
+    if (part === "tests" && parts[i + 1] === "format") return true;
+    if (
+      STYLE_FIRST_HIT_DOCS_SEGMENTS.includes(part) &&
+      parts.slice(i + 1).some((next) => STYLE_FIRST_HIT_SAMPLE_SEGMENTS.includes(next))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function productStyleHits(files) {
+  const productHits = files.filter((file) => !isDeferredStyleConfig(file));
+  return productHits.length > 0 ? productHits : files;
+}
+
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
-  if (criterion.id === "linter") {
-    const productHits = fileHits.filter(
-      (file) => !pathHasSegments(file, LINTER_FIRST_HIT_DEFER_SEGMENTS),
-    );
-    return shallowestHit(productHits.length > 0 ? productHits : fileHits);
-  }
+  if (criterion.id === "linter") return shallowestHit(productStyleHits(fileHits));
+  if (criterion.id === "formatter") return productStyleHits(fileHits)[0];
   return fileHits[0];
 }
 
@@ -193,6 +216,13 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   const hits = [];
   for (const pattern of patterns) {
     if (isGlobPattern(pattern)) {
+      if (!pattern.includes("/")) {
+        for (const file of files) {
+          if (shouldIgnorePath(file, options)) continue;
+          if (globMatch(posixBasename(file), pattern)) hits.push(file);
+        }
+        continue;
+      }
       hits.push(...findMatches(files, [pattern]).filter((file) => !shouldIgnorePath(file, options)));
       continue;
     }
@@ -248,12 +278,16 @@ function evalFileContains(repoRoot, files, rules, options = {}) {
       const content = readText(repoRoot, file) ?? "";
       const needle = (rule.includes ?? []).find((token) => content.includes(token));
       if (!needle) continue;
-      if (!options.preferShallowest) return { file, needle };
+      if (!options.preferShallowest && !options.preferProductStyleHit) return { file, needle };
       hits.push({ file, needle, ruleIndex });
     }
   }
   if (!hits.length) return null;
   hits.sort((a, b) => {
+    if (options.preferProductStyleHit) {
+      const deferred = Number(isDeferredStyleConfig(a.file)) - Number(isDeferredStyleConfig(b.file));
+      if (deferred !== 0) return deferred;
+    }
     const depth = pathSegmentCount(a.file) - pathSegmentCount(b.file);
     if (depth !== 0) return depth;
     if (a.ruleIndex !== b.ruleIndex) return a.ruleIndex - b.ruleIndex;
@@ -430,13 +464,13 @@ function evalCriterion(criterion, ctx) {
     [...(criterion.anyFiles ?? []), ...(criterion.anyGlobs ?? [])],
     { ...pathIgnore, ...caseInsensitiveNamesFor(criterion) },
   );
-  if (fileHits.length > 0) {
-    if (criterion.anyFilesNonEmpty) {
-      const realHit = fileHits.find((file) => fileHasContent(ctx.repoRoot, file));
-      if (realHit) return hit(`Found ${realHit}`);
-    } else {
-      return hit(`Found ${firstFileHit(criterion, fileHits)}`);
-    }
+  const usableHits = criterion.anyFilesNonEmpty
+    ? fileHits.filter((file) => fileHasContent(ctx.repoRoot, file))
+    : fileHits;
+  const styleFirstHit = isStyleFirstHitId(criterion.id);
+  const productFileHits = styleFirstHit ? usableHits.filter((file) => !isDeferredStyleConfig(file)) : usableHits;
+  if (productFileHits.length > 0) {
+    return hit(`Found ${firstFileHit(criterion, productFileHits)}`);
   }
 
   if (criterion.id === "env-documentation") {
@@ -457,8 +491,15 @@ function evalCriterion(criterion, ctx) {
   const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains, {
     ...pathIgnore,
     preferShallowest: criterion.id === "version-pinned",
+    preferProductStyleHit: styleFirstHit,
     skipRubyVersionIfSwift: criterion.id === "version-pinned",
   });
+  if (contains && (!styleFirstHit || !isDeferredStyleConfig(contains.file) || usableHits.length === 0)) {
+    return hit(`${contains.file} contains ${contains.needle}`);
+  }
+  if (usableHits.length > 0) {
+    return hit(`Found ${firstFileHit(criterion, usableHits)}`);
+  }
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
