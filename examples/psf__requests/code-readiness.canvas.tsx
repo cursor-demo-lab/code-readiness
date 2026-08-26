@@ -231,7 +231,7 @@ const WHY_FOR_AGENTS: Record<string, string> = {
   formatter:
     "Without a formatter, agent diffs are mostly whitespace. Format-on-write keeps the real change visible.",
   "type-checker":
-    "Agents hallucinate APIs. tsconfig or mypy is a local proof they can rerun without starting the app.",
+    "Agents hallucinate APIs. tsconfig, mypy, ty, or pyright is a local proof they can rerun without starting the app.",
   "pre-commit-hooks":
     "Agents skip the human lint step. Hooks make the default commit path the same as CI.",
   "test-framework":
