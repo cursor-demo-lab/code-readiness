@@ -268,7 +268,7 @@
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },
         {
           "file": "package.json",
-          "includes": ["\"jest\"", "\"vitest\"", "\"mocha\"", "\"ava\"", "\"node --test\"", "node:test", "node --test"]
+          "includes": ["\"jest\"", "\"vitest\"", "\"mocha\"", "\"ava\"", "\"node --test\"", "node:test", "node --test", "node -- --test"]
         },
         { "file": "build.gradle.kts", "includes": ["kotest", "junit", "jupiter", "testImplementation"] },
         { "file": "build.gradle", "includes": ["junit", "jupiter", "kotest", "testImplementation"] },

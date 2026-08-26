@@ -786,6 +786,18 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   return hits;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function contentHasInclude(content, token) {
+  if (content.includes(token)) return true;
+  // Wrappers may insert extra `--` tokens (`node -- --test`, `node -- -- --test`).
+  if (!token.includes(" -- ")) return false;
+  const pattern = escapeRegExp(token).replaceAll(" -- ", "(?: --)+ ");
+  return new RegExp(pattern).test(content);
+}
+
 function evalFileContains(repoRoot, files, rules, options = {}) {
   if (!rules?.length) return null;
   const skipPackageSwift = isCppCmakeDominant(files);
@@ -810,7 +822,7 @@ function evalFileContains(repoRoot, files, rules, options = {}) {
     });
     for (const file of matches) {
       const content = readText(repoRoot, file) ?? "";
-      const needle = (rule.includes ?? []).find((token) => content.includes(token));
+      const needle = (rule.includes ?? []).find((token) => contentHasInclude(content, token));
       if (!needle) continue;
       if (!options.preferShallowest && !options.preferProductStyleHit) return { file, needle };
       hits.push({ file, needle, ruleIndex });
