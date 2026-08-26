@@ -590,6 +590,8 @@ for (const glob of [
   "**/tests/**/*.cpp",
   "spec/**/*_spec.rb",
   "**/test/**/*_test.rb",
+  "test/test_*.rb",
+  "**/test/test_*.rb",
   "**/*_test.cc",
   "**/*_test.cxx",
   "test/**/*.cc",
@@ -642,6 +644,14 @@ assert.equal(globMatch("test/models/user_test.rb", "**/test/**/*_test.rb"), true
 assert.equal(globMatch("activerecord/test/cases/base_test.rb", "**/test/**/*_test.rb"), true);
 assert.equal(globMatch("lib/user.rb", "**/test/**/*_test.rb"), false);
 assert.equal(globMatch("testdata/user_test.rb", "**/test/**/*_test.rb"), false);
+assert.equal(globMatch("test/test_site.rb", "test/test_*.rb"), true);
+assert.equal(globMatch("test/test_site.rb", "**/test/test_*.rb"), true);
+assert.equal(globMatch("pkg/test/test_site.rb", "**/test/test_*.rb"), true);
+assert.equal(globMatch("pkg/test/test_site.rb", "test/test_*.rb"), false);
+assert.equal(globMatch("testdata/test_site.rb", "test/test_*.rb"), false);
+assert.equal(globMatch("testdata/test_site.rb", "**/test/test_*.rb"), false);
+assert.equal(globMatch("lib/test_site.rb", "test/test_*.rb"), false);
+assert.equal(globMatch("lib/test_site.rb", "**/test/test_*.rb"), false);
 assert.equal(globMatch("test/format-test.cc", "test/**/*.cc"), true);
 assert.equal(globMatch("absl/strings/str_cat_test.cc", "**/*_test.cc"), true);
 assert.equal(globMatch("tests/unit-conversions.cc", "**/tests/**/*.cc"), true);
@@ -1883,8 +1893,29 @@ assertPass("test-files-exist", { "tests/src/unit-algorithms.cpp": "TEST_CASE(\"a
 assertPass("test-files-exist", { "spec/models/user_spec.rb": "RSpec.describe User do\nend\n" });
 assertPass("test-files-exist", { "test/models/user_test.rb": "class UserTest < Minitest::Test\nend\n" });
 assertPass("test-files-exist", {
+  "test/active_job_adapter_test.rb": "class ActiveJobAdapterTest < Minitest::Test\nend\n",
+});
+assertPass("test-files-exist", {
   "activerecord/test/cases/base_test.rb": "class BasicsTest < ActiveRecord::TestCase\nend\n",
 });
+const jekyllPrefix = assertPass(
+  "test-files-exist",
+  { "test/test_site.rb": "# jekyll\n" },
+  /test\/test_site\.rb/,
+);
+assert.match(jekyllPrefix["test-files-exist"].message, /Found 1 test file\(s\)/);
+assert.equal(jekyllPrefix["test-files-exist"].details, "test/test_site.rb");
+
+const jekyllOverFixtureJs = evalTree({
+  "test/test_site.rb": "# jekyll\n",
+  "test/source/assets/base.js": "x\n",
+});
+assert.equal(jekyllOverFixtureJs["test-files-exist"].pass, true, jekyllOverFixtureJs["test-files-exist"].message);
+assert.equal(jekyllOverFixtureJs["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(jekyllOverFixtureJs["test-files-exist"].message, /test\/test_site\.rb/);
+assert.match(jekyllOverFixtureJs["test-files-exist"].details, /^test\/test_site\.rb\b/);
+assertFail("test-files-exist", { "testdata/test_site.rb": "# jekyll\n" });
+assertFail("test-files-exist", { "lib/test_site.rb": "# jekyll\n" });
 assertPass("test-files-exist", { "test/format-test.cc": "TEST(FormatTest, Escape) {}\n" });
 assertPass("test-files-exist", { "absl/strings/str_cat_test.cc": "TEST(StrCat, Basics) {}\n" });
 assertPass("test-files-exist", { "tests/unit-conversions.cc": "TEST_CASE(\"conv\") {}\n" });
@@ -3140,7 +3171,7 @@ assert.match(checksReadme, /required_ruby_version/);
 assert.match(checksReadme, /resources\/exceptions\/renderer/);
 assert.match(checksReadme, /shallowest product-tree/);
 assert.match(checksReadme, /CocoaPods/);
-assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\/\*_test\.rb`/);
+assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\/\*_test\.rb` \/ `test\/test_\*\.rb` \/ `\*\*\/test\/test_\*\.rb`/);
 assert.match(checksReadme, /`\.cc` and `\.cxx` extensions/);
 assert.match(checksReadme, /`src\/\*\.cpp` and `src\/\*\.cc` do not/);
 assert.match(checksReadme, /`testdata\/user_test\.rb` does not count/);
@@ -3149,7 +3180,9 @@ assert.match(checksReadme, /distinct-path count/);
 assert.match(checksReadme, /reported first hit prefers a product-suite path/);
 assert.match(checksReadme, /installer.*examples.*abi/);
 assert.match(checksReadme, /An installer-only or examples-only or abi-only tree still passes/);
-assert.match(checksReadme, /Do not add a `test\/test_\*\.rb` glob/);
+assert.match(checksReadme, /`test\/test_\*\.rb` \(and `\*\*\/test\/test_\*\.rb`\) counts Jekyll-style prefix tests/);
+assert.match(checksReadme, /still do not add `test\/test_\*\.rb` without the `test\/` segment/);
+assert.match(checksReadme, /Do not add `\*\*\/\*\.cpp`/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);

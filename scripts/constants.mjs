@@ -88,6 +88,8 @@ export const TEST_FILE_GLOBS = [
   "**/*Tests.cs",
   "spec/**/*_spec.rb",
   "**/test/**/*_test.rb",
+  "test/test_*.rb",
+  "**/test/test_*.rb",
   "tests/**/*Test.php",
   "Tests/**/*Tests.swift",
   "**/*_test.exs",
