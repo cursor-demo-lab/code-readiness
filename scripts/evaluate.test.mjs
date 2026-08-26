@@ -565,6 +565,14 @@ for (const glob of [
   "**/*.tests.cpp",
   "test/**/*.cpp",
   "**/tests/**/*.cpp",
+  "spec/**/*_spec.rb",
+  "**/test/**/*_test.rb",
+  "**/*_test.cc",
+  "**/*_test.cxx",
+  "test/**/*.cc",
+  "test/**/*.cxx",
+  "**/tests/**/*.cc",
+  "**/tests/**/*.cxx",
 ]) {
   assert.ok(TEST_FILE_GLOBS.includes(glob), `TEST_FILE_GLOBS missing ${glob}`);
 }
@@ -606,6 +614,20 @@ assert.equal(globMatch("test/format.cpp", "test/**/*.cpp"), true);
 assert.equal(globMatch("src/foo.cpp", "**/*.tests.cpp"), false);
 assert.equal(globMatch("src/foo.cpp", "test/**/*.cpp"), false);
 assert.equal(globMatch("src/foo.cpp", "**/tests/**/*.cpp"), false);
+assert.equal(globMatch("spec/models/user_spec.rb", "spec/**/*_spec.rb"), true);
+assert.equal(globMatch("test/models/user_test.rb", "**/test/**/*_test.rb"), true);
+assert.equal(globMatch("activerecord/test/cases/base_test.rb", "**/test/**/*_test.rb"), true);
+assert.equal(globMatch("lib/user.rb", "**/test/**/*_test.rb"), false);
+assert.equal(globMatch("testdata/user_test.rb", "**/test/**/*_test.rb"), false);
+assert.equal(globMatch("test/format-test.cc", "test/**/*.cc"), true);
+assert.equal(globMatch("absl/strings/str_cat_test.cc", "**/*_test.cc"), true);
+assert.equal(globMatch("tests/unit-conversions.cc", "**/tests/**/*.cc"), true);
+assert.equal(globMatch("test/itkImageTest.cxx", "test/**/*.cxx"), true);
+assert.equal(globMatch("tests/mesh_test.cxx", "**/*_test.cxx"), true);
+assert.equal(globMatch("src/format.cc", "test/**/*.cc"), false);
+assert.equal(globMatch("src/format.cc", "**/*_test.cc"), false);
+assert.equal(globMatch("src/format.cc", "**/tests/**/*.cc"), false);
+assert.equal(globMatch("src/format.cxx", "test/**/*.cxx"), false);
 assert.equal(globMatch("test/main.c", "test/**/*.c"), true);
 assert.equal(globMatch("azure-pipelines.yml", "azure-pipelines.yml"), true);
 assert.equal(globMatch(".buildkite/pipeline.yml", ".buildkite/*.yml"), true);
@@ -1605,6 +1627,22 @@ assertPass("test-files-exist", {
   "tests/SelfTest/UsageTests/Approx.tests.cpp": "TEST_CASE(\"approx\") {}\n",
 });
 assertPass("test-files-exist", { "tests/src/unit-algorithms.cpp": "TEST_CASE(\"algo\") {}\n" });
+assertPass("test-files-exist", { "spec/models/user_spec.rb": "RSpec.describe User do\nend\n" });
+assertPass("test-files-exist", { "test/models/user_test.rb": "class UserTest < Minitest::Test\nend\n" });
+assertPass("test-files-exist", {
+  "activerecord/test/cases/base_test.rb": "class BasicsTest < ActiveRecord::TestCase\nend\n",
+});
+assertPass("test-files-exist", { "test/format-test.cc": "TEST(FormatTest, Escape) {}\n" });
+assertPass("test-files-exist", { "absl/strings/str_cat_test.cc": "TEST(StrCat, Basics) {}\n" });
+assertPass("test-files-exist", { "tests/unit-conversions.cc": "TEST_CASE(\"conv\") {}\n" });
+assertPass("test-files-exist", { "test/itkImageTest.cxx": "int main() { return 0; }\n" });
+assertPass("test-files-exist", { "tests/mesh_test.cxx": "int main() { return 0; }\n" });
+assertFail("test-files-exist", { "lib/user.rb": "class User\nend\n" });
+assertFail("test-files-exist", { "testdata/user_test.rb": "class UserTest\nend\n" });
+assertFail("test-files-exist", { "test/fixtures/user_test.rb": "class UserTest\nend\n" });
+assertFail("test-files-exist", { "src/format.cc": "int x;\n" });
+assertFail("test-files-exist", { "src/format.cxx": "int x;\n" });
+assertFail("test-files-exist", { "test/fixtures/format-test.cc": "int x;\n" });
 assertFail("test-files-exist", { "src/foo.cpp": "int main() { return 0; }\n" });
 assertFail("test-files-exist", { "src/json.cpp": "int x;\n" });
 assertFail("test-files-exist", { "lib/phoenix/endpoint.ex": "defmodule Phoenix.Endpoint do\nend\n" });
@@ -2371,6 +2409,10 @@ assert.match(checksReadme, /required_ruby_version/);
 assert.match(checksReadme, /resources\/exceptions\/renderer/);
 assert.match(checksReadme, /shallowest product-tree/);
 assert.match(checksReadme, /CocoaPods/);
+assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\/\*_test\.rb`/);
+assert.match(checksReadme, /`\.cc` and `\.cxx` extensions/);
+assert.match(checksReadme, /`src\/\*\.cpp` and `src\/\*\.cc` do not/);
+assert.match(checksReadme, /`testdata\/user_test\.rb` does not count/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
