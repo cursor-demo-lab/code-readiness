@@ -389,12 +389,38 @@ function deferJsTestSidecarForJava(repoFiles) {
   return treeHasJavaManifest(files) && files.some(isJavaTestFile);
 }
 
+function isCsharpTestFile(file) {
+  const name = posixBasename(file);
+  return globMatch(name, "*Tests.cs") || globMatch(name, "*Test.cs");
+}
+
+function isPreferredCsharpTestFile(file) {
+  // Reuse test-script's Fuzz/Benchmark basename defer.
+  return isCsharpTestFile(file) && !isDeferredTestScriptProject(file);
+}
+
+function treeHasCsharpManifest(files) {
+  return files.some(isSetupDotnetProjectHit);
+}
+
+function deferJsTestSidecarForCsharp(repoFiles) {
+  const files = repoFiles ?? [];
+  return treeHasCsharpManifest(files) && files.some(isPreferredCsharpTestFile);
+}
+
+function shouldDeferCsharpFuzzTest(file, repoFiles) {
+  const files = repoFiles ?? [];
+  if (!isCsharpTestFile(file) || !isDeferredTestScriptProject(file)) return false;
+  return files.some(isPreferredCsharpTestFile);
+}
+
 function deferJsTestSidecarHits(repoFiles) {
   return (
     deferJsFrameworkSidecarHits(repoFiles) ||
     deferJsTestSidecarForRuby(repoFiles) ||
     deferJsTestSidecarForPython(repoFiles) ||
-    deferJsTestSidecarForJava(repoFiles)
+    deferJsTestSidecarForJava(repoFiles) ||
+    deferJsTestSidecarForCsharp(repoFiles)
   );
 }
 
@@ -502,7 +528,8 @@ function testFileFirstHitRank(file, languages, repoFiles) {
   const sidecar = testFileSidecarLanguageRank(file, languages, repoFiles);
   const deferred = pathHasSegments(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ? 1 : 0;
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
-  return sidecar * 4 + deferred * 2 + catchAllOnly;
+  const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
+  return sidecar * 4 + deferred * 2 + catchAllOnly + fuzzBench;
 }
 
 function rankTestFileHits(files, languages, repoFiles) {
