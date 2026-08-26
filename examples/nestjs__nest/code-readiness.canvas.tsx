@@ -126,16 +126,38 @@ const LEVELS: Array<{ level: 1 | 2 | 3 | 4 | 5; label: string }> = [
 
 const OPEN_BY_ID: Record<string, string> = {
   editorconfig: ".editorconfig",
-  readme: "README.md",
-  license: "LICENSE",
-  contributing: "CONTRIBUTING.md",
-  "env-documentation": ".env.example",
-  "ai-context": "CLAUDE.md",
-  codeowners: "CODEOWNERS",
-  "security-policy": "SECURITY.md",
+  linter: "eslint.config.js",
+  formatter: ".prettierrc",
   "pre-commit-hooks": ".pre-commit-config.yaml",
+  "test-framework": "jest.config.js",
+  "test-script": "package.json",
+  "coverage-config": ".coveragerc",
+  "e2e-tests": "playwright.config.ts",
+  readme: "README.md",
+  contributing: "CONTRIBUTING.md",
+  "api-docs": "openapi.yaml",
+  codeowners: "CODEOWNERS",
+  "ai-context": "CLAUDE.md",
   "architecture-docs": "ARCHITECTURE.md",
+  "lock-file": "package-lock.json",
+  "env-documentation": ".env.example",
+  "setup-script": "Makefile",
+  "version-pinned": ".mise.toml",
   containerization: ".cursor/environment.json",
+  "ci-config": ".github/workflows/ci.yml",
+  "ci-runs-tests": ".github/workflows/ci.yml",
+  "ci-runs-linters": ".github/workflows/ci.yml",
+  "build-automated": "package.json",
+  "deploy-pipeline": "vercel.json",
+  "branch-protection": ".github/settings.yml",
+  "no-outdated-deps": "package-lock.json",
+  "dead-code-detection": "knip.json",
+  "bundle-analysis": ".size-limit.json",
+  license: "LICENSE",
+  "security-policy": "SECURITY.md",
+  "dep-update-automation": ".github/dependabot.yml",
+  "security-scanning": ".snyk",
+  "secrets-detection": ".gitleaks.toml",
 };
 
 const WHY_FOR_AGENTS: Record<string, string> = {
@@ -187,14 +209,60 @@ const WHY_FOR_AGENTS: Record<string, string> = {
     "Agents paste keys into examples. A detector is the last gate before that lands on main.",
   license:
     "Agents need to know what they can copy. A LICENSE at root is the legal context for generated code.",
+  "coverage-config":
+    "Without a coverage config, agents cannot tell which lines their tests missed. .coveragerc or .nycrc is the local coverage oracle.",
+  "e2e-tests":
+    "Unit tests miss browser and HTTP seams. playwright.config or an e2e directory is the path an agent uses to catch those.",
+  "ci-runs-tests":
+    "A CI file that never runs tests is a green that lies. The agent needs a test step as the remote oracle.",
+  "ci-runs-linters":
+    "Agents skip the local lint loop. A CI lint step is the remote style oracle when they cannot run the linter themselves.",
+  "build-automated":
+    "Agents need one compile command. scripts.build or a CI build step is how they know the artifact still builds.",
+  "deploy-pipeline":
+    "Agents do not know how this ships. vercel.json or a deploy stage is the release path they must not invent.",
+  "no-outdated-deps":
+    "A stale lockfile means agents install versions CI never saw. A current lock is the install contract.",
+  "bundle-analysis":
+    "Agents add dependencies without seeing size. size-limit is a local budget they can fail on before merge.",
+  "security-policy":
+    "Agents need a documented disclosure path. SECURITY.md is where they report a leaked secret instead of opening a public issue.",
+  "dep-update-automation":
+    "Agents bump versions once and miss the next advisory. Dependabot or Renovate is the recurring update path they will not invent.",
+  "security-scanning":
+    "Agents cannot audit every dependency. A CI scanner config is the remote vuln oracle they can fail on before merge.",
+  "naming-conventions":
+    "Without documented naming, agents invent identifiers that fail review on style, not behavior.",
+  "test-quality":
+    "Agents copy shallow tests. Named edge cases are the fixture they extend instead of asserting the happy path twice.",
+  "readme-quality":
+    "A README that exists but skips install and test leaves agents guessing the first command.",
+  "docs-agent-friendliness":
+    "Agents need structure and how to run one test in docs, not a marketing homepage.",
 };
 
 const WHY_FOR_AGENTS_FALLBACK =
   "This file is a machine-readable signal agents can follow without guessing.";
 
 const CONCRETE_PATHS = [
+  ".github/workflows/ci.yml",
+  ".github/dependabot.yml",
+  ".github/settings.yml",
   ".github/CODEOWNERS",
+  ".cursor/environment.json",
   ".pre-commit-config.yaml",
+  "playwright.config.ts",
+  "eslint.config.js",
+  "jest.config.js",
+  "package-lock.json",
+  ".size-limit.json",
+  ".gitleaks.toml",
+  "openapi.yaml",
+  ".coveragerc",
+  ".prettierrc",
+  ".mise.toml",
+  "knip.json",
+  "vercel.json",
   ".editorconfig",
   ".env.example",
   "CONTRIBUTING.md",
@@ -209,6 +277,8 @@ const CONCRETE_PATHS = [
   ".cursorrules",
   ".nvmrc",
   "Dockerfile",
+  "Makefile",
+  ".snyk",
 ];
 
 const DAG_NODE_WIDTH = 88;

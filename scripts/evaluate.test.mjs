@@ -2539,10 +2539,115 @@ for (const key of [
   '"test-files-exist":',
   '"branch-protection":',
   "license:",
+  '"coverage-config":',
+  '"security-policy":',
+  '"naming-conventions":',
+  '"docs-agent-friendliness":',
 ]) {
   assert.ok(
     whyForAgentsBlock.includes(key),
     `surviving WHY_FOR_AGENTS map lost ${key}`,
+  );
+}
+
+function parseTsStringRecord(source, constName) {
+  const header = `const ${constName}: Record<string, string> = {`;
+  const start = source.indexOf(header);
+  assert.ok(start >= 0, `missing ${constName}`);
+  let i = start + header.length;
+  let depth = 1;
+  while (i < source.length && depth > 0) {
+    if (source[i] === "{") depth += 1;
+    else if (source[i] === "}") depth -= 1;
+    i += 1;
+  }
+  const body = source.slice(start + header.length, i - 1);
+  const out = {};
+  const re =
+    /(?:^|\n)\s*(?:([A-Za-z_][\w]*)|"([^"]+)")\s*:\s*"((?:\\.|[^"\\])*)"/g;
+  let match;
+  while ((match = re.exec(body))) {
+    out[match[1] || match[2]] = match[3];
+  }
+  return out;
+}
+
+function parseTsStringArray(source, constName) {
+  const header = `const ${constName} = [`;
+  const start = source.indexOf(header);
+  assert.ok(start >= 0, `missing ${constName}`);
+  const end = source.indexOf("];", start);
+  return [...source.slice(start, end).matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+}
+
+function simulateFailOpenPath(row, openById, concretePaths) {
+  const mapped = openById[row.criterionId];
+  if (mapped) return mapped;
+  const blob = `${row.name} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`;
+  return concretePaths.find((file) => blob.includes(file)) ?? null;
+}
+
+const whyMap = parseTsStringRecord(canvasTemplate, "WHY_FOR_AGENTS");
+const whyFallbackMatch = canvasTemplate.match(
+  /const WHY_FOR_AGENTS_FALLBACK =\s*"([^"]+)"/,
+);
+assert.ok(whyFallbackMatch, "WHY_FOR_AGENTS_FALLBACK must remain as unused catalog safety");
+const whyFallback = whyFallbackMatch[1];
+assert.equal(
+  Object.keys(whyMap).length,
+  catalog.criteria.length,
+  "WHY_FOR_AGENTS must cover every catalog criterion id",
+);
+for (const criterion of catalog.criteria) {
+  assert.ok(
+    Object.hasOwn(whyMap, criterion.id),
+    `WHY_FOR_AGENTS missing ${criterion.id}`,
+  );
+  assert.notEqual(
+    whyMap[criterion.id],
+    whyFallback,
+    `${criterion.id} still uses the generic WHY fallback`,
+  );
+  assert.match(
+    whyMap[criterion.id],
+    /agent/i,
+    `${criterion.id} WHY must say why a coding agent fails without this file`,
+  );
+}
+
+const openById = parseTsStringRecord(canvasTemplate, "OPEN_BY_ID");
+const concretePaths = parseTsStringArray(canvasTemplate, "CONCRETE_PATHS");
+assert.equal(
+  openById["version-pinned"],
+  ".mise.toml",
+  "version-pinned conventional file is catalog anyFiles .mise.toml, not .nvmrc",
+);
+assert.equal(openById["type-checker"], undefined);
+for (const criterion of catalog.criteria) {
+  if (criterion.requiresLLM) continue;
+  const hasAnyFiles = (criterion.anyFiles ?? []).length > 0;
+  const hasConventionalFix =
+    Boolean(criterion.ciFiles) ||
+    Boolean(criterion.ciGrep) ||
+    Boolean(criterion.lockFileFreshDays) ||
+    Boolean(criterion.packageJsonPath) ||
+    Boolean(criterion.makefileTarget) ||
+    concretePaths.some((file) => (criterion.fix ?? "").includes(file));
+  if (!hasAnyFiles && !hasConventionalFix) continue;
+  const file = simulateFailOpenPath(
+    {
+      criterionId: criterion.id,
+      name: criterion.name,
+      message: criterion.fail,
+      fix: criterion.fix,
+      details: "",
+    },
+    openById,
+    concretePaths,
+  );
+  assert.ok(
+    file,
+    `${criterion.id} remaining-fail Card must name a file from anyFiles / conventional fix`,
   );
 }
 
@@ -2571,6 +2676,8 @@ assert.match(skillMd, /gate-ranked/);
 assert.match(skillMd, /remaining fails at `nextLevel` first/);
 assert.match(skillMd, /category breakdown/);
 assert.match(skillMd, /why it helps agents/);
+assert.match(skillMd, /Every catalog criterion has a technical/);
+assert.match(skillMd, /Remaining fails name a concrete file/);
 assert.match(skillMd, /only for when `l1Capped` is true/);
 assert.match(skillMd, /prescriptive linter/);
 assert.match(skillMd, /WHY_FOR_AGENTS/);
@@ -2589,6 +2696,8 @@ assert.match(canvasMd, /why each gap helps coding agents/);
 assert.match(canvasMd, /would be Documented except/);
 assert.match(canvasMd, /`nextLevel` fails first/);
 assert.match(canvasMd, /category breakdown/);
+assert.match(canvasMd, /Every catalog criterion has a technical/);
+assert.match(canvasMd, /Remaining counted fails name a concrete file/);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.match(checksReadme, /would be L2 except/);
