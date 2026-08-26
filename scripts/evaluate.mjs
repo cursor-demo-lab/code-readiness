@@ -98,6 +98,15 @@ function pathHasSegmentsIgnoreCase(file, segments) {
   return file.split("/").some((part) => wanted.has(part.toLowerCase()));
 }
 
+function pathHasSegmentNameOrSuffixIgnoreCase(file, names) {
+  if (!names?.length) return false;
+  const wanted = names.map((name) => name.toLowerCase());
+  return file.split("/").some((part) => {
+    const lower = part.toLowerCase();
+    return wanted.some((name) => lower === name || lower.endsWith(name));
+  });
+}
+
 function pathHasIgnoredVersionPin(file) {
   const parts = file.split("/");
   for (let i = 0; i < parts.length; i += 1) {
@@ -157,6 +166,17 @@ const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = [
   ...STYLE_FIRST_HIT_SAMPLE_SEGMENTS,
   ...TEST_FILE_FIRST_HIT_FUZZ_BENCH_SEGMENTS,
 ];
+// Whole segment name is or ends with these (case-insensitive): Java testlib /
+// mock / integration-test / support modules. Exact-name list above stays exact.
+const TEST_FILE_FIRST_HIT_DEFER_SUFFIXES = [
+  "testlib",
+  "mock",
+  "mocks",
+  "integration-test",
+  "integration-tests",
+  "support-tests",
+  "support",
+];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
 
@@ -200,7 +220,10 @@ function productContainerHits(files) {
 }
 
 function isDeferredTestFileFirstHit(file) {
-  return pathHasSegmentsIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS);
+  return (
+    pathHasSegmentsIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ||
+    pathHasSegmentNameOrSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SUFFIXES)
+  );
 }
 
 function productTestFileFirstHits(files) {
@@ -425,9 +448,34 @@ function treeHasJavaManifest(files) {
   return files.includes("pom.xml") || files.includes("build.gradle") || files.includes("build.gradle.kts");
 }
 
+function isJavaSrcTestPath(file) {
+  const parts = file.split("/");
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    if (parts[i].toLowerCase() === "src" && parts[i + 1].toLowerCase() === "test") return true;
+  }
+  return false;
+}
+
+function javaTestLayoutRank(file) {
+  if (!isJavaTestFile(file)) return 0;
+  return isJavaSrcTestPath(file) ? 0 : 1;
+}
+
+function preferJavaSrcTestHits(files) {
+  const javaHits = files.filter(isJavaTestFile);
+  if (javaHits.length === 0) return files;
+  const srcTestHits = javaHits.filter(isJavaSrcTestPath);
+  if (srcTestHits.length === 0) return files;
+  return files.filter((file) => !isJavaTestFile(file) || isJavaSrcTestPath(file));
+}
+
 function deferJsTestSidecarForJava(repoFiles) {
   const files = repoFiles ?? [];
   return treeHasJavaManifest(files) && files.some(isJavaTestFile);
+}
+
+function deferPythonTestSidecarForJava(repoFiles) {
+  return deferJsTestSidecarForJava(repoFiles);
 }
 
 function isCsharpTestFile(file) {
@@ -540,9 +588,18 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // so they do not beat jest.config.* / FooTests.cs. A Fuzz-only tree still names Fuzz.
   const ranked = dropDeferredCsharpTestsWhenOtherHitsExist(afterJs);
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer, then
-  // defer benchmarks/fuzz/fixtures/samples path segments (same class as
-  // containerization sample/integration). A benchmark-only tree still names that file.
-  return productTestFileFirstHits(productTestScriptHits(ranked));
+  // prefer Java src/test over src/main / bare src/, then defer
+  // benchmarks/fuzz/fixtures/samples/testlib/mock path segments (same class as
+  // containerization sample/integration). A benchmark-only or testlib-only tree
+  // still names that file. Java-primary trees prefer *Test.java over sidecar
+  // Python test_*.py / *_test.py; a Java tree with only Python still names Python.
+  const afterScript = productTestScriptHits(ranked);
+  const afterJavaLayout = preferJavaSrcTestHits(afterScript);
+  const afterDefer = productTestFileFirstHits(afterJavaLayout);
+  const withoutPySidecar = deferPythonTestSidecarForJava(repoFiles)
+    ? afterDefer.filter((file) => !isPythonTestFile(file))
+    : afterDefer;
+  return withoutPySidecar.length > 0 ? withoutPySidecar : afterDefer;
 }
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
@@ -629,16 +686,21 @@ function matchesLanguageTestGlob(file) {
 
 function testFileSidecarLanguageRank(file, languages, repoFiles) {
   if (deferJsTestSidecarHits(repoFiles) && isJsTsTestFile(file)) return 1;
+  if (deferPythonTestSidecarForJava(repoFiles) && isPythonTestFile(file)) return 1;
   if (!hasJsTsProductLanguage(languages) || !isGoTestFile(file)) return 0;
   return 1;
 }
 
 function testFileFirstHitRank(file, languages, repoFiles) {
   const sidecar = testFileSidecarLanguageRank(file, languages, repoFiles);
+  const javaLayout = javaTestLayoutRank(file);
   const deferred = isDeferredTestFileFirstHit(file) ? 1 : 0;
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
-  return sidecar * 4 + deferred * 2 + catchAllOnly + fuzzBench;
+  // sidecar (JS/Python) > Java src/main vs src/test > testlib/mock defer >
+  // catch-all / C# fuzz basename. Product src/test Java beats mock src/test,
+  // which beats src/main API *Test.java, which still beats sidecar Python.
+  return sidecar * 8 + javaLayout * 4 + deferred * 2 + catchAllOnly + fuzzBench;
 }
 
 function rankTestFileHits(files, languages, repoFiles) {
