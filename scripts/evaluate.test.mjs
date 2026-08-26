@@ -3218,6 +3218,74 @@ assert.equal(
   false,
   rootComposeAndTests.containerization.message,
 );
+const nestBootSampleAndIntegration = evalTree({
+  ".devcontainer/devcontainer.json": "{ \"image\": \"mcr.microsoft.com/devcontainers/javascript-node\" }\n",
+  "sample/05-sql-typeorm/docker-compose.yml": "services: {}\n",
+  "integration/docker-compose.yml": "services: {}\n",
+});
+assert.equal(
+  nestBootSampleAndIntegration.containerization.pass,
+  true,
+  nestBootSampleAndIntegration.containerization.message,
+);
+assert.match(nestBootSampleAndIntegration.containerization.message, /\.devcontainer/);
+assert.equal(
+  /sample\//.test(nestBootSampleAndIntegration.containerization.message),
+  false,
+  nestBootSampleAndIntegration.containerization.message,
+);
+assert.equal(
+  /integration/.test(nestBootSampleAndIntegration.containerization.message),
+  false,
+  nestBootSampleAndIntegration.containerization.message,
+);
+const nestSampleAndIntegration = evalTree({
+  "sample/05-sql-typeorm/docker-compose.yml": "services: {}\n",
+  "integration/docker-compose.yml": "services: {}\n",
+});
+assert.equal(nestSampleAndIntegration.containerization.pass, true, nestSampleAndIntegration.containerization.message);
+assert.match(nestSampleAndIntegration.containerization.message, /integration\/docker-compose\.yml/);
+assert.equal(
+  /sample\//.test(nestSampleAndIntegration.containerization.message),
+  false,
+  nestSampleAndIntegration.containerization.message,
+);
+const sampleAndIntegrationSameDepth = evalTree({
+  "sample/docker-compose.yml": "services: {}\n",
+  "integration/docker-compose.yml": "services: {}\n",
+});
+assert.equal(
+  sampleAndIntegrationSameDepth.containerization.pass,
+  true,
+  sampleAndIntegrationSameDepth.containerization.message,
+);
+assert.match(sampleAndIntegrationSameDepth.containerization.message, /integration\/docker-compose\.yml/);
+assert.equal(
+  /sample\//.test(sampleAndIntegrationSameDepth.containerization.message),
+  false,
+  sampleAndIntegrationSameDepth.containerization.message,
+);
+assertPass(
+  "containerization",
+  { "sample/05-sql-typeorm/docker-compose.yml": "services: {}\n" },
+  /sample\/05-sql-typeorm\/docker-compose\.yml/,
+);
+assertPass(
+  "containerization",
+  { "examples/docker-compose.yml": "services: {}\n" },
+  /examples\/docker-compose\.yml/,
+);
+const rootDockerAndSample = evalTree({
+  Dockerfile: "FROM node:20\n",
+  "sample/05-sql-typeorm/docker-compose.yml": "services: {}\n",
+});
+assert.equal(rootDockerAndSample.containerization.pass, true, rootDockerAndSample.containerization.message);
+assert.match(rootDockerAndSample.containerization.message, /Found Dockerfile/);
+assert.equal(
+  /sample\//.test(rootDockerAndSample.containerization.message),
+  false,
+  rootDockerAndSample.containerization.message,
+);
 
 assertPass("ci-config", { "azure-pipelines.yml": "pool: vm\n" }, /azure-pipelines\.yml/);
 assertPass("ci-config", { ".azure-pipelines/ci.yml": "pool: vm\n" }, /\.azure-pipelines/);
@@ -3713,6 +3781,8 @@ assert.match(rootReadme, /PR-template-only tree still passes/);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
+assert.match(rootReadme, /sample-only tree still passes/);
+assert.match(rootReadme, /shallowest leftover/);
 assert.match(rootReadme, /`setup-script` first-hit prefers/);
 assert.match(rootReadme, /support-only tree still passes/);
 assert.match(rootReadme, /`test-script` first-hit among/);
@@ -3746,6 +3816,8 @@ assert.match(skillMd, /config\.yml-only tree still passes/);
 assert.match(skillMd, /PR-template-only tree still passes/);
 assert.match(skillMd, /`containerization` first-hit prefers/);
 assert.match(skillMd, /integration-only tree still passes/);
+assert.match(skillMd, /sample-only tree still passes/);
+assert.match(skillMd, /shallowest leftover/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
 assert.match(skillMd, /support-only tree still passes/);
 assert.match(skillMd, /`test-script` first-hit among/);
@@ -3801,7 +3873,10 @@ assert.match(checksReadme, /containerization.*also passes on `\.cursor\/environm
 assert.match(checksReadme, /root `environment\.json` does not count/);
 assert.match(checksReadme, /First-hit prefers `\.devcontainer`/);
 assert.match(checksReadme, /integration\/docker-compose\.yml/);
+assert.match(checksReadme, /sample\/05-sql-typeorm\/docker-compose\.yml/);
 assert.match(checksReadme, /integration-only or tests-only compose still passes/);
+assert.match(checksReadme, /sample-only tree still passes/);
+assert.match(checksReadme, /shallowest leftover/);
 assert.match(checksReadme, /any walked path with that basename/);
 assert.match(checksReadme, /skip signals stay repository-root only/);
 assert.match(checksReadme, /IGNORE_DIRS/);
