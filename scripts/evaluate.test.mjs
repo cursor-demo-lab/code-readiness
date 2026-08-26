@@ -3110,6 +3110,153 @@ assert.equal(
   javaTestOverShallowJs["test-files-exist"].message,
 );
 
+const csharpTestsOverJsTfe = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(csharpTestsOverJsTfe["test-files-exist"].pass, true, csharpTestsOverJsTfe["test-files-exist"].message);
+assert.equal(csharpTestsOverJsTfe["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(csharpTestsOverJsTfe["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /foo\.test\.js/.test(csharpTestsOverJsTfe["test-files-exist"].message),
+  false,
+  csharpTestsOverJsTfe["test-files-exist"].message,
+);
+assert.match(csharpTestsOverJsTfe["test-files-exist"].details, /^FooTests\.cs\b/);
+assert.match(csharpTestsOverJsTfe["test-files-exist"].details, /foo\.test\.js/);
+
+const csharpJsOnlyTfe = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(csharpJsOnlyTfe["test-files-exist"].pass, true, csharpJsOnlyTfe["test-files-exist"].message);
+assert.match(csharpJsOnlyTfe["test-files-exist"].message, /foo\.test\.js/);
+
+const csharpTestOverJsTfe = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTest.cs": "class FooTest {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(csharpTestOverJsTfe["test-files-exist"].pass, true, csharpTestOverJsTfe["test-files-exist"].message);
+assert.match(csharpTestOverJsTfe["test-files-exist"].message, /FooTest\.cs/);
+assert.equal(
+  /foo\.test\.js/.test(csharpTestOverJsTfe["test-files-exist"].message),
+  false,
+  csharpTestOverJsTfe["test-files-exist"].message,
+);
+
+const slnTestsOverJsTfe = evalTree({
+  "Foo.sln": "Microsoft Visual Studio Solution\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(slnTestsOverJsTfe["test-files-exist"].pass, true, slnTestsOverJsTfe["test-files-exist"].message);
+assert.match(slnTestsOverJsTfe["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /foo\.test\.js/.test(slnTestsOverJsTfe["test-files-exist"].message),
+  false,
+  slnTestsOverJsTfe["test-files-exist"].message,
+);
+
+const csharpTestsOverSpecTs = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/foo.spec.ts": "test('ok');\n",
+});
+assert.equal(csharpTestsOverSpecTs["test-files-exist"].pass, true, csharpTestsOverSpecTs["test-files-exist"].message);
+assert.match(csharpTestsOverSpecTs["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /foo\.spec\.ts/.test(csharpTestsOverSpecTs["test-files-exist"].message),
+  false,
+  csharpTestsOverSpecTs["test-files-exist"].message,
+);
+
+const csharpTestsOverTestTs = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/foo.test.ts": "test('ok');\n",
+});
+assert.equal(csharpTestsOverTestTs["test-files-exist"].pass, true, csharpTestsOverTestTs["test-files-exist"].message);
+assert.match(csharpTestsOverTestTs["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /foo\.test\.ts/.test(csharpTestsOverTestTs["test-files-exist"].message),
+  false,
+  csharpTestsOverTestTs["test-files-exist"].message,
+);
+
+const csharpTestsOverSameDirJs = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  csharpTestsOverSameDirJs["test-files-exist"].pass,
+  true,
+  csharpTestsOverSameDirJs["test-files-exist"].message,
+);
+assert.match(csharpTestsOverSameDirJs["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /foo\.test\.js/.test(csharpTestsOverSameDirJs["test-files-exist"].message),
+  false,
+  csharpTestsOverSameDirJs["test-files-exist"].message,
+);
+
+const csharpTestsOverShallowJs = evalTree({
+  "Src/Foo/Foo.csproj": "<Project></Project>\n",
+  "Src/Foo.Tests/FooTests.cs": "class FooTests {}\n",
+  "test/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  csharpTestsOverShallowJs["test-files-exist"].pass,
+  true,
+  csharpTestsOverShallowJs["test-files-exist"].message,
+);
+assert.match(csharpTestsOverShallowJs["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /foo\.test\.js/.test(csharpTestsOverShallowJs["test-files-exist"].message),
+  false,
+  csharpTestsOverShallowJs["test-files-exist"].message,
+);
+
+const csharpFuzzDeferTfe = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooFuzzTests.cs": "class FooFuzzTests {}\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(csharpFuzzDeferTfe["test-files-exist"].pass, true, csharpFuzzDeferTfe["test-files-exist"].message);
+assert.equal(csharpFuzzDeferTfe["test-files-exist"].message.includes("Found 3 test file(s)"), true);
+assert.match(csharpFuzzDeferTfe["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /FuzzTests/.test(csharpFuzzDeferTfe["test-files-exist"].message),
+  false,
+  csharpFuzzDeferTfe["test-files-exist"].message,
+);
+assert.equal(
+  /foo\.test\.js/.test(csharpFuzzDeferTfe["test-files-exist"].message),
+  false,
+  csharpFuzzDeferTfe["test-files-exist"].message,
+);
+
+const csharpBenchDeferTfe = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooBenchmarkTests.cs": "class FooBenchmarkTests {}\n",
+  "FooTests.cs": "class FooTests {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(csharpBenchDeferTfe["test-files-exist"].pass, true, csharpBenchDeferTfe["test-files-exist"].message);
+assert.match(csharpBenchDeferTfe["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(/Benchmark/.test(csharpBenchDeferTfe["test-files-exist"].message), false);
+
+const csharpFuzzOnlyTfe = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "FooFuzzTests.cs": "class FooFuzzTests {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(csharpFuzzOnlyTfe["test-files-exist"].pass, true, csharpFuzzOnlyTfe["test-files-exist"].message);
+assert.match(csharpFuzzOnlyTfe["test-files-exist"].message, /FooFuzzTests\.cs/);
+
 const mixExUnitOverJestTfe = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   "test/foo_test.exs": "defmodule FooTest do\nend\n",
@@ -3195,6 +3342,38 @@ assert.equal(
   /foo\.test\.js/.test(railsTfeOverJsStillRuby["test-files-exist"].message),
   false,
   railsTfeOverJsStillRuby["test-files-exist"].message,
+);
+const javaTfeOverJsStillJava = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  javaTfeOverJsStillJava["test-files-exist"].pass,
+  true,
+  javaTfeOverJsStillJava["test-files-exist"].message,
+);
+assert.match(javaTfeOverJsStillJava["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.js/.test(javaTfeOverJsStillJava["test-files-exist"].message),
+  false,
+  javaTfeOverJsStillJava["test-files-exist"].message,
+);
+const mixTfeOverJsStillElixir = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  mixTfeOverJsStillElixir["test-files-exist"].pass,
+  true,
+  mixTfeOverJsStillElixir["test-files-exist"].message,
+);
+assert.match(mixTfeOverJsStillElixir["test-files-exist"].message, /foo_test\.exs/);
+assert.equal(
+  /foo\.test\.js/.test(mixTfeOverJsStillElixir["test-files-exist"].message),
+  false,
+  mixTfeOverJsStillElixir["test-files-exist"].message,
 );
 
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
@@ -4833,6 +5012,8 @@ assert.match(rootReadme, /A Python tree with only JS tests still passes/);
 assert.match(rootReadme, /Python-primary/);
 assert.match(rootReadme, /A Java tree with only JS tests still passes/);
 assert.match(rootReadme, /Java-primary/);
+assert.match(rootReadme, /A C# tree with only JS tests still passes/);
+assert.match(rootReadme, /C#-primary/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -4892,6 +5073,8 @@ assert.match(skillMd, /A Python tree with only JS tests still passes/);
 assert.match(skillMd, /Python-primary/);
 assert.match(skillMd, /A Java tree with only JS tests still passes/);
 assert.match(skillMd, /Java-primary/);
+assert.match(skillMd, /A C# tree with only JS tests still passes/);
+assert.match(skillMd, /C#-primary/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -5025,6 +5208,8 @@ assert.match(checksReadme, /A Python tree with only JS tests still passes/);
 assert.match(checksReadme, /Python-primary/);
 assert.match(checksReadme, /A Java tree with only JS tests still passes/);
 assert.match(checksReadme, /Java-primary/);
+assert.match(checksReadme, /A C# tree with only JS tests still passes/);
+assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
 assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
