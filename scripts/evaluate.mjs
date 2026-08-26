@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { thresholdForLevel } from "./constants.mjs";
+import { TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import {
   ciFiles,
   detectLanguages,
@@ -131,6 +131,8 @@ function shallowestHit(files) {
 }
 
 const LINTER_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata"];
+const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
+const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
@@ -141,6 +143,26 @@ function firstFileHit(criterion, fileHits) {
     return shallowestHit(productHits.length > 0 ? productHits : fileHits);
   }
   return fileHits[0];
+}
+
+function matchesLanguageTestGlob(file) {
+  return TEST_FILE_GLOBS.some(
+    (pattern) => !TEST_FILE_CATCH_ALL_GLOBS.has(pattern) && globMatch(file, pattern),
+  );
+}
+
+function testFileFirstHitRank(file) {
+  const deferred = pathHasSegments(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ? 1 : 0;
+  const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
+  return deferred * 2 + catchAllOnly;
+}
+
+function rankTestFileHits(files) {
+  return [...files].sort((a, b) => {
+    const rank = testFileFirstHitRank(a) - testFileFirstHitRank(b);
+    if (rank !== 0) return rank;
+    return comparePathDepth(a, b);
+  });
 }
 
 function pathIgnoreFor(criterion) {
@@ -350,9 +372,9 @@ function evalCriterion(criterion, ctx) {
   }
 
   if (criterion.testFiles) {
-    const found = testFiles(ctx.files);
+    const found = rankTestFileHits(testFiles(ctx.files));
     if (found.length > 0) {
-      return hit(`Found ${found.length} test file(s)`, found.slice(0, 8).join(", "));
+      return hit(`Found ${found.length} test file(s): ${found[0]}`, found.slice(0, 8).join(", "));
     }
     return miss(criterion.fail);
   }
