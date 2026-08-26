@@ -667,7 +667,8 @@ const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 const EFFORT_ORDER = { low: 0, medium: 1, high: 2 };
 
 export function recommend(results, level) {
-  const nextLevel = level + 1;
+  const l1Open = results.some((row) => row.level === 1 && !row.pass && !row.skipped);
+  const nextLevel = l1Open ? 1 : level + 1;
   const failed = results.filter((row) => !row.pass && !row.skipped);
   const recs = failed.map((row) => {
     let impact = "low";

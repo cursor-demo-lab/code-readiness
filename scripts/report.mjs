@@ -10,6 +10,107 @@ import { hashCatalog } from "./catalog.mjs";
 import { readGitHead } from "./lib.mjs";
 import { recommend, scoreResults } from "./evaluate.mjs";
 
+const LANG_ORDER = [
+  "go",
+  "rust",
+  "elixir",
+  "ruby",
+  "python",
+  "c",
+  "cpp",
+  "haskell",
+  "java",
+  "kotlin",
+  "csharp",
+  "swift",
+  "typescript",
+  "javascript",
+  "node",
+];
+
+const LINTER_BY_LANG = {
+  go: ".golangci.yml",
+  rust: "clippy.toml",
+  elixir: ".credo.exs",
+  ruby: ".rubocop.yml",
+  python: "ruff.toml",
+  c: ".clang-tidy",
+  cpp: ".clang-tidy",
+  haskell: ".hlint.yaml",
+  java: "checkstyle.xml",
+  kotlin: "detekt.yml",
+  csharp: "stylecop.json",
+  swift: ".swiftlint.yml",
+  typescript: "eslint.config.js",
+  javascript: "eslint.config.js",
+  node: "eslint.config.js",
+};
+
+const OPEN_BY_ID = {
+  linter: "eslint.config.js",
+  "ai-context": "AGENTS.md",
+  readme: "README.md",
+  "type-checker": "tsconfig.json",
+  editorconfig: ".editorconfig",
+  license: "LICENSE",
+  contributing: "CONTRIBUTING.md",
+  "pre-commit-hooks": ".pre-commit-config.yaml",
+  "ci-config": ".github/workflows/ci.yml",
+};
+
+const CONCRETE_PATHS = [
+  "eslint.config.js",
+  ".golangci.yml",
+  "clippy.toml",
+  "ruff.toml",
+  ".credo.exs",
+  ".clang-tidy",
+  ".rubocop.yml",
+  ".hlint.yaml",
+  "checkstyle.xml",
+  "detekt.yml",
+  "stylecop.json",
+  ".swiftlint.yml",
+  "AGENTS.md",
+  "README.md",
+  "LICENSE",
+  ".pre-commit-config.yaml",
+  ".github/workflows/ci.yml",
+  "tsconfig.json",
+];
+
+function pickLangFile(byLang, languages) {
+  if (!languages?.length) return null;
+  const known = new Set(languages);
+  for (const lang of LANG_ORDER) {
+    if (known.has(lang) && byLang[lang]) return byLang[lang];
+  }
+  return null;
+}
+
+function pathFromHit(row) {
+  const blob = `${row?.message ?? ""} ${row?.details ?? ""}`;
+  return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
+}
+
+export function chatFixFile(payload, remediation) {
+  if (!remediation) return null;
+  const id = remediation.criterionId;
+  const row =
+    payload.criterion_results?.find((item) => item.criterionId === id) ?? remediation;
+  const languages = payload.languages ?? [];
+  if (id === "linter") {
+    const honest = pickLangFile(LINTER_BY_LANG, languages);
+    if (honest) return honest;
+    const hit = pathFromHit(row);
+    if (hit && hit !== ".editorconfig") return hit;
+    return OPEN_BY_ID.linter;
+  }
+  const hit = pathFromHit(row);
+  if (hit) return hit;
+  return OPEN_BY_ID[id] ?? null;
+}
+
 function joinEnglish(items) {
   if (items.length === 0) return "";
   if (items.length === 1) return items[0];
@@ -98,6 +199,7 @@ export function buildReport(evaluation, options = {}) {
     pillar_scores: scored.pillarScores,
     criterion_results,
     remediations,
+    languages: [...(evaluation.languages ?? [])],
     run_metadata: {
       engine: ENGINE_NAME,
       catalogHash: hashCatalog(),
@@ -120,7 +222,12 @@ export function buildReport(evaluation, options = {}) {
 export function chatLines(payload, canvasMarkdown) {
   const { maturity_level: band, remediations } = payload;
   const top = remediations[0];
-  const topFix = top ? `${top.title}. ${top.description}` : "No failing checks in this run.";
+  const file = chatFixFile(payload, top);
+  const topFix = top
+    ? file
+      ? `${top.criterionId} — ${file}`
+      : top.criterionId
+    : "No failing checks in this run.";
   const canvas =
     canvasMarkdown == null
       ? "Canvas: paste the write-tool save-result URL. Do not invent one."
