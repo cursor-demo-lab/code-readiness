@@ -1908,6 +1908,62 @@ assert.equal(rustLockPass["lock-file"].pass, true, rustLockPass["lock-file"].mes
 assert.equal(rustLockPass["lock-file"].skipped, false);
 assert.match(rustLockPass["lock-file"].message, /Cargo\.lock/);
 
+function assertNamedProductLock(byId, file) {
+  assert.equal(byId["lock-file"].pass, true, byId["lock-file"].message);
+  assert.equal(byId["lock-file"].skipped, false, byId["lock-file"].message);
+  assert.equal(byId["lock-file"].message, `Found ${file}`);
+  assert.equal(
+    byId["no-outdated-deps"].message,
+    `Lock file ${file} modified within 6 months`,
+    byId["no-outdated-deps"].message,
+  );
+}
+
+const mixedGoSumLock = evalTree({
+  "go.sum": "example.com/x h1:abc\n",
+  "_examples/rest/go.sum": "example.com/x h1:nested\n",
+});
+assertNamedProductLock(mixedGoSumLock, "go.sum");
+assert.equal(/_examples/.test(mixedGoSumLock["lock-file"].message), false);
+assert.equal(/_examples/.test(mixedGoSumLock["no-outdated-deps"].message), false);
+
+const mixedPkgLock = evalTree({
+  "package-lock.json": "{}\n",
+  "examples/foo/package-lock.json": "{}\n",
+});
+assertNamedProductLock(mixedPkgLock, "package-lock.json");
+assert.equal(/examples/.test(mixedPkgLock["lock-file"].message), false);
+assert.equal(/examples/.test(mixedPkgLock["no-outdated-deps"].message), false);
+
+const nestedNpmVsRootGo = evalTree({
+  "go.sum": "example.com/x h1:abc\n",
+  "_examples/rest/package-lock.json": "{}\n",
+});
+assertNamedProductLock(nestedNpmVsRootGo, "go.sum");
+assert.equal(/package-lock/.test(nestedNpmVsRootGo["lock-file"].message), false);
+assert.equal(/package-lock/.test(nestedNpmVsRootGo["no-outdated-deps"].message), false);
+
+const examplesOnlyLock = evalTree({
+  "examples/foo/go.sum": "example.com/x h1:abc\n",
+});
+assertNamedProductLock(examplesOnlyLock, "examples/foo/go.sum");
+
+const vendorOnlyLock = evalTree({
+  "go.mod": "module example.com/x\n",
+  "vendor/foo/package-lock.json": "{}\n",
+});
+assert.equal(vendorOnlyLock["lock-file"].pass, false, vendorOnlyLock["lock-file"].message);
+assert.equal(vendorOnlyLock["lock-file"].skipped, false, vendorOnlyLock["lock-file"].message);
+assert.equal(/vendor/.test(vendorOnlyLock["lock-file"].message), false);
+assert.equal(/vendor/.test(vendorOnlyLock["no-outdated-deps"].message), false);
+
+const thirdPartyVsRootLock = evalTree({
+  "go.sum": "example.com/x h1:abc\n",
+  "third_party/bar/go.sum": "example.com/x h1:vendored\n",
+});
+assertNamedProductLock(thirdPartyVsRootLock, "go.sum");
+assert.equal(/third_party/.test(thirdPartyVsRootLock["lock-file"].message), false);
+
 assertPass("env-documentation", { "env.example": "FOO=\n" }, /env\.example/);
 assertPass("env-documentation", { ".envrc.example": "export FOO=\n" }, /\.envrc\.example/);
 assertPass("env-documentation", { "dotenv.example": "FOO=\n" }, /dotenv\.example/);
@@ -2574,6 +2630,9 @@ assert.match(checksReadme, /reported first hit prefers a product-suite path/);
 assert.match(checksReadme, /installer.*examples.*abi/);
 assert.match(checksReadme, /An installer-only or examples-only or abi-only tree still passes/);
 assert.match(checksReadme, /Do not add a `test\/test_\*\.rb` glob/);
+assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
+assert.match(checksReadme, /shallowest product-tree lock/);
+assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
