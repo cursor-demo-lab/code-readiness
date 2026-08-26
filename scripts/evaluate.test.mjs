@@ -1881,7 +1881,7 @@ assert.equal(
 const mixFmtBeatsBiome = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   ".formatter.exs": "[inputs: \"**/*.{ex,exs}\"]\n",
-  "biome.json": '{ "formatter": { "enabled": true } }\n",
+  "biome.json": '{ "formatter": { "enabled": true } }\n',
 });
 assert.equal(mixFmtBeatsBiome.formatter.pass, true, mixFmtBeatsBiome.formatter.message);
 assert.match(mixFmtBeatsBiome.formatter.message, /\.formatter\.exs/);
