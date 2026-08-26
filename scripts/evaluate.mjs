@@ -135,9 +135,14 @@ const STYLE_FIRST_HIT_DOCS_SEGMENTS = ["docs", "doc"];
 const STYLE_FIRST_HIT_SAMPLE_SEGMENTS = ["sample", "samples", "example", "examples"];
 const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
+const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter"]);
 
 function isStyleFirstHitId(id) {
   return id === "linter" || id === "formatter";
+}
+
+function matchBasenameGlobAnyDepth(id) {
+  return BASENAME_GLOB_ANY_DEPTH_IDS.has(id);
 }
 
 function isDeferredStyleConfig(file) {
@@ -213,10 +218,14 @@ function sameName(a, b) {
 function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   if (!patterns?.length) return [];
   const looseCase = Boolean(options.caseInsensitiveNames);
+  const basenameGlobAnyDepth = Boolean(options.basenameGlobAnyDepth);
   const hits = [];
   for (const pattern of patterns) {
     if (isGlobPattern(pattern)) {
-      if (!pattern.includes("/")) {
+      // Style configs (eslint.config.*, .prettierrc.*) are looked up by
+      // basename at any depth. Everything else keeps a no-slash glob
+      // root-anchored: *.csproj matches Lib.csproj, not Src/Lib/Lib.csproj.
+      if (!pattern.includes("/") && basenameGlobAnyDepth) {
         for (const file of files) {
           if (shouldIgnorePath(file, options)) continue;
           if (globMatch(posixBasename(file), pattern)) hits.push(file);
@@ -458,16 +467,20 @@ function evalCriterion(criterion, ctx) {
   }
 
   const pathIgnore = pathIgnoreFor(criterion);
+  const styleFirstHit = isStyleFirstHitId(criterion.id);
   const fileHits = evalAnyFiles(
     ctx.repoRoot,
     ctx.files,
     [...(criterion.anyFiles ?? []), ...(criterion.anyGlobs ?? [])],
-    { ...pathIgnore, ...caseInsensitiveNamesFor(criterion) },
+    {
+      ...pathIgnore,
+      ...caseInsensitiveNamesFor(criterion),
+      basenameGlobAnyDepth: matchBasenameGlobAnyDepth(criterion.id),
+    },
   );
   const usableHits = criterion.anyFilesNonEmpty
     ? fileHits.filter((file) => fileHasContent(ctx.repoRoot, file))
     : fileHits;
-  const styleFirstHit = isStyleFirstHitId(criterion.id);
   const productFileHits = styleFirstHit ? usableHits.filter((file) => !isDeferredStyleConfig(file)) : usableHits;
   if (productFileHits.length > 0) {
     return hit(`Found ${firstFileHit(criterion, productFileHits)}`);
