@@ -253,7 +253,9 @@
         "**/*_spec.rb",
         "**/*_test.rb",
         "**/test_*.py",
-        "**/*_test.py"
+        "**/*_test.py",
+        "**/*Test.java",
+        "**/*Tests.java"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },

@@ -304,6 +304,8 @@ assert.ok(testFramework.anyGlobs.includes("**/*_spec.rb"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.rb"));
 assert.ok(testFramework.anyGlobs.includes("**/test_*.py"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.py"));
+assert.ok(testFramework.anyGlobs.includes("**/*Test.java"));
+assert.ok(testFramework.anyGlobs.includes("**/*Tests.java"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
@@ -2276,6 +2278,92 @@ const pythonJestOnly = evalTree({
 });
 assert.equal(pythonJestOnly["test-framework"].pass, true, pythonJestOnly["test-framework"].message);
 assert.match(pythonJestOnly["test-framework"].message, /jest\.config\.js/);
+const javaLikeFramework = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  javaLikeFramework["test-framework"].pass,
+  true,
+  javaLikeFramework["test-framework"].message,
+);
+assert.match(javaLikeFramework["test-framework"].message, /FooTest\.java/);
+assert.equal(
+  /jest\.config/.test(javaLikeFramework["test-framework"].message),
+  false,
+  javaLikeFramework["test-framework"].message,
+);
+const javaGradleFramework = evalTree({
+  "build.gradle": "plugins { id 'java' }\n",
+  "src/test/java/FooTests.java": "class FooTests {}\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(
+  javaGradleFramework["test-framework"].pass,
+  true,
+  javaGradleFramework["test-framework"].message,
+);
+assert.match(javaGradleFramework["test-framework"].message, /FooTests\.java/);
+assert.equal(
+  /vitest\.config/.test(javaGradleFramework["test-framework"].message),
+  false,
+  javaGradleFramework["test-framework"].message,
+);
+const javaHelperFramework = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "assets/jest.config.js": "export default {}\n",
+});
+assert.equal(
+  javaHelperFramework["test-framework"].pass,
+  true,
+  javaHelperFramework["test-framework"].message,
+);
+assert.match(javaHelperFramework["test-framework"].message, /FooTest\.java/);
+assert.equal(
+  /jest\.config/.test(javaHelperFramework["test-framework"].message),
+  false,
+  javaHelperFramework["test-framework"].message,
+);
+const javaJestOnly = evalTree({
+  "pom.xml": "<project></project>\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(javaJestOnly["test-framework"].pass, true, javaJestOnly["test-framework"].message);
+assert.match(javaJestOnly["test-framework"].message, /jest\.config\.js/);
+const pythonStillBeatsJest = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  pythonStillBeatsJest["test-framework"].pass,
+  true,
+  pythonStillBeatsJest["test-framework"].message,
+);
+assert.match(pythonStillBeatsJest["test-framework"].message, /test_foo\.py/);
+assert.equal(
+  /jest\.config/.test(pythonStillBeatsJest["test-framework"].message),
+  false,
+  pythonStillBeatsJest["test-framework"].message,
+);
+const railsStillBeatsJest = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "spec/foo_spec.rb": "RSpec.describe Foo do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  railsStillBeatsJest["test-framework"].pass,
+  true,
+  railsStillBeatsJest["test-framework"].message,
+);
+assert.match(railsStillBeatsJest["test-framework"].message, /foo_spec\.rb/);
+assert.equal(
+  /jest\.config/.test(railsStillBeatsJest["test-framework"].message),
+  false,
+  railsStillBeatsJest["test-framework"].message,
+);
 assertPass(
   "test-framework",
   { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" },

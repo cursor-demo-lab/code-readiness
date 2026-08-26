@@ -370,7 +370,8 @@ function deferJsFrameworkSidecarHits(repoFiles) {
     (files.includes("mix.exs") && files.some(isElixirTestFile)) ||
     deferJsTestSidecarForRuby(files) ||
     deferJsTestSidecarForPython(files) ||
-    (files.includes("pytest.ini") && files.some(isPythonTestFile))
+    (files.includes("pytest.ini") && files.some(isPythonTestFile)) ||
+    deferJsTestSidecarForJava(files)
   );
 }
 
