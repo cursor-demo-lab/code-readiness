@@ -534,6 +534,7 @@ function productTestFrameworkHits(files, languages, repoFiles) {
 }
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
+const TYPE_CHECKER_SATELLITE_SEGMENTS = new Set(["plugin", "plugins", "hooks"]);
 
 function isTypeCheckerConfigHit(file) {
   const name = posixBasename(file);
@@ -547,9 +548,41 @@ function isDeferredTypeCheckerConfig(file) {
   );
 }
 
+function isTypeCheckerSatellitePath(file) {
+  return file.split("/").some(
+    (part) => part.includes("eslint-plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
+  );
+}
+
+function isRootTypeCheckerConfig(file) {
+  return file === "tsconfig.json" || file === "jsconfig.json";
+}
+
+function isPackagesProductTypeCheckerConfig(file) {
+  if (isTypeCheckerSatellitePath(file)) return false;
+  const parts = file.split("/");
+  if (parts.length !== 3 || parts[0] !== "packages") return false;
+  return isTypeCheckerConfigHit(parts[2]);
+}
+
+function typeCheckerConfigRank(file) {
+  if (isTypeCheckerSatellitePath(file)) return 3;
+  if (isRootTypeCheckerConfig(file)) return 0;
+  if (isPackagesProductTypeCheckerConfig(file)) return 1;
+  return 2;
+}
+
 function productTypeCheckerHits(files) {
   const preferred = files.filter((file) => !isDeferredTypeCheckerConfig(file));
   return preferred.length > 0 ? preferred : files;
+}
+
+function rankTypeCheckerHits(files) {
+  return [...productTypeCheckerHits(files)].sort((a, b) => {
+    const rank = typeCheckerConfigRank(a) - typeCheckerConfigRank(b);
+    if (rank !== 0) return rank;
+    return comparePathDepth(a, b);
+  });
 }
 
 function firstFileHit(criterion, fileHits, languages, repoFiles, repoRoot) {
@@ -560,7 +593,7 @@ function firstFileHit(criterion, fileHits, languages, repoFiles, repoRoot) {
   }
   if (criterion.id === "type-checker") {
     const configs = fileHits.filter(isTypeCheckerConfigHit);
-    if (configs.length > 0) return shallowestHit(productTypeCheckerHits(configs));
+    if (configs.length > 0) return rankTypeCheckerHits(configs)[0];
     return fileHits[0];
   }
   if (criterion.id === "linter") {

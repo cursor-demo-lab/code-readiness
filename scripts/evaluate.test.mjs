@@ -285,6 +285,8 @@ assert.ok(typeChecker.fileContains.some((rule) => rule.file === "setup.cfg" && r
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.mypy]")));
 assert.ok(typeChecker.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pyright]")));
 assert.equal(typeChecker.tsconfigStrict, true);
+assert.equal(typeChecker.languagesPass.csharp, "C# has a built-in static type system.");
+assert.equal(typeChecker.languagesPass.elixir, undefined);
 
 const testFramework = catalog.criteria.find((row) => row.id === "test-framework");
 assert.ok(testFramework.anyFiles.includes("conftest.py"));
@@ -4241,6 +4243,103 @@ assert.equal(
 );
 assertPass("type-checker", { "fixtures/tsconfig.json": "{}\n" }, /^Found fixtures\/tsconfig\.json$/);
 assertPass("type-checker", { "testdata/tsconfig.json": "{}\n" }, /^Found testdata\/tsconfig\.json$/);
+const productOverEslintPlugin = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/eslint-plugin-foo/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverEslintPlugin["type-checker"].pass,
+  true,
+  productOverEslintPlugin["type-checker"].message,
+);
+assert.match(
+  productOverEslintPlugin["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /eslint-plugin/.test(productOverEslintPlugin["type-checker"].message),
+  false,
+  productOverEslintPlugin["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  {
+    "tsconfig.json": "{}\n",
+    "packages/foo/tsconfig.json": "{}\n",
+  },
+  /^Found tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/eslint-plugin-foo/tsconfig.json": "{}\n" },
+  /^Found packages\/eslint-plugin-foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/plugin/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/plugins/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/hooks/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "hooks/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "compiler/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/plugin/tsconfig.json": "{}\n" },
+  /^Found packages\/plugin\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/hooks/tsconfig.json": "{}\n" },
+  /^Found packages\/hooks\/tsconfig\.json$/,
+);
+assertPass("type-checker", { "Foo.csproj": "<Project></Project>\n" }, /C# has a built-in static type system/);
+assert.equal(
+  evalTree({ "mix.exs": "defmodule Demo.MixProject do\nend\n" })["type-checker"].skipped,
+  true,
+);
+const mixCsharpTypeChecker = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "Foo.csproj": "<Project></Project>\n",
+});
+assert.equal(
+  mixCsharpTypeChecker["type-checker"].pass,
+  true,
+  mixCsharpTypeChecker["type-checker"].message,
+);
+assert.equal(mixCsharpTypeChecker["type-checker"].skipped, false);
+assert.match(mixCsharpTypeChecker["type-checker"].message, /C# has a built-in static type system/);
 assertPass("linter", { "crates/foo/.golangci.yml": "linters: {}\n" }, /crates\/foo\/\.golangci\.yml/);
 assertPass("security-policy", { "security/SECURITY.md": "# Security\n" }, /security\/SECURITY\.md/);
 const nestedEditor = evalTree({ "packages/foo/.editorconfig": "root = true\n" });
@@ -5490,6 +5589,8 @@ assert.match(rootReadme, /tests\/FooTests\.cs/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
+assert.match(rootReadme, /A plugin-only tree still passes/);
+assert.match(rootReadme, /packages\/eslint-plugin-foo/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -5557,6 +5658,8 @@ assert.match(skillMd, /tests\/FooTests\.cs/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
+assert.match(skillMd, /A plugin-only tree still passes/);
+assert.match(skillMd, /packages\/eslint-plugin-foo/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -5644,6 +5747,8 @@ assert.match(checksReadme, /`type-checker` first-hit among `tsconfig\.json` \/ `
 assert.match(checksReadme, /packages\/foo\/tsconfig\.json/);
 assert.match(checksReadme, /A test-only tree still passes/);
 assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/);
+assert.match(checksReadme, /A plugin-only tree still passes/);
+assert.match(checksReadme, /packages\/eslint-plugin-foo/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
