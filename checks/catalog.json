@@ -732,7 +732,7 @@
       "pillarId": "ci-cd",
       "level": 3,
       "requiresLLM": false,
-      "ciGrep": "\\b(npm\\s+test|yarn\\s+test|pnpm\\s+test|bun\\s+test|jest|vitest|pytest|go\\s+test|make\\s+test|npm\\s+run\\s+test|gradle\\s+test|gradlew\\s+test|mvn\\s+test|cargo\\s+test|dotnet\\s+test|phpunit|swift\\s+test)\\b",
+      "ciGrep": "\\b(npm\\s+test|yarn\\s+test|pnpm\\s+test|bun\\s+test|jest|vitest|pytest|go\\s+test|make\\s+test|npm\\s+run\\s+test|gradle\\s+test|gradlew\\s+test|mvn\\s+test|cargo\\s+test|dotnet\\s+test|phpunit|swift\\s+test|hereby.*\\b(?:test|tests|spec))\\b",
       "fail": "CI configuration found but no test execution detected.",
       "fix": "Add a test step to CI. Do not run the test suite as part of this skill.",
       "effort": "medium"
