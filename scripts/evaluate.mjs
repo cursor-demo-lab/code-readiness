@@ -107,6 +107,20 @@ function shouldIgnorePath(file, options) {
   return pathHasSegments(file, options.ignorePathSegments);
 }
 
+function pathSegmentCount(file) {
+  return file.split("/").length;
+}
+
+function shallowestHit(files) {
+  return [...files].sort((a, b) => {
+    const depth = pathSegmentCount(a) - pathSegmentCount(b);
+    if (depth !== 0) return depth;
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+  })[0];
+}
+
 function pathIgnoreFor(criterion) {
   if (criterion.id === "version-pinned") return { ignorePath: pathHasIgnoredVersionPin };
   if (criterion.ignorePathSegments) return { ignorePathSegments: criterion.ignorePathSegments };
@@ -292,7 +306,8 @@ function evalCriterion(criterion, ctx) {
       const realHit = fileHits.find((file) => fileHasContent(ctx.repoRoot, file));
       if (realHit) return hit(`Found ${realHit}`);
     } else {
-      return hit(`Found ${fileHits[0]}`);
+      const firstHit = criterion.id === "license" ? shallowestHit(fileHits) : fileHits[0];
+      return hit(`Found ${firstHit}`);
     }
   }
 
