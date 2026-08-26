@@ -1578,6 +1578,31 @@ assertPass(
   /rust-version/,
 );
 assertFail("version-pinned", { "testdata/go.mod": "module example.com/x\n\ngo 1.22\n" });
+assertFail("version-pinned", { "fixtures/go.mod": "module example.com/x\n\ngo 1.22\n" });
+assertFail(
+  "version-pinned",
+  {
+    "platform-tooling-support-tests/projects/jupiter-starter/pom.xml":
+      "<project><maven.compiler.release>17</maven.compiler.release></project>\n",
+  },
+);
+assertFail(
+  "version-pinned",
+  {
+    "platform-tooling-support-tests/projects/jupiter-starter/build.gradle.kts":
+      "java { toolchain { languageVersion.set(JavaLanguageVersion.of(17)) } }\n",
+  },
+);
+assertFail(
+  "version-pinned",
+  {
+    "gradle/plugins/common/src/main/kotlin/junitbuild.java-toolchain-conventions.gradle.kts": "",
+    "platform-tooling-support-tests/projects/jupiter-starter/pom.xml":
+      "<project><maven.compiler.release>17</maven.compiler.release></project>\n",
+    "platform-tooling-support-tests/projects/jupiter-starter/build.gradle.kts":
+      "java { toolchain { languageVersion.set(JavaLanguageVersion.of(17)) } }\n",
+  },
+);
 assertPass(
   "version-pinned",
   { "pom.xml": "<project><maven.compiler.source>17</maven.compiler.source></project>\n" },
@@ -1585,8 +1610,26 @@ assertPass(
 );
 assertPass(
   "version-pinned",
+  { "src/pom.xml": "<project><maven.compiler.release>17</maven.compiler.release></project>\n" },
+  /maven\.compiler\.release/,
+);
+assertPass(
+  "version-pinned",
+  {
+    "projects/lib/pom.xml":
+      "<project><maven.compiler.release>17</maven.compiler.release></project>\n",
+  },
+  /maven\.compiler\.release/,
+);
+assertPass(
+  "version-pinned",
   { "build.gradle.kts": "java { jvmToolchain(17) }\n" },
   /jvmToolchain/,
+);
+assertPass(
+  "version-pinned",
+  { "src/build.gradle.kts": "java { toolchain { languageVersion.set(JavaLanguageVersion.of(17)) } }\n" },
+  /JavaLanguageVersion/,
 );
 assertPass(
   "version-pinned",

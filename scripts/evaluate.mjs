@@ -77,31 +77,56 @@ function isBasenameOnly(pattern) {
   return Boolean(pattern) && !pattern.includes("/") && !isGlobPattern(pattern);
 }
 
+const VERSION_PIN_IGNORE_SEGMENTS = [
+  "testdata",
+  "fixtures",
+  "sample",
+  "samples",
+  "example",
+  "examples",
+  "starter",
+  "starters",
+  "demo",
+  "demos",
+];
+
 function pathHasSegments(file, segments) {
   if (!segments?.length) return false;
   return file.split("/").some((part) => segments.includes(part));
 }
 
+function pathHasIgnoredVersionPin(file) {
+  return file.split("/").some((part) => {
+    if (VERSION_PIN_IGNORE_SEGMENTS.includes(part)) return true;
+    if (part.endsWith("-tests") || part.endsWith("_tests")) return true;
+    return part.split(/[-_]/).some((token) => VERSION_PIN_IGNORE_SEGMENTS.includes(token));
+  });
+}
+
+function shouldIgnorePath(file, options) {
+  if (typeof options.ignorePath === "function") return options.ignorePath(file);
+  return pathHasSegments(file, options.ignorePathSegments);
+}
+
 function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   if (!patterns?.length) return [];
-  const ignoreSegments = options.ignorePathSegments ?? [];
   const hits = [];
   for (const pattern of patterns) {
     if (isGlobPattern(pattern)) {
-      hits.push(...findMatches(files, [pattern]).filter((file) => !pathHasSegments(file, ignoreSegments)));
+      hits.push(...findMatches(files, [pattern]).filter((file) => !shouldIgnorePath(file, options)));
       continue;
     }
     if (pattern.includes("/")) {
-      if (!pathHasSegments(pattern, ignoreSegments) && fs.existsSync(path.join(repoRoot, pattern))) {
+      if (!shouldIgnorePath(pattern, options) && fs.existsSync(path.join(repoRoot, pattern))) {
         hits.push(pattern);
       }
       continue;
     }
-    if (!pathHasSegments(pattern, ignoreSegments) && fs.existsSync(path.join(repoRoot, pattern))) {
+    if (!shouldIgnorePath(pattern, options) && fs.existsSync(path.join(repoRoot, pattern))) {
       hits.push(pattern);
     }
     for (const file of files) {
-      if (file !== pattern && posixBasename(file) === pattern && !pathHasSegments(file, ignoreSegments)) {
+      if (file !== pattern && posixBasename(file) === pattern && !shouldIgnorePath(file, options)) {
         hits.push(file);
       }
     }
@@ -111,11 +136,10 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
 
 function evalFileContains(repoRoot, files, rules, options = {}) {
   if (!rules?.length) return null;
-  const ignoreSegments = options.ignorePathSegments ?? [];
   for (const rule of rules) {
     const basenameOnly = isBasenameOnly(rule.file);
     const matches = files.filter((file) => {
-      if (pathHasSegments(file, ignoreSegments)) return false;
+      if (shouldIgnorePath(file, options)) return false;
       if (file === rule.file || globMatch(file, rule.file)) return true;
       return basenameOnly && posixBasename(file) === rule.file;
     });
@@ -247,8 +271,7 @@ function evalCriterion(criterion, ctx) {
     return miss(criterion.fail);
   }
 
-  const pinPathIgnore =
-    criterion.id === "version-pinned" ? { ignorePathSegments: ["testdata", "fixtures"] } : {};
+  const pinPathIgnore = criterion.id === "version-pinned" ? { ignorePath: pathHasIgnoredVersionPin } : {};
   const fileHits = evalAnyFiles(
     ctx.repoRoot,
     ctx.files,
