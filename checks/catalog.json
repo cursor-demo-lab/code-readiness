@@ -630,7 +630,12 @@
         { "file": "**/*.cabal", "includes": ["cabal-version:", "tested-with:"] },
         {
           "file": "CMakeLists.txt",
-          "includes": ["CMAKE_CXX_STANDARD", "CXX_STANDARD", "CMAKE_C_STANDARD"],
+          "includes": [
+            "CMAKE_CXX_STANDARD",
+            "CMAKE_C_STANDARD",
+            "PROPERTY CXX_STANDARD",
+            "PROPERTIES CXX_STANDARD"
+          ],
           "ignorePathSegments": ["docs"]
         }
       ],
