@@ -121,6 +121,19 @@ function shallowestHit(files) {
   })[0];
 }
 
+const LINTER_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata"];
+
+function firstFileHit(criterion, fileHits) {
+  if (criterion.id === "license") return shallowestHit(fileHits);
+  if (criterion.id === "linter") {
+    const productHits = fileHits.filter(
+      (file) => !pathHasSegments(file, LINTER_FIRST_HIT_DEFER_SEGMENTS),
+    );
+    return shallowestHit(productHits.length > 0 ? productHits : fileHits);
+  }
+  return fileHits[0];
+}
+
 function pathIgnoreFor(criterion) {
   if (criterion.id === "version-pinned") return { ignorePath: pathHasIgnoredVersionPin };
   if (criterion.ignorePathSegments) return { ignorePathSegments: criterion.ignorePathSegments };
@@ -306,8 +319,7 @@ function evalCriterion(criterion, ctx) {
       const realHit = fileHits.find((file) => fileHasContent(ctx.repoRoot, file));
       if (realHit) return hit(`Found ${realHit}`);
     } else {
-      const firstHit = criterion.id === "license" ? shallowestHit(fileHits) : fileHits[0];
-      return hit(`Found ${firstHit}`);
+      return hit(`Found ${firstFileHit(criterion, fileHits)}`);
     }
   }
 
