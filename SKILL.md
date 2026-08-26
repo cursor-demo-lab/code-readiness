@@ -66,6 +66,8 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `setup-script` first-hit prefers the shallowest product-tree file (root `CMakeLists.txt` / `Makefile` / package.json). Nested `support/build.gradle` is not first-hit when a product setup file exists; a support-only tree still passes.
 
+`test-script` first-hit among `*Tests.csproj` / `*Test.csproj` / `*Tests.sln` defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another Tests project exists (`Newtonsoft.Json.Tests.csproj` over `Newtonsoft.Json.FuzzTests.csproj`). A Fuzz-only tree still passes.
+
 Forbidden UI copy: "9 pillars".
 
 Required attribution: local filesystem heuristics from checks/catalog.json; not `/doctor`.

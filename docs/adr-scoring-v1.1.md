@@ -52,6 +52,8 @@ Hill-climb after PR #56: nest and phoenix PASS `containerization` on `integratio
 
 Hill-climb after PR #59: fmtlib/fmt PASSes `setup-script` on `support/build.gradle` (Android NDK sidecar) even though root `CMakeLists.txt` exists. Catalog `anyFiles` lists `build.gradle` before `CMakeLists.txt`, so first-hit named the NDK library. First-hit now prefers the shallowest product-tree setup file and defers `support/**` / `android/**` / `examples/**` the way containerization defers `integration/**`. A support-only tree still PASSES and names that file. Message-only. Do not fail fmt `setup-script`. `test-script` still FAILs `support/build.gradle` (not a runner); do not put `build.gradle` back on `test-script`. Stay L1 because `test-script` FAILs. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `issue-templates` stays L3, `codeowners` stays Security.
 
+Hill-climb after PR #60: JamesNK/Newtonsoft.Json PASSes `test-script` on `Src/Newtonsoft.Json.FuzzTests/Newtonsoft.Json.FuzzTests.csproj` because walk order and same-depth lex sort hit FuzzTests before `Src/Newtonsoft.Json.Tests/Newtonsoft.Json.Tests.csproj`. Both match `**/*Tests.csproj`. First-hit among those `*Tests.csproj` / `*Test.csproj` / `*Tests.sln` hits now defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another Tests project exists. A Fuzz-only tree still PASSES. Message-only. Do not restore product `*.csproj` on `test-script`. Stay L1 because `linter` FAILs. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `issue-templates` stays L3, `codeowners` stays Security.
+
 ## Explicitly refused
 
 - New criterion ids
