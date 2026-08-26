@@ -2338,6 +2338,72 @@ const catch2SelfTest = evalTree({
 assert.equal(catch2SelfTest["test-files-exist"].pass, true, catch2SelfTest["test-files-exist"].message);
 assert.match(catch2SelfTest["test-files-exist"].message, /Algorithms\.tests\.cpp/);
 
+const tsGoSidecarTfe = evalTree({
+  "src/foo.test.ts": "test('ok');\n",
+  "tools/customlint/plugin_test.go": "package plugin\n",
+});
+assert.equal(tsGoSidecarTfe["test-files-exist"].pass, true, tsGoSidecarTfe["test-files-exist"].message);
+assert.equal(tsGoSidecarTfe["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(tsGoSidecarTfe["test-files-exist"].message, /foo\.test\.ts/);
+assert.equal(/plugin_test\.go/.test(tsGoSidecarTfe["test-files-exist"].message), false);
+assert.match(tsGoSidecarTfe["test-files-exist"].details, /^src\/foo\.test\.ts\b/);
+assert.match(tsGoSidecarTfe["test-files-exist"].details, /plugin_test\.go/);
+assert.equal(tsGoSidecarTfe["test-framework"].pass, true, tsGoSidecarTfe["test-framework"].message);
+assert.match(tsGoSidecarTfe["test-framework"].message, /plugin_test\.go/);
+
+const jsGoSidecarTfe = evalTree({
+  "src/foo.test.js": "test('ok');\n",
+  "tools/customlint/plugin_test.go": "package plugin\n",
+});
+assert.equal(jsGoSidecarTfe["test-files-exist"].pass, true, jsGoSidecarTfe["test-files-exist"].message);
+assert.match(jsGoSidecarTfe["test-files-exist"].message, /foo\.test\.js/);
+assert.equal(/plugin_test\.go/.test(jsGoSidecarTfe["test-files-exist"].message), false);
+
+const mjsGoSidecarTfe = evalTree({
+  "src/foo.test.mjs": "test('ok');\n",
+  "tools/customlint/plugin_test.go": "package plugin\n",
+});
+assert.equal(mjsGoSidecarTfe["test-files-exist"].pass, true, mjsGoSidecarTfe["test-files-exist"].message);
+assert.match(mjsGoSidecarTfe["test-files-exist"].message, /foo\.test\.mjs/);
+assert.equal(/plugin_test\.go/.test(mjsGoSidecarTfe["test-files-exist"].message), false);
+
+const tsxGoSidecarTfe = evalTree({
+  "src/foo.test.tsx": "test('ok');\n",
+  "tools/customlint/plugin_test.go": "package plugin\n",
+});
+assert.equal(tsxGoSidecarTfe["test-files-exist"].pass, true, tsxGoSidecarTfe["test-files-exist"].message);
+assert.match(tsxGoSidecarTfe["test-files-exist"].message, /foo\.test\.tsx/);
+assert.equal(/plugin_test\.go/.test(tsxGoSidecarTfe["test-files-exist"].message), false);
+
+assertPass(
+  "test-files-exist",
+  { "tools/customlint/plugin_test.go": "package plugin\n" },
+  /plugin_test\.go/,
+);
+assertPass("test-framework", { "tools/customlint/plugin_test.go": "package plugin\n" }, /plugin_test\.go/);
+
+const goPrimaryTfe = evalTree({
+  "go.mod": "module example.com/foo\n",
+  "foo_test.go": "package foo\n",
+});
+assert.equal(goPrimaryTfe["test-files-exist"].pass, true, goPrimaryTfe["test-files-exist"].message);
+assert.match(goPrimaryTfe["test-files-exist"].message, /foo_test\.go/);
+assert.equal(goPrimaryTfe["test-framework"].pass, true, goPrimaryTfe["test-framework"].message);
+assert.match(goPrimaryTfe["test-framework"].message, /foo_test\.go/);
+
+const tsGoSidecarFramework = evalTree({
+  "src/foo.test.ts": "test('ok');\n",
+  "tools/customlint/plugin_test.go": "package plugin\n",
+  "package.json": { devDependencies: { jest: "29.0.0" } },
+});
+assert.equal(tsGoSidecarFramework["test-files-exist"].pass, true, tsGoSidecarFramework["test-files-exist"].message);
+assert.match(tsGoSidecarFramework["test-files-exist"].message, /foo\.test\.ts/);
+assert.equal(/plugin_test\.go/.test(tsGoSidecarFramework["test-files-exist"].message), false);
+assert.equal(tsGoSidecarFramework["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.equal(tsGoSidecarFramework["test-framework"].pass, true, tsGoSidecarFramework["test-framework"].message);
+assert.match(tsGoSidecarFramework["test-framework"].message, /package\.json|"jest"/);
+assert.equal(/plugin_test\.go/.test(tsGoSidecarFramework["test-framework"].message), false);
+
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
 assertPass("test-script", { Justfile: "test:\n    pytest\n" }, /Justfile/);
 assertPass(
@@ -3955,6 +4021,8 @@ assert.match(rootReadme, /`test-framework` first-hit among/);
 assert.match(rootReadme, /A coverage-only or integration-only tree still passes/);
 assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
+assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
+assert.match(rootReadme, /A Go-only test tree still passes/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -3995,6 +4063,8 @@ assert.match(skillMd, /`test-framework` first-hit among/);
 assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
 assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
+assert.match(skillMd, /`test-files-exist` first-hit prefers/);
+assert.match(skillMd, /A Go-only test tree still passes/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -4117,6 +4187,9 @@ assert.match(checksReadme, /`test\/test_\*\.rb` \(and `\*\*\/test\/test_\*\.rb`\
 assert.match(checksReadme, /still do not add `test\/test_\*\.rb` without the `test\/` segment/);
 assert.match(checksReadme, /Do not add `\*\*\/\*\.cpp`/);
 assert.match(checksReadme, /catch-alls do not count `tsconfig\.spec\.json` \/ `tsconfig\.test\.json`/);
+assert.match(checksReadme, /detectLanguages` includes typescript\/javascript/);
+assert.match(checksReadme, /A Go-only test tree still passes/);
+assert.match(checksReadme, /sidecar Go tests/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
 assert.match(checksReadme, /examples-only lock still passes `lock-file`/);
