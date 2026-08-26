@@ -270,6 +270,42 @@ function hasJsTsProductLanguage(languages) {
   return Boolean(languages?.has("typescript") || languages?.has("javascript"));
 }
 
+function isJsTsLinterFile(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, "eslint.config.*") ||
+    globMatch(name, ".eslintrc*") ||
+    name === "biome.json" ||
+    name === "biome.jsonc" ||
+    name === ".oxlintrc.json"
+  );
+}
+
+function isGolangciFile(file) {
+  const name = posixBasename(file);
+  return (
+    name === ".golangci.yml" ||
+    name === ".golangci.yaml" ||
+    name === ".golangci.toml" ||
+    name === ".golangci.json"
+  );
+}
+
+function treeIsGoPrimary(files) {
+  const list = files ?? [];
+  return list.includes("go.mod") && !list.includes("package.json") && !list.includes("tsconfig.json");
+}
+
+function productLinterHits(files, languages, repoFiles) {
+  const styleHits = productStyleHits(files);
+  const jsHits = styleHits.filter(isJsTsLinterFile);
+  const goHits = styleHits.filter(isGolangciFile);
+  if (jsHits.length === 0 || goHits.length === 0) return styleHits;
+  if (treeIsGoPrimary(repoFiles)) return goHits;
+  if (hasJsTsProductLanguage(languages)) return jsHits;
+  return styleHits;
+}
+
 function isGoTestFile(file) {
   return globMatch(posixBasename(file), "*_test.go");
 }
@@ -348,6 +384,9 @@ function firstFileHit(criterion, fileHits, languages, repoFiles) {
     const configs = fileHits.filter(isTypeCheckerConfigHit);
     if (configs.length > 0) return shallowestHit(productTypeCheckerHits(configs));
     return fileHits[0];
+  }
+  if (criterion.id === "linter") {
+    return shallowestHit(productLinterHits(fileHits, languages, repoFiles));
   }
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
