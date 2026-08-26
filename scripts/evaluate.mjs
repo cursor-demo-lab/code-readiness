@@ -354,6 +354,32 @@ function deferJsTestSidecarHits(repoFiles) {
   return deferJsFrameworkSidecarHits(repoFiles) || deferJsTestSidecarForRuby(repoFiles);
 }
 
+function isJsFormatterSidecar(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, ".prettierrc*") ||
+    globMatch(name, "prettier.config.*") ||
+    name === "biome.json" ||
+    name === "biome.jsonc"
+  );
+}
+
+function isMixFormatterFile(file) {
+  return posixBasename(file) === ".formatter.exs";
+}
+
+function deferJsFormatterSidecarHits(repoFiles) {
+  const files = repoFiles ?? [];
+  return files.includes("mix.exs") && files.some(isMixFormatterFile);
+}
+
+function productFormatterHits(files, repoFiles) {
+  const styleHits = productStyleHits(files);
+  if (!deferJsFormatterSidecarHits(repoFiles)) return styleHits;
+  const withoutJsSidecar = styleHits.filter((file) => !isJsFormatterSidecar(file));
+  return withoutJsSidecar.length > 0 ? withoutJsSidecar : styleHits;
+}
+
 function productTestFrameworkHits(files, languages, repoFiles) {
   const configHits = files.filter(isTestFrameworkConfigHit);
   const preferredConfigs = configHits.filter((file) => !isDeferredTestFrameworkSidecar(file));
@@ -405,6 +431,9 @@ function firstFileHit(criterion, fileHits, languages, repoFiles) {
   }
   if (criterion.id === "linter") {
     return shallowestHit(productLinterHits(fileHits, languages, repoFiles));
+  }
+  if (criterion.id === "formatter") {
+    return shallowestHit(productFormatterHits(fileHits, repoFiles));
   }
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
@@ -741,11 +770,14 @@ function evalCriterion(criterion, ctx) {
     criterion.id === "test-framework" && deferGoTestSidecarHits(ctx.languages, ctx.files);
   const deferMixJsFramework =
     criterion.id === "test-framework" && deferJsFrameworkSidecarHits(ctx.files);
+  const deferMixJsFormatter =
+    criterion.id === "formatter" && deferJsFormatterSidecarHits(ctx.files);
   const productFileHits = styleFirstHit
     ? usableHits.filter((file) => {
         if (isDeferredStyleConfig(file)) return false;
         if (deferGoFramework && isGoTestFile(file)) return false;
         if (deferMixJsFramework && isTestFrameworkConfigHit(file)) return false;
+        if (deferMixJsFormatter && isJsFormatterSidecar(file)) return false;
         return true;
       })
     : containerFirstHit
