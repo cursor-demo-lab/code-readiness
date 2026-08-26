@@ -1826,7 +1826,18 @@ assertFail("pre-commit-hooks", { Makefile: "lint:\n\teslint .\n" });
 
 assertPass("test-framework", { "vitest.config.ts": "export default {}\n" }, /vitest\.config\.ts/);
 assertPass("test-framework", { "jest.config.js": "export default {}\n" }, /jest\.config\.js/);
-assertFail("test-framework", { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" });
+assertPass(
+  "test-framework",
+  { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" },
+  /sample\/01-cats-app\/vitest\.config\.e2e\.mts/,
+);
+const nestRootVitest = evalTree({
+  "vitest.config.ts": "export default {}\n",
+  "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n",
+});
+assert.equal(nestRootVitest["test-framework"].pass, true, nestRootVitest["test-framework"].message);
+assert.match(nestRootVitest["test-framework"].message, /vitest\.config\.ts/);
+assert.equal(/sample\//.test(nestRootVitest["test-framework"].message), false);
 const nestLikeFramework = evalTree({
   "package.json": { scripts: { test: "jest" }, devDependencies: { jest: "29.0.0" } },
   "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n",
@@ -1834,6 +1845,35 @@ const nestLikeFramework = evalTree({
 assert.equal(nestLikeFramework["test-framework"].pass, true, nestLikeFramework["test-framework"].message);
 assert.match(nestLikeFramework["test-framework"].message, /package\.json/);
 assert.equal(/vitest\.config/.test(nestLikeFramework["test-framework"].message), false);
+const flaskLikeConftest = evalTree({
+  "tests/conftest.py": "# pytest fixtures\n",
+  "examples/javascript/tests/conftest.py": "# example fixtures\n",
+});
+assert.equal(flaskLikeConftest["test-framework"].pass, true, flaskLikeConftest["test-framework"].message);
+assert.match(flaskLikeConftest["test-framework"].message, /tests\/conftest\.py/);
+assert.equal(/examples\//.test(flaskLikeConftest["test-framework"].message), false);
+const flaskLikePyproject = evalTree({
+  "pyproject.toml": "[tool.pytest.ini_options]\n",
+  "examples/javascript/tests/conftest.py": "# example fixtures\n",
+});
+assert.equal(flaskLikePyproject["test-framework"].pass, true, flaskLikePyproject["test-framework"].message);
+assert.match(flaskLikePyproject["test-framework"].message, /pyproject\.toml/);
+assert.equal(/examples\//.test(flaskLikePyproject["test-framework"].message), false);
+const zodLikeDocsVitest = evalTree({
+  "vitest.config.ts": "export default {}\n",
+  "packages/docs/vitest.config.ts": "export default {}\n",
+});
+assert.equal(zodLikeDocsVitest["test-framework"].pass, true, zodLikeDocsVitest["test-framework"].message);
+assert.match(zodLikeDocsVitest["test-framework"].message, /^Found vitest\.config\.ts$/);
+assert.equal(/packages\/docs/.test(zodLikeDocsVitest["test-framework"].message), false);
+const reactLikeCompilerJest = evalTree({
+  "jest.config.js": "export default {}\n",
+  "compiler/packages/babel-plugin-react-compiler/jest.config.js": "export default {}\n",
+  "compiler/crates/react_compiler_ast/tests/deep_nesting.rs": "#[test] fn ok() {}\n",
+});
+assert.equal(reactLikeCompilerJest["test-framework"].pass, true, reactLikeCompilerJest["test-framework"].message);
+assert.match(reactLikeCompilerJest["test-framework"].message, /jest\.config\.js/);
+assert.equal(/compiler\//.test(reactLikeCompilerJest["test-framework"].message), false);
 assertPass("test-framework", { "phpunit.xml": "<phpunit></phpunit>\n" }, /phpunit\.xml/);
 assertPass("test-framework", { "phpunit.xml.dist": "<phpunit></phpunit>\n" }, /phpunit\.xml\.dist/);
 assertPass("test-framework", { ".rspec": "--require spec_helper\n" }, /\.rspec/);
@@ -2051,6 +2091,13 @@ const redisLikeTestScript = evalTree({
 assert.equal(redisLikeTestScript["test-script"].pass, true, redisLikeTestScript["test-script"].message);
 assert.match(redisLikeTestScript["test-script"].message, /Makefile/);
 assert.equal(/\.sln/.test(redisLikeTestScript["test-script"].message), false);
+const flaskLikeTestScript = evalTree({
+  "pyproject.toml": "[tool.pytest.ini_options]\n",
+  "examples/javascript/pyproject.toml": "[tool.pytest.ini_options]\n",
+});
+assert.equal(flaskLikeTestScript["test-script"].pass, true, flaskLikeTestScript["test-script"].message);
+assert.match(flaskLikeTestScript["test-script"].message, /pyproject\.toml/);
+assert.equal(/examples\//.test(flaskLikeTestScript["test-script"].message), false);
 
 assertPass("contributing", { "CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
 assertPass("contributing", { CONTRIBUTING: "How to contribute\n" }, /CONTRIBUTING/);
@@ -3152,7 +3199,9 @@ assert.match(checksReadme, /assets-only/);
 assert.match(checksReadme, /packages-only linter/);
 assert.match(checksReadme, /Do not reject empty linter configs/);
 assert.match(checksReadme, /eslint\.config\.\*/);
-assert.match(checksReadme, /match the basename at any depth for `linter` and `formatter` only/);
+assert.match(checksReadme, /match the basename at any depth for `linter`, `formatter`, and `test-framework`/);
+assert.match(checksReadme, /`test-framework` first-hit prefers the shallowest product-tree/);
+assert.match(checksReadme, /sample \/ examples \/ docs samples/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);

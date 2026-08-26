@@ -135,10 +135,10 @@ const STYLE_FIRST_HIT_DOCS_SEGMENTS = ["docs", "doc"];
 const STYLE_FIRST_HIT_SAMPLE_SEGMENTS = ["sample", "samples", "example", "examples"];
 const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
-const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter"]);
+const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
 
 function isStyleFirstHitId(id) {
-  return id === "linter" || id === "formatter";
+  return id === "linter" || id === "formatter" || id === "test-framework" || id === "test-script";
 }
 
 function matchBasenameGlobAnyDepth(id) {
@@ -150,6 +150,7 @@ function isDeferredStyleConfig(file) {
   for (let i = 0; i < parts.length; i += 1) {
     const part = parts[i];
     if (STYLE_FIRST_HIT_DEFER_SEGMENTS.includes(part)) return true;
+    if (STYLE_FIRST_HIT_SAMPLE_SEGMENTS.includes(part)) return true;
     if (part === "tests" && parts[i + 1] === "format") return true;
     if (
       STYLE_FIRST_HIT_DOCS_SEGMENTS.includes(part) &&
