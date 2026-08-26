@@ -2909,6 +2909,119 @@ assert.equal(
   pyPytestOverSameDirJs["test-files-exist"].message,
 );
 
+const javaTestOverJsTfe = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(javaTestOverJsTfe["test-files-exist"].pass, true, javaTestOverJsTfe["test-files-exist"].message);
+assert.equal(javaTestOverJsTfe["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(javaTestOverJsTfe["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.js/.test(javaTestOverJsTfe["test-files-exist"].message),
+  false,
+  javaTestOverJsTfe["test-files-exist"].message,
+);
+assert.match(javaTestOverJsTfe["test-files-exist"].details, /^src\/test\/java\/FooTest\.java\b/);
+assert.match(javaTestOverJsTfe["test-files-exist"].details, /foo\.test\.js/);
+
+const javaJsOnlyTfe = evalTree({
+  "pom.xml": "<project></project>\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(javaJsOnlyTfe["test-files-exist"].pass, true, javaJsOnlyTfe["test-files-exist"].message);
+assert.match(javaJsOnlyTfe["test-files-exist"].message, /foo\.test\.js/);
+
+const gradleTestOverJsTfe = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(gradleTestOverJsTfe["test-files-exist"].pass, true, gradleTestOverJsTfe["test-files-exist"].message);
+assert.match(gradleTestOverJsTfe["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.js/.test(gradleTestOverJsTfe["test-files-exist"].message),
+  false,
+  gradleTestOverJsTfe["test-files-exist"].message,
+);
+
+const gradleKtsTestsOverJsTfe = evalTree({
+  "build.gradle.kts": "plugins { java }\n",
+  "src/test/java/FooTests.java": "class FooTests {}\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  gradleKtsTestsOverJsTfe["test-files-exist"].pass,
+  true,
+  gradleKtsTestsOverJsTfe["test-files-exist"].message,
+);
+assert.match(gradleKtsTestsOverJsTfe["test-files-exist"].message, /FooTests\.java/);
+assert.equal(
+  /foo\.test\.js/.test(gradleKtsTestsOverJsTfe["test-files-exist"].message),
+  false,
+  gradleKtsTestsOverJsTfe["test-files-exist"].message,
+);
+
+const javaTestOverSpecTs = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "assets/foo.spec.ts": "test('ok');\n",
+});
+assert.equal(javaTestOverSpecTs["test-files-exist"].pass, true, javaTestOverSpecTs["test-files-exist"].message);
+assert.match(javaTestOverSpecTs["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.spec\.ts/.test(javaTestOverSpecTs["test-files-exist"].message),
+  false,
+  javaTestOverSpecTs["test-files-exist"].message,
+);
+
+const javaTestOverTestTs = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "assets/foo.test.ts": "test('ok');\n",
+});
+assert.equal(javaTestOverTestTs["test-files-exist"].pass, true, javaTestOverTestTs["test-files-exist"].message);
+assert.match(javaTestOverTestTs["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.ts/.test(javaTestOverTestTs["test-files-exist"].message),
+  false,
+  javaTestOverTestTs["test-files-exist"].message,
+);
+
+const javaTestOverSameDirJs = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "src/test/java/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  javaTestOverSameDirJs["test-files-exist"].pass,
+  true,
+  javaTestOverSameDirJs["test-files-exist"].message,
+);
+assert.match(javaTestOverSameDirJs["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.js/.test(javaTestOverSameDirJs["test-files-exist"].message),
+  false,
+  javaTestOverSameDirJs["test-files-exist"].message,
+);
+
+const javaTestOverShallowJs = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "test/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  javaTestOverShallowJs["test-files-exist"].pass,
+  true,
+  javaTestOverShallowJs["test-files-exist"].message,
+);
+assert.match(javaTestOverShallowJs["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.js/.test(javaTestOverShallowJs["test-files-exist"].message),
+  false,
+  javaTestOverShallowJs["test-files-exist"].message,
+);
+
 const mixExUnitOverJestTfe = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   "test/foo_test.exs": "defmodule FooTest do\nend\n",
@@ -4630,6 +4743,8 @@ assert.match(rootReadme, /A Mix tree with only JS tests still passes/);
 assert.match(rootReadme, /A Rails tree with only JS tests still passes/);
 assert.match(rootReadme, /A Python tree with only JS tests still passes/);
 assert.match(rootReadme, /Python-primary/);
+assert.match(rootReadme, /A Java tree with only JS tests still passes/);
+assert.match(rootReadme, /Java-primary/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -4687,6 +4802,8 @@ assert.match(skillMd, /A Mix tree with only JS tests still passes/);
 assert.match(skillMd, /A Rails tree with only JS tests still passes/);
 assert.match(skillMd, /A Python tree with only JS tests still passes/);
 assert.match(skillMd, /Python-primary/);
+assert.match(skillMd, /A Java tree with only JS tests still passes/);
+assert.match(skillMd, /Java-primary/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -4818,6 +4935,8 @@ assert.match(checksReadme, /A Mix tree with only JS tests still passes/);
 assert.match(checksReadme, /A Rails tree with only JS tests still passes/);
 assert.match(checksReadme, /A Python tree with only JS tests still passes/);
 assert.match(checksReadme, /Python-primary/);
+assert.match(checksReadme, /A Java tree with only JS tests still passes/);
+assert.match(checksReadme, /Java-primary/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
 assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
