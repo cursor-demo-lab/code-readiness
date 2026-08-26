@@ -363,6 +363,17 @@ assert.ok(license.anyFiles.includes("COPYING.md"));
 assert.ok(license.anyFiles.includes("UNLICENSE"));
 assert.ok(license.anyFiles.includes("LICENSE.rst"));
 assert.ok(license.anyFiles.includes("LICENSES/**"));
+assert.deepEqual(
+  license.ignorePathSegments,
+  formatter.ignorePathSegments,
+  "license reuses formatter vendor segments, not a second list",
+);
+assert.equal(
+  license.ignorePathSegments.includes("examples"),
+  false,
+  "examples/LICENSE can be a real product-tree license",
+);
+assert.equal(license.anyFilesNonEmpty, undefined);
 
 const preCommit = catalog.criteria.find((row) => row.id === "pre-commit-hooks");
 assert.ok(preCommit.anyFiles.includes("lefthook.toml"));
@@ -1768,7 +1779,23 @@ assertPass(
 
 assertPass("license", { "LICENSE.rst": "MIT License\n" }, /LICENSE\.rst/);
 assertPass("license", { "LICENSES/MIT.txt": "MIT License\n" }, /LICENSES/);
+assertPass("license", { "LICENSE.txt": "MIT License\n" }, /LICENSE\.txt/);
+assertPass("license", { LICENSE: "MIT\n" }, /Found LICENSE/);
+assertPass("license", { "LICENSE.md": "MIT License\n" }, /LICENSE\.md/);
+assertPass("license", { COPYING: "GNU GENERAL PUBLIC LICENSE\n" }, /COPYING/);
+assertPass("license", { "packages/app/LICENSE": "MIT\n" }, /packages\/app\/LICENSE/);
+assertPass("license", { "examples/LICENSE": "MIT\n" }, /examples\/LICENSE/);
+assertFail("license", { "deps/tre/LICENSE": "MIT\n" });
+assertFail("license", { "vendor/foo/LICENSE": "MIT\n" });
+assertFail("license", { "third_party/bar/LICENSE.md": "MIT License\n" });
 assertFail("license", { "README.md": "[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()\n" });
+const mixedVendorLic = evalTree({
+  "deps/tre/LICENSE": "BSD\n",
+  "LICENSE.txt": "Copyright (c) Redis Ltd.\n",
+});
+assert.equal(mixedVendorLic.license.pass, true, mixedVendorLic.license.message);
+assert.match(mixedVendorLic.license.message, /LICENSE\.txt/);
+assert.equal(/deps/.test(mixedVendorLic.license.message), false);
 
 assertPass("security-policy", { "docs/SECURITY.md": "# Security\n" }, /docs\/SECURITY\.md/);
 assertPass("security-policy", { "security.md": "# Security\n" }, /security\.md/);
@@ -1915,6 +1942,8 @@ assert.match(checksReadme, /Empty formatter configs do not count/);
 assert.match(checksReadme, /Empty or whitespace-only files do not count/);
 assert.match(checksReadme, /deps.*vendor.*third_party.*third-party/);
 assert.match(checksReadme, /examples\/\.prettierrc` still can/);
+assert.match(checksReadme, /`license` matches LICENSE/);
+assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 

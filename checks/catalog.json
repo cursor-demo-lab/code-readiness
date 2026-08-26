@@ -790,6 +790,19 @@
         "UNLICENSE",
         "LICENSES/**"
       ],
+      "ignorePathSegments": [
+        "deps",
+        "vendor",
+        "vendors",
+        "third_party",
+        "third-party",
+        "thirdparty",
+        "3rdparty",
+        "3rd-party",
+        "3rd_party",
+        "extern",
+        "external"
+      ],
       "fail": "No license file found.",
       "fix": "Add a LICENSE file at the repository root.",
       "effort": "low"
