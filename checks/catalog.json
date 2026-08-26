@@ -128,7 +128,10 @@
         ".scalafmt.conf",
         ".php-cs-fixer.php",
         ".formatter.exs",
-        ".style.yapf"
+        ".style.yapf",
+        "ruff.toml",
+        ".ruff.toml",
+        ".black"
       ],
       "anyFilesNonEmpty": true,
       "ignorePathSegments": [

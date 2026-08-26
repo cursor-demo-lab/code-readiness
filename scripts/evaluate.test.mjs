@@ -249,6 +249,9 @@ assert.ok(formatter.anyFiles.includes(".scalafmt.conf"));
 assert.ok(formatter.anyFiles.includes(".php-cs-fixer.php"));
 assert.ok(formatter.anyFiles.includes(".formatter.exs"));
 assert.ok(formatter.anyFiles.includes(".style.yapf"));
+assert.ok(formatter.anyFiles.includes("ruff.toml"));
+assert.ok(formatter.anyFiles.includes(".ruff.toml"));
+assert.ok(formatter.anyFiles.includes(".black"));
 assert.equal(formatter.anyFiles.includes(".clang-tidy"), false);
 assert.equal(formatter.anyFiles.includes("mix.exs"), false);
 assert.equal(formatter.languagesPass.elixir, undefined);
@@ -1961,6 +1964,63 @@ assert.equal(railsPrettierOnly.formatter.pass, true, railsPrettierOnly.formatter
 assert.match(railsPrettierOnly.formatter.message, /prettier\.config\.js/);
 assertPass("formatter", { ".rubocop.yaml": "AllCops:\n  NewCops: enable\n" }, /\.rubocop\.yaml/);
 assertPass("formatter", { ".standard.yml": "ruby_version: 3.2\n" }, /\.standard\.yml/);
+const pyRuffBeatsPrettier = evalTree({
+  "pyproject.toml": "[tool.ruff]\nline-length = 88\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(pyRuffBeatsPrettier.formatter.pass, true, pyRuffBeatsPrettier.formatter.message);
+assert.match(pyRuffBeatsPrettier.formatter.message, /pyproject\.toml|ruff\.toml/);
+assert.equal(
+  /prettier/.test(pyRuffBeatsPrettier.formatter.message),
+  false,
+  pyRuffBeatsPrettier.formatter.message,
+);
+const pyRuffTomlBeatsPrettier = evalTree({
+  "ruff.toml": "line-length = 88\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(pyRuffTomlBeatsPrettier.formatter.pass, true, pyRuffTomlBeatsPrettier.formatter.message);
+assert.match(pyRuffTomlBeatsPrettier.formatter.message, /ruff\.toml/);
+assert.equal(
+  /prettier/.test(pyRuffTomlBeatsPrettier.formatter.message),
+  false,
+  pyRuffTomlBeatsPrettier.formatter.message,
+);
+const pyBlackBeatsPrettier = evalTree({
+  "pyproject.toml": "[tool.black]\nline-length = 88\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(pyBlackBeatsPrettier.formatter.pass, true, pyBlackBeatsPrettier.formatter.message);
+assert.match(pyBlackBeatsPrettier.formatter.message, /pyproject\.toml|\.black/);
+assert.equal(
+  /prettier/.test(pyBlackBeatsPrettier.formatter.message),
+  false,
+  pyBlackBeatsPrettier.formatter.message,
+);
+const pyBlackFileBeatsPrettier = evalTree({
+  ".black": "line-length = 88\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(pyBlackFileBeatsPrettier.formatter.pass, true, pyBlackFileBeatsPrettier.formatter.message);
+assert.match(pyBlackFileBeatsPrettier.formatter.message, /\.black/);
+assert.equal(
+  /prettier/.test(pyBlackFileBeatsPrettier.formatter.message),
+  false,
+  pyBlackFileBeatsPrettier.formatter.message,
+);
+const pyRuffBeatsBiome = evalTree({
+  "pyproject.toml": "[tool.ruff]\nline-length = 88\n",
+  "biome.json": '{ "formatter": { "enabled": true } }\n',
+});
+assert.equal(pyRuffBeatsBiome.formatter.pass, true, pyRuffBeatsBiome.formatter.message);
+assert.match(pyRuffBeatsBiome.formatter.message, /pyproject\.toml|ruff\.toml/);
+assert.equal(/biome/.test(pyRuffBeatsBiome.formatter.message), false, pyRuffBeatsBiome.formatter.message);
+const pyPrettierOnly = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\nversion = \"0.1.0\"\n",
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+});
+assert.equal(pyPrettierOnly.formatter.pass, true, pyPrettierOnly.formatter.message);
+assert.match(pyPrettierOnly.formatter.message, /prettier\.config\.js/);
 const jsLinterWithPrettier = evalTree({
   "package.json": { name: "app" },
   "prettier.config.js": "export default { tabWidth: 2 };\n",
@@ -5173,6 +5233,7 @@ assert.match(rootReadme, /A golangci-only tree still passes/);
 assert.match(rootReadme, /`formatter` first-hit prefers/);
 assert.match(rootReadme, /A Mix tree with only prettier/);
 assert.match(rootReadme, /A Rails tree with only prettier/);
+assert.match(rootReadme, /A Python tree with only prettier/);
 assert.match(rootReadme, /A JS-only prettier tree still passes/);
 assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
@@ -5236,6 +5297,7 @@ assert.match(skillMd, /A golangci-only tree still passes/);
 assert.match(skillMd, /`formatter` first-hit prefers/);
 assert.match(skillMd, /A Mix tree with only prettier/);
 assert.match(skillMd, /A Rails tree with only prettier/);
+assert.match(skillMd, /A Python tree with only prettier/);
 assert.match(skillMd, /A JS-only prettier tree still passes/);
 assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
@@ -5386,6 +5448,7 @@ assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A C# tree with only jest/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
 assert.match(checksReadme, /A Rails tree with only prettier/);
+assert.match(checksReadme, /A Python tree with only prettier/);
 assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
 assert.match(checksReadme, /shallowest product-tree lock/);
