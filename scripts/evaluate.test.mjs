@@ -1537,8 +1537,8 @@ const mixedDepthFmt = evalTree({
   ".clang-format": "BasedOnStyle: LLVM\n",
 });
 assert.equal(mixedDepthFmt.formatter.pass, true, mixedDepthFmt.formatter.message);
-assert.match(mixedDepthFmt.formatter.message, /packages\/app\/\.prettierrc/);
-assert.equal(/\.clang-format/.test(mixedDepthFmt.formatter.message), false);
+assert.match(mixedDepthFmt.formatter.message, /Found \.clang-format/);
+assert.equal(/packages/.test(mixedDepthFmt.formatter.message), false);
 assertPass(
   "formatter",
   {
@@ -1642,7 +1642,15 @@ const mixedRootAndFormatPrettier = evalTree({
 assert.equal(mixedRootAndFormatPrettier.formatter.pass, true, mixedRootAndFormatPrettier.formatter.message);
 assert.match(mixedRootAndFormatPrettier.formatter.message, /Found \.prettierrc/);
 assert.equal(/tests\/format/.test(mixedRootAndFormatPrettier.formatter.message), false);
+const mixedRootAndIntegrationPrettier = evalTree({
+  "prettier.config.js": "export default { tabWidth: 2 };\n",
+  "tests/integration/.prettierrc": "{}\n",
+});
+assert.equal(mixedRootAndIntegrationPrettier.formatter.pass, true, mixedRootAndIntegrationPrettier.formatter.message);
+assert.match(mixedRootAndIntegrationPrettier.formatter.message, /Found prettier\.config\.js/);
+assert.equal(/tests\/integration/.test(mixedRootAndIntegrationPrettier.formatter.message), false);
 assertPass("formatter", { "tests/format/.prettierrc": "{}\n" }, /tests\/format\/\.prettierrc/);
+assertPass("formatter", { "tests/integration/.prettierrc": "{}\n" }, /tests\/integration\/\.prettierrc/);
 assertPass(
   "formatter",
   { "packages/app/.prettierrc.json": "{}\n" },
@@ -2812,6 +2820,9 @@ assert.match(checksReadme, /eslint\.config\.js/);
 assert.match(checksReadme, /tests\/fixtures/);
 assert.match(checksReadme, /assets/);
 assert.match(checksReadme, /tests\/format/);
+assert.match(checksReadme, /Formatter first-hit is the shallowest product-tree/);
+assert.match(checksReadme, /prettier\.config\.js/);
+assert.match(checksReadme, /tests\/integration/);
 assert.match(checksReadme, /docs samples/);
 assert.match(checksReadme, /assets-only/);
 assert.match(checksReadme, /packages-only linter/);
