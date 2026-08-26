@@ -197,8 +197,14 @@ export function ciFiles(files) {
   return findMatches(files, CI_GLOBS);
 }
 
+function isTsOrJsConfigBasename(file) {
+  const base = posixBasename(file);
+  return base.startsWith("tsconfig.") || base.startsWith("jsconfig.");
+}
+
 export function testFiles(files) {
   return findMatches(files, TEST_FILE_GLOBS).filter((file) => {
+    if (isTsOrJsConfigBasename(file)) return false;
     const parts = file.split("/");
     return !parts.some(
       (part) => part === "fixtures" || part === "snapshots" || part === "__snapshots__",
