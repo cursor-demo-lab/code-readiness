@@ -1594,6 +1594,53 @@ const twoNestedLint = evalTree({
 assert.equal(twoNestedLint.linter.pass, true, twoNestedLint.linter.message);
 assert.match(twoNestedLint.linter.message, /apps\/web\/\.golangci\.yml/);
 assert.equal(/packages/.test(twoNestedLint.linter.message), false);
+const mixedRootAndAssetsLint = evalTree({
+  "eslint.config.js": "export default [];\n",
+  "assets/eslint.config.js": "export default [];\n",
+});
+assert.equal(mixedRootAndAssetsLint.linter.pass, true, mixedRootAndAssetsLint.linter.message);
+assert.match(mixedRootAndAssetsLint.linter.message, /eslint\.config\.js/);
+assert.equal(/assets\//.test(mixedRootAndAssetsLint.linter.message), false);
+const assetsOnlyLint = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "assets/eslint.config.js": "export default [];\n",
+});
+assert.equal(assetsOnlyLint.linter.pass, true, "subtree-only eslint still passes linter");
+assert.match(assetsOnlyLint.linter.message, /assets\/eslint\.config\.js/);
+assert.equal(assetsOnlyLint.editorconfig.skipped, true, "editorconfig still skips when subtree linter passes");
+const emptyAssetsLint = evalTree({ "assets/.eslintrc": "" });
+assert.equal(emptyAssetsLint.linter.pass, true, "empty optional linter configs still count");
+assert.match(emptyAssetsLint.linter.message, /assets\/\.eslintrc/);
+const credoBeatsAssets = evalTree({
+  ".credo.exs": "%{}\n",
+  "assets/eslint.config.js": "export default [];\n",
+});
+assert.equal(credoBeatsAssets.linter.pass, true, credoBeatsAssets.linter.message);
+assert.match(credoBeatsAssets.linter.message, /\.credo\.exs/);
+assert.equal(/assets\//.test(credoBeatsAssets.linter.message), false);
+const mixedPkgJsonLint = evalTree({
+  "package.json": { devDependencies: { eslint: "9.0.0" } },
+  "assets/package.json": { devDependencies: { eslint: "8.0.0" } },
+});
+assert.equal(mixedPkgJsonLint.linter.pass, true, mixedPkgJsonLint.linter.message);
+assert.match(mixedPkgJsonLint.linter.message, /^package\.json contains/);
+assert.equal(/assets\//.test(mixedPkgJsonLint.linter.message), false);
+const docsSampleLint = evalTree({
+  "eslint.config.js": "export default [];\n",
+  "docs/samples/.eslintrc": "{}\n",
+});
+assert.equal(docsSampleLint.linter.pass, true, docsSampleLint.linter.message);
+assert.match(docsSampleLint.linter.message, /eslint\.config\.js/);
+assert.equal(/docs\//.test(docsSampleLint.linter.message), false);
+assertPass("linter", { "docs/samples/.eslintrc": "{}\n" }, /docs\/samples\/\.eslintrc/);
+const mixedRootAndFormatPrettier = evalTree({
+  ".prettierrc": "{}\n",
+  "tests/format/.prettierrc": "{ \"tabWidth\": 2 }\n",
+});
+assert.equal(mixedRootAndFormatPrettier.formatter.pass, true, mixedRootAndFormatPrettier.formatter.message);
+assert.match(mixedRootAndFormatPrettier.formatter.message, /Found \.prettierrc/);
+assert.equal(/tests\/format/.test(mixedRootAndFormatPrettier.formatter.message), false);
+assertPass("formatter", { "tests/format/.prettierrc": "{}\n" }, /tests\/format\/\.prettierrc/);
 
 assertPass("pre-commit-hooks", { "lefthook.toml": "[pre-commit]\n" }, /lefthook\.toml/);
 assertPass("pre-commit-hooks", { ".lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /\.lefthook\.yaml/);
@@ -2727,8 +2774,13 @@ assert.match(checksReadme, /shallowest/);
 assert.match(checksReadme, /packages\/\*\/LICENSE/);
 assert.match(checksReadme, /eslint\.config\.js/);
 assert.match(checksReadme, /tests\/fixtures/);
+assert.match(checksReadme, /assets/);
+assert.match(checksReadme, /tests\/format/);
+assert.match(checksReadme, /docs samples/);
+assert.match(checksReadme, /assets-only/);
 assert.match(checksReadme, /packages-only linter/);
 assert.match(checksReadme, /Do not reject empty linter configs/);
+assert.match(checksReadme, /eslint\.config\.\*/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.match(checksReadme, /C\+\+\/CMake-dominant/);
