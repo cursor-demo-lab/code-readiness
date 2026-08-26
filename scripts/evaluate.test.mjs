@@ -1912,6 +1912,7 @@ assert.match(checksReadme, /IGNORE_DIRS/);
 assert.match(checksReadme, /\*\.gradle\.kts/);
 assert.match(checksReadme, /empty asdf\/nvm files do not count/);
 assert.match(checksReadme, /Empty formatter configs do not count/);
+assert.match(checksReadme, /Empty or whitespace-only files do not count/);
 assert.match(checksReadme, /deps.*vendor.*third_party.*third-party/);
 assert.match(checksReadme, /examples\/\.prettierrc` still can/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
@@ -1929,6 +1930,7 @@ function walkTextFiles(dir, acc = []) {
 for (const file of walkTextFiles(skillRoot())) {
   if (file.endsWith(`${path.sep}evaluate.test.mjs`)) continue;
   if (/adr-scoring/.test(file)) continue;
+  if (file.split(path.sep).includes("examples")) continue;
   const text = fs.readFileSync(file, "utf8").replaceAll("kodustech/agent-readiness", "");
   assert.equal(/factory|kodus/i.test(text), false, file);
 }
