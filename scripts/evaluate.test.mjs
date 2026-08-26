@@ -321,8 +321,23 @@ assert.ok(
     (rule) =>
       rule.file === "CMakeLists.txt" &&
       rule.includes.includes("CMAKE_CXX_STANDARD") &&
+      rule.includes.includes("CMAKE_C_STANDARD") &&
+      rule.includes.includes("PROPERTY CXX_STANDARD") &&
+      rule.includes.includes("PROPERTIES CXX_STANDARD") &&
       (rule.ignorePathSegments ?? []).includes("docs"),
   ),
+);
+assert.equal(
+  versionPinned.fileContains.some((rule) => (rule.includes ?? []).includes("CXX_STANDARD")),
+  false,
+  "bare CXX_STANDARD is a substring of the test-helper identifier CXX_STANDARDS",
+);
+assert.equal(
+  (versionPinned.fileContains.find((rule) => rule.file === "CMakeLists.txt")?.ignorePathSegments ?? []).includes(
+    "tests",
+  ),
+  false,
+  "do not ignore tests/ for CMake pins; the token, not the path, was the false positive",
 );
 assert.equal(
   versionPinned.anyFiles.includes("setup.py"),
@@ -1863,10 +1878,47 @@ assertPass(
 assertPass(
   "version-pinned",
   { "src/CMakeLists.txt": "set_property(TARGET x PROPERTY CXX_STANDARD 20)\n" },
-  /CXX_STANDARD/,
+  /PROPERTY CXX_STANDARD/,
+);
+assertPass(
+  "version-pinned",
+  { "src/CMakeLists.txt": "set_target_properties(x PROPERTIES CXX_STANDARD 20)\n" },
+  /PROPERTIES CXX_STANDARD/,
 );
 assertFail("version-pinned", { "CMakeLists.txt": "project(json)\n" });
 assertFail("version-pinned", { "docs/CMakeLists.txt": "set(CMAKE_CXX_STANDARD 17)\n" });
+assertFail(
+  "version-pinned",
+  {
+    "CMakeLists.txt": "cmake_minimum_required(VERSION 3.5)\nproject(json LANGUAGES CXX)\n",
+    "tests/CMakeLists.txt":
+      "json_test_set_test_options(all CXX_STANDARDS 17 LINK_LIBRARIES stdc++fs)\njson_test_add_test_for(src/unit.cpp MAIN test_main CXX_STANDARDS 11 14 17)\n",
+  },
+);
+assertFail(
+  "version-pinned",
+  {
+    "CMakeLists.txt":
+      "function(json_test_add_test_for)\n  cmake_parse_arguments(args \"\" \"\" \"CXX_STANDARDS\" ${ARGN})\nendfunction()\n",
+  },
+);
+assertPass(
+  "version-pinned",
+  {
+    "CMakeLists.txt": "cmake_minimum_required(VERSION 3.8)\nproject(FMT CXX)\nset(CMAKE_CXX_STANDARD 11)\n",
+    "src/format.cc": "int x;\n",
+    "test/CMakeLists.txt": "add_test(NAME fmt COMMAND fmt_test)\n",
+  },
+  /CMAKE_CXX_STANDARD/,
+);
+assertPass(
+  "version-pinned",
+  {
+    "CMakeLists.txt": "project(json LANGUAGES CXX)\n",
+    "tests/CMakeLists.txt": "set(CMAKE_CXX_STANDARD 17)\n",
+  },
+  /CMAKE_CXX_STANDARD/,
+);
 
 const nlohmannLike = evalTree({
   "CMakeLists.txt": "cmake_minimum_required(VERSION 3.5)\nproject(json)\nset(CMAKE_CXX_STANDARD 11)\n",
@@ -2204,6 +2256,9 @@ assert.match(checksReadme, /Gemfile/);
 assert.match(checksReadme, /build\.sbt/);
 assert.match(checksReadme, /swift-tools-version/);
 assert.match(checksReadme, /CMAKE_CXX_STANDARD/);
+assert.match(checksReadme, /PROPERTY CXX_STANDARD/);
+assert.match(checksReadme, /PROPERTIES CXX_STANDARD/);
+assert.match(checksReadme, /CXX_STANDARDS does not count/);
 assert.match(checksReadme, /required_ruby_version/);
 assert.match(checksReadme, /resources\/exceptions\/renderer/);
 assert.match(checksReadme, /shallowest product-tree/);
