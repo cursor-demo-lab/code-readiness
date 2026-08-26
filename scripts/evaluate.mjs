@@ -118,14 +118,16 @@ function pathSegmentCount(file) {
   return file.split("/").length;
 }
 
+function comparePathDepth(a, b) {
+  const depth = pathSegmentCount(a) - pathSegmentCount(b);
+  if (depth !== 0) return depth;
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 function shallowestHit(files) {
-  return [...files].sort((a, b) => {
-    const depth = pathSegmentCount(a) - pathSegmentCount(b);
-    if (depth !== 0) return depth;
-    if (a < b) return -1;
-    if (a > b) return 1;
-    return 0;
-  })[0];
+  return [...files].sort(comparePathDepth)[0];
 }
 
 const LINTER_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata"];
@@ -151,23 +153,45 @@ function fileHasContent(repoRoot, file) {
   return (readText(repoRoot, file) ?? "").trim().length > 0;
 }
 
+// Names where the artifact is the same document whatever the casing. Everywhere
+// else casing is semantic (Makefile, Package.swift, the LICENSE-* globs).
+export const CASE_INSENSITIVE_NAME_IDS = new Set(["readme", "contributing", "license"]);
+
+function caseInsensitiveNamesFor(criterion) {
+  return CASE_INSENSITIVE_NAME_IDS.has(criterion.id) ? { caseInsensitiveNames: true } : {};
+}
+
+function sameName(a, b) {
+  return a === b || a.toLowerCase() === b.toLowerCase();
+}
+
 function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   if (!patterns?.length) return [];
+  const looseCase = Boolean(options.caseInsensitiveNames);
   const hits = [];
   for (const pattern of patterns) {
     if (isGlobPattern(pattern)) {
       hits.push(...findMatches(files, [pattern]).filter((file) => !shouldIgnorePath(file, options)));
       continue;
     }
-    if (pattern.includes("/")) {
-      if (!shouldIgnorePath(pattern, options) && fs.existsSync(path.join(repoRoot, pattern))) {
-        hits.push(pattern);
+    const pathPattern = pattern.includes("/");
+    if (looseCase) {
+      // Walked paths first, so the reported hit is the casing on disk even when
+      // the filesystem itself is case-insensitive. Sorted, because directory
+      // order is not, and the root file should still win over a nested one.
+      const matches = files.filter((file) => {
+        if (shouldIgnorePath(file, options)) return false;
+        return pathPattern ? sameName(file, pattern) : sameName(posixBasename(file), pattern);
+      });
+      if (matches.length > 0) {
+        hits.push(...matches.sort(comparePathDepth));
+        continue;
       }
-      continue;
     }
     if (!shouldIgnorePath(pattern, options) && fs.existsSync(path.join(repoRoot, pattern))) {
       hits.push(pattern);
     }
+    if (pathPattern) continue;
     for (const file of files) {
       if (file !== pattern && posixBasename(file) === pattern && !shouldIgnorePath(file, options)) {
         hits.push(file);
@@ -307,8 +331,16 @@ function evalCriterion(criterion, ctx) {
   }
 
   if (criterion.minBytes) {
-    const candidates = evalAnyFiles(ctx.repoRoot, ctx.files, criterion.anyFiles ?? []);
-    for (const file of candidates) {
+    const candidates = evalAnyFiles(
+      ctx.repoRoot,
+      ctx.files,
+      criterion.anyFiles ?? [],
+      caseInsensitiveNamesFor(criterion),
+    );
+    // Report the shallowest README that clears minBytes: with casing and
+    // extension variants a repo can hit several patterns, and the root file is
+    // the one a reader means.
+    for (const file of candidates.sort(comparePathDepth)) {
       const content = readText(ctx.repoRoot, file) ?? "";
       if (content.length >= criterion.minBytes) {
         return hit(`${file} found with ${content.length} characters`);
@@ -342,7 +374,7 @@ function evalCriterion(criterion, ctx) {
     ctx.repoRoot,
     ctx.files,
     [...(criterion.anyFiles ?? []), ...(criterion.anyGlobs ?? [])],
-    pathIgnore,
+    { ...pathIgnore, ...caseInsensitiveNamesFor(criterion) },
   );
   if (fileHits.length > 0) {
     if (criterion.anyFilesNonEmpty) {

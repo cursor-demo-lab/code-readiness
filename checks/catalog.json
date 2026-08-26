@@ -368,7 +368,15 @@
       "pillarId": "documentation",
       "level": 1,
       "requiresLLM": false,
-      "anyFiles": ["README.md", "readme.md", "Readme.md", "README.rst", "readme.rst"],
+      "anyFiles": [
+        "README.md",
+        "readme.md",
+        "Readme.md",
+        "README.rst",
+        "readme.rst",
+        "README.markdown",
+        "README.mkd"
+      ],
       "minBytes": 500,
       "fail": "No README.md with at least 500 characters.",
       "fix": "Add a README with project overview and setup.",
