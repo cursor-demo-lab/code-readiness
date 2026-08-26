@@ -133,7 +133,13 @@ function shallowestHit(files) {
 const STYLE_FIRST_HIT_DEFER_SEGMENTS = ["fixtures", "testdata", "assets"];
 const STYLE_FIRST_HIT_DOCS_SEGMENTS = ["docs", "doc"];
 const STYLE_FIRST_HIT_SAMPLE_SEGMENTS = ["sample", "samples", "example", "examples"];
-const CONTAINER_FIRST_HIT_DEFER_SEGMENTS = ["tests", "test", "integration", "integration_test"];
+const CONTAINER_FIRST_HIT_DEFER_SEGMENTS = [
+  "tests",
+  "test",
+  "integration",
+  "integration_test",
+  ...STYLE_FIRST_HIT_SAMPLE_SEGMENTS,
+];
 const SETUP_FIRST_HIT_DEFER_SEGMENTS = ["support", "android", "examples"];
 const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
