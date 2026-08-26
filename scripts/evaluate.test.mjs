@@ -207,6 +207,16 @@ assert.ok(formatter.fileContains.some((rule) => rule.file === "pyproject.toml" &
 assert.ok(formatter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"prettier\"")));
 assert.equal(formatter.languagesPass.go, "Go has built-in formatting via gofmt.");
 assert.match(formatter.fix, /dprint/);
+assert.equal(formatter.anyFilesNonEmpty, true, "empty formatter configs must not pass on presence");
+assert.ok(formatter.ignorePathSegments.includes("deps"));
+assert.ok(formatter.ignorePathSegments.includes("vendor"));
+assert.ok(formatter.ignorePathSegments.includes("third_party"));
+assert.ok(formatter.ignorePathSegments.includes("third-party"));
+assert.equal(
+  formatter.ignorePathSegments.includes("examples"),
+  false,
+  "examples/.prettierrc can be a real monorepo formatter",
+);
 
 const typeChecker = catalog.criteria.find((row) => row.id === "type-checker");
 assert.ok(typeChecker.anyFiles.includes("tsconfig.json"));
@@ -1344,6 +1354,38 @@ const clangFmt = evalTree({ ".clang-format": "BasedOnStyle: LLVM\n" });
 assert.equal(clangFmt.formatter.pass, true, clangFmt.formatter.message);
 assert.match(clangFmt.formatter.message, /\.clang-format/);
 assert.equal(clangFmt.linter.pass, false, "formatter is not a linter");
+assertFail("formatter", { "deps/jemalloc/.clang-format": "" });
+assertFail("formatter", { "deps/jemalloc/.clang-format": "BasedOnStyle: LLVM\n" });
+assertFail("formatter", { "third_party/abseil/.clang-format": "BasedOnStyle: LLVM\n" });
+assertFail("formatter", { "third-party/foo/.prettierrc": "{}\n" });
+assertFail("formatter", { ".clang-format": "" });
+assertFail("formatter", { ".prettierrc": "" });
+assertFail("formatter", { ".clang-format": "  \n\t\n" });
+assertPass("formatter", { ".clang-format": "BasedOnStyle: LLVM\n" }, /\.clang-format/);
+assertPass("formatter", { "src/.clang-format": "IndentWidth: 2\n" }, /src\/\.clang-format/);
+assertPass("formatter", { ".prettierrc": "{}\n" }, /\.prettierrc/);
+assertPass("formatter", { "rustfmt.toml": "max_width = 100\n" }, /rustfmt\.toml/);
+assertPass("formatter", { "examples/.prettierrc": "{}\n" }, /examples\/\.prettierrc/);
+assertPass(
+  "formatter",
+  { "biome.json": '{ "formatter": { "indentStyle": "space" } }\n' },
+  /biome\.json/,
+);
+const mixedVendorFmt = evalTree({
+  "deps/jemalloc/.clang-format": "",
+  ".clang-format": "BasedOnStyle: LLVM\n",
+});
+assert.equal(mixedVendorFmt.formatter.pass, true, mixedVendorFmt.formatter.message);
+assert.match(mixedVendorFmt.formatter.message, /Found \.clang-format/);
+assert.equal(/deps/.test(mixedVendorFmt.formatter.message), false);
+assertPass(
+  "formatter",
+  {
+    ".clang-format": "",
+    "biome.json": '{ "formatter": { "enabled": true } }\n',
+  },
+  /biome\.json/,
+);
 assertPass("formatter", { ".swift-format": "{}\n" }, /\.swift-format/);
 assertPass("formatter", { ".swiftformat": "--indent 2\n" }, /\.swiftformat/);
 assertPass("formatter", { ".scalafmt.conf": "version = 3.0.0\n" }, /scalafmt/);
@@ -1855,6 +1897,10 @@ assert.match(checksReadme, /skip signals stay repository-root only/);
 assert.match(checksReadme, /IGNORE_DIRS/);
 assert.match(checksReadme, /\*\.gradle\.kts/);
 assert.match(checksReadme, /empty asdf\/nvm files do not count/);
+assert.match(checksReadme, /Empty formatter configs do not count/);
+assert.match(checksReadme, /deps.*vendor.*third_party.*third-party/);
+assert.match(checksReadme, /examples\/\.prettierrc` still can/);
+assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {

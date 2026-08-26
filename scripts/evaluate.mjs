@@ -107,6 +107,16 @@ function shouldIgnorePath(file, options) {
   return pathHasSegments(file, options.ignorePathSegments);
 }
 
+function pathIgnoreFor(criterion) {
+  if (criterion.id === "version-pinned") return { ignorePath: pathHasIgnoredVersionPin };
+  if (criterion.ignorePathSegments) return { ignorePathSegments: criterion.ignorePathSegments };
+  return {};
+}
+
+function fileHasContent(repoRoot, file) {
+  return (readText(repoRoot, file) ?? "").trim().length > 0;
+}
+
 function evalAnyFiles(repoRoot, files, patterns, options = {}) {
   if (!patterns?.length) return [];
   const hits = [];
@@ -270,15 +280,20 @@ function evalCriterion(criterion, ctx) {
     return miss(criterion.fail);
   }
 
-  const pinPathIgnore = criterion.id === "version-pinned" ? { ignorePath: pathHasIgnoredVersionPin } : {};
+  const pathIgnore = pathIgnoreFor(criterion);
   const fileHits = evalAnyFiles(
     ctx.repoRoot,
     ctx.files,
     [...(criterion.anyFiles ?? []), ...(criterion.anyGlobs ?? [])],
-    pinPathIgnore,
+    pathIgnore,
   );
   if (fileHits.length > 0) {
-    return hit(`Found ${fileHits[0]}`);
+    if (criterion.anyFilesNonEmpty) {
+      const realHit = fileHits.find((file) => fileHasContent(ctx.repoRoot, file));
+      if (realHit) return hit(`Found ${realHit}`);
+    } else {
+      return hit(`Found ${fileHits[0]}`);
+    }
   }
 
   if (criterion.id === "lock-file") {
@@ -302,7 +317,7 @@ function evalCriterion(criterion, ctx) {
     return hit(`Makefile target matched: ${criterion.makefileTarget}`);
   }
 
-  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains, pinPathIgnore);
+  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains, pathIgnore);
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
