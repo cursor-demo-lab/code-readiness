@@ -266,15 +266,39 @@ function isDeferredTestFrameworkSidecar(file) {
   return /coverage|integration/i.test(posixBasename(file));
 }
 
-function productTestFrameworkHits(files) {
+function hasJsTsProductLanguage(languages) {
+  return Boolean(languages?.has("typescript") || languages?.has("javascript"));
+}
+
+function isGoTestFile(file) {
+  return globMatch(posixBasename(file), "*_test.go");
+}
+
+function isJsTsTestFile(file) {
+  return /\.(?:ts|tsx|js|mjs)$/i.test(posixBasename(file));
+}
+
+function treeHasJsTsTests(files) {
+  return testFiles(files).some(isJsTsTestFile);
+}
+
+function deferGoTestSidecarHits(languages, repoFiles) {
+  return hasJsTsProductLanguage(languages) && treeHasJsTsTests(repoFiles ?? []);
+}
+
+function productTestFrameworkHits(files, languages, repoFiles) {
   const configHits = files.filter(isTestFrameworkConfigHit);
   const preferredConfigs = configHits.filter((file) => !isDeferredTestFrameworkSidecar(file));
   const withoutSidecars =
     preferredConfigs.length > 0
       ? files.filter((file) => !isTestFrameworkConfigHit(file) || !isDeferredTestFrameworkSidecar(file))
       : files;
+  const withoutGoSidecar = deferGoTestSidecarHits(languages, repoFiles)
+    ? withoutSidecars.filter((file) => !isGoTestFile(file))
+    : withoutSidecars;
+  const ranked = withoutGoSidecar.length > 0 ? withoutGoSidecar : withoutSidecars;
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer.
-  return productTestScriptHits(withoutSidecars);
+  return productTestScriptHits(ranked);
 }
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
@@ -296,10 +320,12 @@ function productTypeCheckerHits(files) {
   return preferred.length > 0 ? preferred : files;
 }
 
-function firstFileHit(criterion, fileHits) {
+function firstFileHit(criterion, fileHits, languages, repoFiles) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
-  if (criterion.id === "test-framework") return shallowestHit(productTestFrameworkHits(fileHits));
+  if (criterion.id === "test-framework") {
+    return shallowestHit(productTestFrameworkHits(fileHits, languages, repoFiles));
+  }
   if (criterion.id === "type-checker") {
     const configs = fileHits.filter(isTypeCheckerConfigHit);
     if (configs.length > 0) return shallowestHit(productTypeCheckerHits(configs));
@@ -318,15 +344,21 @@ function matchesLanguageTestGlob(file) {
   );
 }
 
-function testFileFirstHitRank(file) {
-  const deferred = pathHasSegments(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ? 1 : 0;
-  const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
-  return deferred * 2 + catchAllOnly;
+function testFileSidecarLanguageRank(file, languages) {
+  if (!hasJsTsProductLanguage(languages) || !isGoTestFile(file)) return 0;
+  return 1;
 }
 
-function rankTestFileHits(files) {
+function testFileFirstHitRank(file, languages) {
+  const sidecar = testFileSidecarLanguageRank(file, languages);
+  const deferred = pathHasSegments(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ? 1 : 0;
+  const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
+  return sidecar * 4 + deferred * 2 + catchAllOnly;
+}
+
+function rankTestFileHits(files, languages) {
   return [...files].sort((a, b) => {
-    const rank = testFileFirstHitRank(a) - testFileFirstHitRank(b);
+    const rank = testFileFirstHitRank(a, languages) - testFileFirstHitRank(b, languages);
     if (rank !== 0) return rank;
     return comparePathDepth(a, b);
   });
@@ -582,7 +614,7 @@ function evalCriterion(criterion, ctx) {
   }
 
   if (criterion.testFiles) {
-    const found = rankTestFileHits(testFiles(ctx.files));
+    const found = rankTestFileHits(testFiles(ctx.files), ctx.languages);
     if (found.length > 0) {
       return hit(`Found ${found.length} test file(s): ${found[0]}`, found.slice(0, 8).join(", "));
     }
@@ -628,15 +660,21 @@ function evalCriterion(criterion, ctx) {
   const usableHits = criterion.anyFilesNonEmpty
     ? fileHits.filter((file) => fileHasContent(ctx.repoRoot, file))
     : fileHits;
+  const deferGoFramework =
+    criterion.id === "test-framework" && deferGoTestSidecarHits(ctx.languages, ctx.files);
   const productFileHits = styleFirstHit
-    ? usableHits.filter((file) => !isDeferredStyleConfig(file))
+    ? usableHits.filter((file) => {
+        if (isDeferredStyleConfig(file)) return false;
+        if (deferGoFramework && isGoTestFile(file)) return false;
+        return true;
+      })
     : containerFirstHit
       ? usableHits.filter((file) => !isDeferredContainerConfig(file))
       : setupFirstHit
         ? usableHits.filter((file) => !isDeferredSetupConfig(file))
         : usableHits;
   if (productFileHits.length > 0) {
-    return hit(`Found ${firstFileHit(criterion, productFileHits)}`);
+    return hit(`Found ${firstFileHit(criterion, productFileHits, ctx.languages, ctx.files)}`);
   }
 
   if (criterion.id === "env-documentation") {
@@ -664,7 +702,7 @@ function evalCriterion(criterion, ctx) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
   if (usableHits.length > 0) {
-    return hit(`Found ${firstFileHit(criterion, usableHits)}`);
+    return hit(`Found ${firstFileHit(criterion, usableHits, ctx.languages, ctx.files)}`);
   }
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
