@@ -2752,6 +2752,85 @@ assert.equal(
   railsTestOverSameDirJs["test-files-exist"].message,
 );
 
+const pyPytestOverJsTfe = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(pyPytestOverJsTfe["test-files-exist"].pass, true, pyPytestOverJsTfe["test-files-exist"].message);
+assert.equal(pyPytestOverJsTfe["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(pyPytestOverJsTfe["test-files-exist"].message, /test_foo\.py/);
+assert.equal(
+  /foo\.test\.js/.test(pyPytestOverJsTfe["test-files-exist"].message),
+  false,
+  pyPytestOverJsTfe["test-files-exist"].message,
+);
+assert.match(pyPytestOverJsTfe["test-files-exist"].details, /^tests\/test_foo\.py\b/);
+assert.match(pyPytestOverJsTfe["test-files-exist"].details, /foo\.test\.js/);
+
+const pyJsOnlyTfe = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(pyJsOnlyTfe["test-files-exist"].pass, true, pyJsOnlyTfe["test-files-exist"].message);
+assert.match(pyJsOnlyTfe["test-files-exist"].message, /foo\.test\.js/);
+
+const setupPyOverJsTfe = evalTree({
+  "setup.py": "from setuptools import setup\nsetup(name='demo')\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(setupPyOverJsTfe["test-files-exist"].pass, true, setupPyOverJsTfe["test-files-exist"].message);
+assert.match(setupPyOverJsTfe["test-files-exist"].message, /test_foo\.py/);
+assert.equal(
+  /foo\.test\.js/.test(setupPyOverJsTfe["test-files-exist"].message),
+  false,
+  setupPyOverJsTfe["test-files-exist"].message,
+);
+
+const setupCfgOverJsTfe = evalTree({
+  "setup.cfg": "[metadata]\nname = demo\n",
+  "pkg/foo_test.py": "def test_ok():\n    assert True\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(setupCfgOverJsTfe["test-files-exist"].pass, true, setupCfgOverJsTfe["test-files-exist"].message);
+assert.match(setupCfgOverJsTfe["test-files-exist"].message, /foo_test\.py/);
+assert.equal(
+  /foo\.test\.js/.test(setupCfgOverJsTfe["test-files-exist"].message),
+  false,
+  setupCfgOverJsTfe["test-files-exist"].message,
+);
+
+const pyPytestOverSpecTs = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "assets/foo.spec.ts": "test('ok');\n",
+});
+assert.equal(pyPytestOverSpecTs["test-files-exist"].pass, true, pyPytestOverSpecTs["test-files-exist"].message);
+assert.match(pyPytestOverSpecTs["test-files-exist"].message, /test_foo\.py/);
+assert.equal(
+  /foo\.spec\.ts/.test(pyPytestOverSpecTs["test-files-exist"].message),
+  false,
+  pyPytestOverSpecTs["test-files-exist"].message,
+);
+
+const pyPytestOverSameDirJs = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "tests/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  pyPytestOverSameDirJs["test-files-exist"].pass,
+  true,
+  pyPytestOverSameDirJs["test-files-exist"].message,
+);
+assert.match(pyPytestOverSameDirJs["test-files-exist"].message, /test_foo\.py/);
+assert.equal(
+  /foo\.test\.js/.test(pyPytestOverSameDirJs["test-files-exist"].message),
+  false,
+  pyPytestOverSameDirJs["test-files-exist"].message,
+);
+
 const mixExUnitOverJestTfe = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   "test/foo_test.exs": "defmodule FooTest do\nend\n",
@@ -4434,6 +4513,8 @@ assert.match(rootReadme, /`test-files-exist` first-hit prefers/);
 assert.match(rootReadme, /A Go-only test tree still passes/);
 assert.match(rootReadme, /A Mix tree with only JS tests still passes/);
 assert.match(rootReadme, /A Rails tree with only JS tests still passes/);
+assert.match(rootReadme, /A Python tree with only JS tests still passes/);
+assert.match(rootReadme, /Python-primary/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -4487,6 +4568,8 @@ assert.match(skillMd, /`test-files-exist` first-hit prefers/);
 assert.match(skillMd, /A Go-only test tree still passes/);
 assert.match(skillMd, /A Mix tree with only JS tests still passes/);
 assert.match(skillMd, /A Rails tree with only JS tests still passes/);
+assert.match(skillMd, /A Python tree with only JS tests still passes/);
+assert.match(skillMd, /Python-primary/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -4616,6 +4699,8 @@ assert.match(checksReadme, /`linter` first-hit prefers/);
 assert.match(checksReadme, /A golangci-only tree still passes/);
 assert.match(checksReadme, /A Mix tree with only JS tests still passes/);
 assert.match(checksReadme, /A Rails tree with only JS tests still passes/);
+assert.match(checksReadme, /A Python tree with only JS tests still passes/);
+assert.match(checksReadme, /Python-primary/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
 assert.match(checksReadme, /A JS-only prettier tree still passes/);
 assert.match(checksReadme, /`lock-file` and `no-outdated-deps` share/);
