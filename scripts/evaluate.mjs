@@ -381,7 +381,13 @@ function treeHasJsTsTests(files) {
   return testFiles(files).some(isJsTsTestFile);
 }
 
+function deferJsTestSidecarForGo(repoFiles) {
+  const files = repoFiles ?? [];
+  return treeIsGoPrimary(files) && files.some(isGoTestFile);
+}
+
 function deferGoTestSidecarHits(languages, repoFiles) {
+  if (deferJsTestSidecarForGo(repoFiles)) return false;
   return hasJsTsProductLanguage(languages) && treeHasJsTsTests(repoFiles ?? []);
 }
 
@@ -435,7 +441,8 @@ function deferJsFrameworkSidecarHits(repoFiles) {
     deferJsTestSidecarForPython(files) ||
     (files.includes("pytest.ini") && files.some(isPythonTestFile)) ||
     deferJsTestSidecarForJava(files) ||
-    deferJsTestSidecarForCsharp(files)
+    deferJsTestSidecarForCsharp(files) ||
+    deferJsTestSidecarForGo(files)
   );
 }
 
@@ -514,7 +521,8 @@ function deferJsTestSidecarHits(repoFiles) {
     deferJsTestSidecarForRuby(repoFiles) ||
     deferJsTestSidecarForPython(repoFiles) ||
     deferJsTestSidecarForJava(repoFiles) ||
-    deferJsTestSidecarForCsharp(repoFiles)
+    deferJsTestSidecarForCsharp(repoFiles) ||
+    deferJsTestSidecarForGo(repoFiles)
   );
 }
 
@@ -687,8 +695,8 @@ function matchesLanguageTestGlob(file) {
 function testFileSidecarLanguageRank(file, languages, repoFiles) {
   if (deferJsTestSidecarHits(repoFiles) && isJsTsTestFile(file)) return 1;
   if (deferPythonTestSidecarForJava(repoFiles) && isPythonTestFile(file)) return 1;
-  if (!hasJsTsProductLanguage(languages) || !isGoTestFile(file)) return 0;
-  return 1;
+  if (deferGoTestSidecarHits(languages, repoFiles) && isGoTestFile(file)) return 1;
+  return 0;
 }
 
 function testFileFirstHitRank(file, languages, repoFiles) {

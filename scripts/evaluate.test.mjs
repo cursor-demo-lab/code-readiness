@@ -3918,6 +3918,159 @@ assert.equal(
   mixTfeOverJsStillElixir["test-files-exist"].message,
 );
 
+const goPrimaryOverLoadJs = evalTree({
+  "go.mod": "module example.com/x\n",
+  "foo/acl_test.go": "package foo\n",
+  "test/load/loadtest.js": "export default {};\n",
+});
+assert.equal(goPrimaryOverLoadJs["test-files-exist"].pass, true, goPrimaryOverLoadJs["test-files-exist"].message);
+assert.equal(goPrimaryOverLoadJs["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(goPrimaryOverLoadJs["test-files-exist"].message, /acl_test\.go/);
+assert.equal(
+  /loadtest\.js/.test(goPrimaryOverLoadJs["test-files-exist"].message),
+  false,
+  goPrimaryOverLoadJs["test-files-exist"].message,
+);
+assert.match(goPrimaryOverLoadJs["test-files-exist"].details, /^foo\/acl_test\.go\b/);
+assert.match(goPrimaryOverLoadJs["test-files-exist"].details, /loadtest\.js/);
+assert.equal(goPrimaryOverLoadJs["test-framework"].pass, true, goPrimaryOverLoadJs["test-framework"].message);
+assert.match(goPrimaryOverLoadJs["test-framework"].message, /acl_test\.go/);
+assert.equal(
+  /loadtest\.js/.test(goPrimaryOverLoadJs["test-framework"].message),
+  false,
+  goPrimaryOverLoadJs["test-framework"].message,
+);
+
+const goPrimaryOverDeeperJsRank = evalTree({
+  "go.mod": "module example.com/x\n",
+  "foo/bar/acl_test.go": "package foo\n",
+  "test/loadtest.js": "export default {};\n",
+});
+assert.equal(
+  goPrimaryOverDeeperJsRank["test-files-exist"].pass,
+  true,
+  goPrimaryOverDeeperJsRank["test-files-exist"].message,
+);
+assert.match(goPrimaryOverDeeperJsRank["test-files-exist"].message, /acl_test\.go/);
+assert.equal(
+  /loadtest\.js/.test(goPrimaryOverDeeperJsRank["test-files-exist"].message),
+  false,
+  goPrimaryOverDeeperJsRank["test-files-exist"].message,
+);
+
+const goPrimaryOverVitest = evalTree({
+  "go.mod": "module example.com/x\n",
+  "foo/foo_test.go": "package foo\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(goPrimaryOverVitest["test-framework"].pass, true, goPrimaryOverVitest["test-framework"].message);
+assert.match(goPrimaryOverVitest["test-framework"].message, /foo_test\.go/);
+assert.equal(
+  /vitest\.config/.test(goPrimaryOverVitest["test-framework"].message),
+  false,
+  goPrimaryOverVitest["test-framework"].message,
+);
+assert.equal(goPrimaryOverVitest["test-files-exist"].pass, true, goPrimaryOverVitest["test-files-exist"].message);
+assert.match(goPrimaryOverVitest["test-files-exist"].message, /foo_test\.go/);
+
+const goPrimaryOverJest = evalTree({
+  "go.mod": "module example.com/x\n",
+  "foo/foo_test.go": "package foo\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(goPrimaryOverJest["test-framework"].pass, true, goPrimaryOverJest["test-framework"].message);
+assert.match(goPrimaryOverJest["test-framework"].message, /foo_test\.go/);
+assert.equal(
+  /jest\.config/.test(goPrimaryOverJest["test-framework"].message),
+  false,
+  goPrimaryOverJest["test-framework"].message,
+);
+
+const goPrimaryOverSpecTs = evalTree({
+  "go.mod": "module example.com/x\n",
+  "foo/foo_test.go": "package foo\n",
+  "assets/foo.spec.ts": "test('ok');\n",
+});
+assert.equal(goPrimaryOverSpecTs["test-files-exist"].pass, true, goPrimaryOverSpecTs["test-files-exist"].message);
+assert.match(goPrimaryOverSpecTs["test-files-exist"].message, /foo_test\.go/);
+assert.equal(
+  /foo\.spec\.ts/.test(goPrimaryOverSpecTs["test-files-exist"].message),
+  false,
+  goPrimaryOverSpecTs["test-files-exist"].message,
+);
+
+const goPrimaryOverTestTs = evalTree({
+  "go.mod": "module example.com/x\n",
+  "foo/foo_test.go": "package foo\n",
+  "assets/foo.test.ts": "test('ok');\n",
+});
+assert.equal(goPrimaryOverTestTs["test-files-exist"].pass, true, goPrimaryOverTestTs["test-files-exist"].message);
+assert.match(goPrimaryOverTestTs["test-files-exist"].message, /foo_test\.go/);
+assert.equal(
+  /foo\.test\.ts/.test(goPrimaryOverTestTs["test-files-exist"].message),
+  false,
+  goPrimaryOverTestTs["test-files-exist"].message,
+);
+
+const goJsOnlyTfe = evalTree({
+  "go.mod": "module example.com/x\n",
+  "test/load/loadtest.js": "export default {};\n",
+});
+assert.equal(goJsOnlyTfe["test-files-exist"].pass, true, goJsOnlyTfe["test-files-exist"].message);
+assert.match(goJsOnlyTfe["test-files-exist"].message, /loadtest\.js/);
+
+const goJestOnly = evalTree({
+  "go.mod": "module example.com/x\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(goJestOnly["test-framework"].pass, true, goJestOnly["test-framework"].message);
+assert.match(goJestOnly["test-framework"].message, /jest\.config\.js/);
+
+const goVitestOnly = evalTree({
+  "go.mod": "module example.com/x\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(goVitestOnly["test-framework"].pass, true, goVitestOnly["test-framework"].message);
+assert.match(goVitestOnly["test-framework"].message, /vitest\.config\.ts/);
+
+const tsPrimaryEncoderOverGo = evalTree({
+  "package.json": { name: "demo" },
+  "tsconfig.json": "{}\n",
+  "encoder.test.ts": "test('ok');\n",
+  "plugin_test.go": "package plugin\n",
+});
+assert.equal(
+  tsPrimaryEncoderOverGo["test-files-exist"].pass,
+  true,
+  tsPrimaryEncoderOverGo["test-files-exist"].message,
+);
+assert.match(tsPrimaryEncoderOverGo["test-files-exist"].message, /encoder\.test\.ts/);
+assert.equal(
+  /plugin_test\.go/.test(tsPrimaryEncoderOverGo["test-files-exist"].message),
+  false,
+  tsPrimaryEncoderOverGo["test-files-exist"].message,
+);
+assert.equal(tsPrimaryEncoderOverGo["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+assert.match(tsPrimaryEncoderOverGo["test-files-exist"].details, /^encoder\.test\.ts\b/);
+assert.match(tsPrimaryEncoderOverGo["test-files-exist"].details, /plugin_test\.go/);
+
+const mixExUnitStillNamesExsFile = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  mixExUnitStillNamesExsFile["test-framework"].pass,
+  true,
+  mixExUnitStillNamesExsFile["test-framework"].message,
+);
+assert.match(mixExUnitStillNamesExsFile["test-framework"].message, /foo_test\.exs/);
+assert.equal(
+  /jest\.config/.test(mixExUnitStillNamesExsFile["test-framework"].message),
+  false,
+  mixExUnitStillNamesExsFile["test-framework"].message,
+);
+
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
 assertPass("test-script", { Justfile: "test:\n    pytest\n" }, /Justfile/);
 assertPass(
@@ -5879,6 +6032,8 @@ assert.match(rootReadme, /foo-testlib/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
 assert.match(rootReadme, /C#-primary/);
 assert.match(rootReadme, /A C# tree with only jest/);
+assert.match(rootReadme, /A Go tree with only JS tests still passes/);
+assert.match(rootReadme, /A Go tree with only jest/);
 assert.match(rootReadme, /A benchmark-only tree still passes/);
 assert.match(rootReadme, /tests\/FooTests\.cs/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
@@ -5955,6 +6110,8 @@ assert.match(skillMd, /foo-testlib/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
 assert.match(skillMd, /C#-primary/);
 assert.match(skillMd, /A C# tree with only jest/);
+assert.match(skillMd, /A Go tree with only JS tests still passes/);
+assert.match(skillMd, /A Go tree with only jest/);
 assert.match(skillMd, /A benchmark-only tree still passes/);
 assert.match(skillMd, /tests\/FooTests\.cs/);
 assert.match(skillMd, /`type-checker` first-hit among/);
@@ -6103,6 +6260,8 @@ assert.match(checksReadme, /foo-testlib/);
 assert.match(checksReadme, /A C# tree with only JS tests still passes/);
 assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A C# tree with only jest/);
+assert.match(checksReadme, /A Go tree with only JS tests still passes/);
+assert.match(checksReadme, /A Go tree with only jest/);
 assert.match(checksReadme, /A Mix tree with only prettier/);
 assert.match(checksReadme, /A Rails tree with only prettier/);
 assert.match(checksReadme, /A Python tree with only prettier/);
