@@ -250,7 +250,12 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
       }
     }
     if (!shouldIgnorePath(pattern, options) && fs.existsSync(path.join(repoRoot, pattern))) {
-      hits.push(pattern);
+      const abs = path.join(repoRoot, pattern);
+      if (options.skipDirectoryHits && fs.statSync(abs).isDirectory()) {
+        // Directory presence is not a hit. Children match via globs / prefixes.
+      } else {
+        hits.push(pattern);
+      }
     }
     if (pathPattern) continue;
     for (const file of files) {
@@ -476,6 +481,7 @@ function evalCriterion(criterion, ctx) {
       ...pathIgnore,
       ...caseInsensitiveNamesFor(criterion),
       basenameGlobAnyDepth: matchBasenameGlobAnyDepth(criterion.id),
+      skipDirectoryHits: criterion.id === "issue-templates",
     },
   );
   const usableHits = criterion.anyFilesNonEmpty

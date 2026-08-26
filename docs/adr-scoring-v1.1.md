@@ -11,7 +11,7 @@ Align **level placement of existing check ids** with Factory Agent Readiness. Un
 - **L1 Functional:** `readme`, `linter`, `test-files-exist`, `type-checker`. 80% of 4 requires 4/4. When `type-checker` skips, 80% of 3 requires 3/3. License and lock-file are not an L1 identity band.
 - **`type-checker` skip.** Keep `languagesPass` for Go / Rust / Java / Kotlin / C# / Swift when a **manifest** is present (`go.mod`, `Cargo.toml`, `pom.xml`/`build.gradle`, `build.gradle.kts`, `*.csproj`/`global.json`, `Package.swift`). Pass on mypy / pyright files, `setup.cfg` `[mypy]`, pyproject `[tool.mypy]` / `[tool.pyright]`, or a root `tsconfig.json` (existence; `"strict": true` is an extra hit, not a gate). If none of those hit, skip (JavaScript without tsconfig, Python without mypy/pyright, stray `*.go` without `go.mod`, and similar). File/config hits run before `languagesPass`. Skip drops from the L1 denominator.
 - **L2 Documented:** `license` and `lock-file` move here (lock-file keeps the JS/TS/Python/Java/C/Haskell skip-when-absent). `ai-context` and `pre-commit-hooks` move here from L3. Also: `editorconfig`, `formatter`, `test-framework`, `test-script`, `contributing`, `env-documentation`, `setup-script`, `version-pinned`, `ci-config`.
-- **L3 Standardized:** `api-docs`, `codeowners`, `containerization`, `ci-runs-tests`, `ci-runs-linters`, `build-automated`, `no-outdated-deps`, `security-policy`, `dep-update-automation`.
+- **L3 Standardized:** `api-docs`, `codeowners`, `issue-templates`, `containerization`, `ci-runs-tests`, `ci-runs-linters`, `build-automated`, `no-outdated-deps`, `security-policy`, `dep-update-automation`.
 - **Python-native L2 detectors (unchanged from this branch).** `test-script` still accepts `scripts.test` / Makefile `test`, plus `scripts/test` / `scripts/test.sh` / `scripts/test-*`, tox/nox/pytest.ini, or pyproject `[tool.pytest` / `[tool.tox` / `[tool.hatch.envs`. `setup-script` still accepts package.json `scripts.dev|test|lint|build`, Makefile `setup|install`, a root Makefile, plus `scripts/install*`, `setup.py` / `setup.cfg`, or pyproject `[build-system]`.
 
 ## Level map (existing ids only)
@@ -20,11 +20,11 @@ Align **level placement of existing check ids** with Factory Agent Readiness. Un
 | --- | --- | --- |
 | 1 | Functional | readme, linter, test-files-exist, type-checker |
 | 2 | Documented | license, lock-file, editorconfig, formatter, test-framework, test-script, contributing, env-documentation, setup-script, version-pinned, ci-config, ai-context, pre-commit-hooks |
-| 3 | Standardized | api-docs, codeowners, containerization, ci-runs-tests, ci-runs-linters, build-automated, no-outdated-deps, security-policy, dep-update-automation |
+| 3 | Standardized | api-docs, codeowners, issue-templates, containerization, ci-runs-tests, ci-runs-linters, build-automated, no-outdated-deps, security-policy, dep-update-automation |
 | 4 | Optimized | coverage-config, e2e-tests, architecture-docs, deploy-pipeline, branch-protection, dead-code-detection, security-scanning, secrets-detection |
 | 5 | Autonomous | bundle-analysis (plus skipped LLM rows) |
 
-Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=9 need 8, L4=8 need 7, L5=1 need 1.
+Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=10 need 8, L4=8 need 7, L5=1 need 1.
 
 ## Why
 

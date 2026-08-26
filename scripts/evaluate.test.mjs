@@ -36,7 +36,7 @@ const CORE_IDS = [
 
 const catalog = loadCatalog();
 assert.equal(catalog.pillars.length, 7);
-assert.equal(catalog.criteria.length, 39);
+assert.equal(catalog.criteria.length, 40);
 assert.equal(catalog.v1SkipLLM, true);
 assert.equal(catalog.level1Threshold, 0.8);
 assert.equal(catalog.levelThreshold, 0.8);
@@ -62,7 +62,7 @@ function countedAt(level) {
 }
 assert.equal(countedAt(1), 4);
 assert.equal(countedAt(2), 13);
-assert.equal(countedAt(3), 9);
+assert.equal(countedAt(3), 10);
 assert.equal(countedAt(4), 8);
 assert.equal(countedAt(5), 1);
 
@@ -491,6 +491,24 @@ assert.ok(codeowners.anyFiles.includes("docs/CODEOWNERS"));
 assert.ok(codeowners.anyFiles.includes("CODEOWNERS"));
 assert.ok(codeowners.anyFiles.includes(".github/CODEOWNERS"));
 
+const issueTemplates = catalog.criteria.find((row) => row.id === "issue-templates");
+assert.ok(issueTemplates);
+assert.equal(issueTemplates.level, 3);
+assert.equal(issueTemplates.pillarId, "documentation");
+assert.ok(issueTemplates.anyFiles.includes(".github/ISSUE_TEMPLATE"));
+assert.ok(issueTemplates.anyFiles.includes(".github/ISSUE_TEMPLATE.md"));
+assert.ok(issueTemplates.anyFiles.includes(".github/ISSUE_TEMPLATE/**"));
+assert.ok(issueTemplates.anyFiles.includes(".github/PULL_REQUEST_TEMPLATE.md"));
+assert.ok(issueTemplates.anyFiles.includes(".github/pull_request_template.md"));
+assert.ok(issueTemplates.anyFiles.includes(".github/PULL_REQUEST_TEMPLATE/**"));
+assert.equal(
+  catalog.criteria.filter((row) => row.id === "labels").length,
+  0,
+  "do not add a labels id",
+);
+assert.equal(catalog.criteria.filter((row) => row.id === "codeowners").length, 1);
+assert.equal(catalog.criteria.filter((row) => row.id === "containerization").length, 1);
+
 const architecture = catalog.criteria.find((row) => row.id === "architecture-docs");
 assert.ok(architecture.anyFiles.includes("docs/adr/**"));
 assert.ok(architecture.anyFiles.includes("docs/decisions/**"));
@@ -750,7 +768,7 @@ assert.equal(scoredL1.l1Passed, 4);
 assert.equal(scoredL1.l1Total, 4);
 assert.equal(scoredL1.l2Passed, 13);
 assert.equal(scoredL1.l2Total, 13);
-assert.equal(scoredL1.nextLevelProgress.needed, Math.ceil(9 * LEVEL_THRESHOLD));
+assert.equal(scoredL1.nextLevelProgress.needed, Math.ceil(10 * LEVEL_THRESHOLD));
 
 const l1ThreeOfFour = catalogRows({
   l1Pass: (criterion) => criterion.id !== "linter",
@@ -2227,6 +2245,39 @@ assertFail("api-docs", { "mkdocs.yml": "site_name: docs\n" });
 assertFail("api-docs", { "conf.py": "project = 'docs'\n" });
 
 assertPass("codeowners", { "docs/CODEOWNERS": "* @team\n" }, /docs\/CODEOWNERS/);
+assertPass(
+  "issue-templates",
+  { ".github/ISSUE_TEMPLATE.md": "## Bug\n" },
+  /\.github\/ISSUE_TEMPLATE\.md/,
+);
+assertPass(
+  "issue-templates",
+  { ".github/ISSUE_TEMPLATE/bug.yml": "name: Bug\n" },
+  /\.github\/ISSUE_TEMPLATE\/bug\.yml/,
+);
+assertPass(
+  "issue-templates",
+  { ".github/PULL_REQUEST_TEMPLATE.md": "## Summary\n" },
+  /\.github\/PULL_REQUEST_TEMPLATE\.md/,
+);
+assertPass(
+  "issue-templates",
+  { ".github/pull_request_template.md": "## Summary\n" },
+  /\.github\/pull_request_template\.md/,
+);
+assertPass(
+  "issue-templates",
+  { ".github/ISSUE_TEMPLATE": "## Bug\n" },
+  /\.github\/ISSUE_TEMPLATE/,
+);
+assertPass(
+  "issue-templates",
+  { ".github/PULL_REQUEST_TEMPLATE/pr.md": "## Summary\n" },
+  /\.github\/PULL_REQUEST_TEMPLATE\/pr\.md/,
+);
+assertFail("issue-templates", {});
+assertFail("issue-templates", { "docs/ISSUE_TEMPLATE.md": "## Bug\n" });
+assertFail("issue-templates", { "ISSUE_TEMPLATE.md": "## Bug\n" });
 assertPass("ai-context", { "packages/app/AGENTS.md": "# agents\n" }, /packages\/app\/AGENTS\.md/);
 assertPass("linter", { "apps/web/biome.json": "{}\n" }, /apps\/web\/biome\.json/);
 assertPass("type-checker", { "packages/lib/tsconfig.json": "{}\n" }, /packages\/lib\/tsconfig\.json/);
@@ -2947,6 +2998,7 @@ for (const key of [
   "license:",
   '"coverage-config":',
   '"security-policy":',
+  '"issue-templates":',
   '"naming-conventions":',
   '"docs-agent-friendliness":',
 ]) {
@@ -3086,6 +3138,7 @@ assert.equal(
 );
 assert.equal(openById["type-checker"], undefined);
 assert.equal(openById["ai-context"], "AGENTS.md");
+assert.equal(openById["issue-templates"], ".github/ISSUE_TEMPLATE.md");
 assert.equal(openById.containerization, ".devcontainer/devcontainer.json");
 assert.ok(concretePaths.includes(".cursor/environment.json"));
 assert.equal(openById.linter, "eslint.config.js");
@@ -3198,6 +3251,10 @@ for (const file of exampleCanvasFiles) {
   );
 }
 
+const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
+assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
+
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
 assert.match(skillMd, /one repository/);
@@ -3215,6 +3272,7 @@ assert.match(skillMd, /WHY_FOR_AGENTS/);
 assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.match(skillMd, /criterion \+ file/);
 assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 fail/);
+assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
 assert.equal(/Nest is that shape|L2 10\/13/.test(skillMd), false);
 assert.equal(
@@ -3234,10 +3292,8 @@ assert.match(canvasMd, /Remaining counted fails name a concrete file/);
 assert.match(canvasMd, /language-honest/);
 assert.match(canvasMd, /AGENTS\.md/);
 
-const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
-assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
-
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
+assert.equal((checksReadme.match(/issue-templates/g) ?? []).length, 1);
 assert.match(checksReadme, /would be L2 except/);
 assert.match(checksReadme, /L2 fail ids/);
 assert.match(checksReadme, /not `l1CapReasons`/);
