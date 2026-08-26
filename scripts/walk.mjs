@@ -57,10 +57,15 @@ export function walkFiles(repoRoot) {
 
 export function findMatches(files, patterns) {
   const hits = [];
+  const seen = new Set();
   for (const pattern of patterns) {
     const rx = globToRegExp(pattern);
     for (const file of files) {
-      if (rx.test(file)) hits.push(file);
+      if (!rx.test(file)) continue;
+      const key = toPosix(file);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push(file);
     }
   }
   return hits;

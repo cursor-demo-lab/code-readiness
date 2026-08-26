@@ -6,7 +6,7 @@ import { loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import { evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
-import { detectLanguages, detectManifestLanguages, globMatch } from "./walk.mjs";
+import { ciFiles, detectLanguages, detectManifestLanguages, findMatches, globMatch, testFiles } from "./walk.mjs";
 
 const tmpDirs = [];
 function tmp(prefix) {
@@ -636,6 +636,19 @@ assert.equal(globMatch(".github/instructions/node.md", ".github/instructions/**/
 assert.equal(globMatch("api/openapi.yaml", "**/openapi.yaml"), true);
 assert.equal(globMatch("LICENSES/MIT.txt", "LICENSES/**"), true);
 assert.equal(globMatch(".lintstagedrc.json", ".lintstagedrc.*"), true);
+
+assert.deepEqual(findMatches(["a/b.txt"], ["**/*.txt", "a/*.txt"]), ["a/b.txt"]);
+assert.deepEqual(findMatches(["a.txt", "b.txt"], ["*.txt", "b.txt"]), ["a.txt", "b.txt"]);
+assert.deepEqual(findMatches(["a.txt"], ["*.md"]), []);
+assert.deepEqual(testFiles(["src/test/scala/foo/BarSpec.scala"]), ["src/test/scala/foo/BarSpec.scala"]);
+assert.deepEqual(testFiles(["test/router.test.js"]), ["test/router.test.js"]);
+assert.deepEqual(testFiles(["tests/mesh_test.cxx"]), ["tests/mesh_test.cxx"]);
+assert.deepEqual(ciFiles([".buildkite/pipeline.yml"]), [".buildkite/pipeline.yml"]);
+assert.deepEqual(
+  ciFiles([".buildkite/pipeline.yml", ".github/workflows/ci.yml"]),
+  [".github/workflows/ci.yml", ".buildkite/pipeline.yml"],
+  "dedupe keeps the first match per path so the reported CI config is stable",
+);
 
 function resultById(evaluation) {
   return Object.fromEntries(evaluation.results.map((row) => [row.criterionId, row]));
@@ -1652,6 +1665,21 @@ const hiddenInVendor = evalTree({
 });
 assert.equal(hiddenInVendor["test-files-exist"].pass, false);
 
+const scalaDoubleMatch = evalTree({
+  "src/test/scala/foo/BarSpec.scala": "class BarSpec\n",
+  "src/test/scala/foo/BazTest.scala": "class BazTest\n",
+});
+assert.equal(scalaDoubleMatch["test-files-exist"].pass, true);
+assert.match(scalaDoubleMatch["test-files-exist"].message, /Found 2 test file\(s\)/);
+assert.equal(
+  scalaDoubleMatch["test-files-exist"].details,
+  "src/test/scala/foo/BarSpec.scala, src/test/scala/foo/BazTest.scala",
+);
+
+const singleDoubleMatch = evalTree({ "test/router.test.js": "describe('r', () => {});\n" });
+assert.match(singleDoubleMatch["test-files-exist"].message, /Found 1 test file\(s\)/);
+assert.equal(singleDoubleMatch["test-files-exist"].details, "test/router.test.js");
+
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
 assertPass("test-script", { Justfile: "test:\n    pytest\n" }, /Justfile/);
 assertPass(
@@ -2413,6 +2441,8 @@ assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\
 assert.match(checksReadme, /`\.cc` and `\.cxx` extensions/);
 assert.match(checksReadme, /`src\/\*\.cpp` and `src\/\*\.cc` do not/);
 assert.match(checksReadme, /`testdata\/user_test\.rb` does not count/);
+assert.match(checksReadme, /deduped by path/);
+assert.match(checksReadme, /distinct-path count/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
