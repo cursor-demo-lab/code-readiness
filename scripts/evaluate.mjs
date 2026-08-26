@@ -331,14 +331,6 @@ function isElixirTestFile(file) {
   );
 }
 
-function deferJsFrameworkSidecarHits(repoFiles) {
-  const files = repoFiles ?? [];
-  return (
-    (files.includes("mix.exs") && files.some(isElixirTestFile)) ||
-    deferJsTestSidecarForRuby(files)
-  );
-}
-
 function isRubyTestFile(file) {
   const name = posixBasename(file);
   return (
@@ -370,6 +362,16 @@ function treeHasPythonManifest(files) {
 function deferJsTestSidecarForPython(repoFiles) {
   const files = repoFiles ?? [];
   return treeHasPythonManifest(files) && files.some(isPythonTestFile);
+}
+
+function deferJsFrameworkSidecarHits(repoFiles) {
+  const files = repoFiles ?? [];
+  return (
+    (files.includes("mix.exs") && files.some(isElixirTestFile)) ||
+    deferJsTestSidecarForRuby(files) ||
+    deferJsTestSidecarForPython(files) ||
+    (files.includes("pytest.ini") && files.some(isPythonTestFile))
+  );
 }
 
 function deferJsTestSidecarHits(repoFiles) {
