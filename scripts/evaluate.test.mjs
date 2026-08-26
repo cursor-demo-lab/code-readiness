@@ -3486,6 +3486,108 @@ const csharpFuzzOnlyTfe = evalTree({
 assert.equal(csharpFuzzOnlyTfe["test-files-exist"].pass, true, csharpFuzzOnlyTfe["test-files-exist"].message);
 assert.match(csharpFuzzOnlyTfe["test-files-exist"].message, /FooFuzzTests\.cs/);
 
+const csharpBenchPathDefer = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "tests/FooTests.cs": "class FooTests {}\n",
+  "benchmarks/LegacyTests.cs": "class LegacyTests {}\n",
+});
+assert.equal(
+  csharpBenchPathDefer["test-framework"].pass,
+  true,
+  csharpBenchPathDefer["test-framework"].message,
+);
+assert.match(csharpBenchPathDefer["test-framework"].message, /FooTests\.cs/);
+assert.equal(
+  /LegacyTests/.test(csharpBenchPathDefer["test-framework"].message),
+  false,
+  csharpBenchPathDefer["test-framework"].message,
+);
+assert.equal(
+  csharpBenchPathDefer["test-files-exist"].pass,
+  true,
+  csharpBenchPathDefer["test-files-exist"].message,
+);
+assert.match(csharpBenchPathDefer["test-files-exist"].message, /FooTests\.cs/);
+assert.equal(
+  /LegacyTests/.test(csharpBenchPathDefer["test-files-exist"].message),
+  false,
+  csharpBenchPathDefer["test-files-exist"].message,
+);
+const csharpBenchPathCase = evalTree({
+  "Foo.csproj": "<Project></Project>\n",
+  "tests/FooTests.cs": "class FooTests {}\n",
+  "Benchmarks/LegacyTests.cs": "class LegacyTests {}\n",
+});
+assert.equal(
+  csharpBenchPathCase["test-framework"].pass,
+  true,
+  csharpBenchPathCase["test-framework"].message,
+);
+assert.match(csharpBenchPathCase["test-framework"].message, /FooTests\.cs/);
+assert.equal(
+  /LegacyTests/.test(csharpBenchPathCase["test-framework"].message),
+  false,
+  csharpBenchPathCase["test-framework"].message,
+);
+const csharpBenchPathOnly = evalTree({
+  "benchmarks/LegacyTests.cs": "class LegacyTests {}\n",
+});
+assert.equal(
+  csharpBenchPathOnly["test-framework"].pass,
+  true,
+  csharpBenchPathOnly["test-framework"].message,
+);
+assert.match(csharpBenchPathOnly["test-framework"].message, /LegacyTests\.cs/);
+assert.equal(
+  csharpBenchPathOnly["test-files-exist"].pass,
+  true,
+  csharpBenchPathOnly["test-files-exist"].message,
+);
+assert.match(csharpBenchPathOnly["test-files-exist"].message, /LegacyTests\.cs/);
+const mixExUnitStillNamesExs = evalTree({
+  "mix.exs": "defmodule Demo.MixProject do\nend\n",
+  "test/foo_test.exs": "defmodule FooTest do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  mixExUnitStillNamesExs["test-framework"].pass,
+  true,
+  mixExUnitStillNamesExs["test-framework"].message,
+);
+assert.match(mixExUnitStillNamesExs["test-framework"].message, /foo_test\.exs/);
+assert.equal(
+  /jest\.config/.test(mixExUnitStillNamesExs["test-framework"].message),
+  false,
+  mixExUnitStillNamesExs["test-framework"].message,
+);
+const javaFixturesDefer = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "src/test/java/fixtures/OneMillionTests.java": "class OneMillionTests {}\n",
+});
+assert.equal(
+  javaFixturesDefer["test-framework"].pass,
+  true,
+  javaFixturesDefer["test-framework"].message,
+);
+assert.match(javaFixturesDefer["test-framework"].message, /FooTest\.java/);
+assert.equal(
+  /OneMillionTests/.test(javaFixturesDefer["test-framework"].message),
+  false,
+  javaFixturesDefer["test-framework"].message,
+);
+assert.equal(
+  javaFixturesDefer["test-files-exist"].pass,
+  true,
+  javaFixturesDefer["test-files-exist"].message,
+);
+assert.match(javaFixturesDefer["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /OneMillionTests/.test(javaFixturesDefer["test-files-exist"].message),
+  false,
+  javaFixturesDefer["test-files-exist"].message,
+);
+
 const mixExUnitOverJestTfe = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
   "test/foo_test.exs": "defmodule FooTest do\nend\n",
@@ -5246,6 +5348,8 @@ assert.match(rootReadme, /Java-primary/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
 assert.match(rootReadme, /C#-primary/);
 assert.match(rootReadme, /A C# tree with only jest/);
+assert.match(rootReadme, /A benchmark-only tree still passes/);
+assert.match(rootReadme, /tests\/FooTests\.cs/);
 assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
@@ -5310,6 +5414,8 @@ assert.match(skillMd, /Java-primary/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
 assert.match(skillMd, /C#-primary/);
 assert.match(skillMd, /A C# tree with only jest/);
+assert.match(skillMd, /A benchmark-only tree still passes/);
+assert.match(skillMd, /tests\/FooTests\.cs/);
 assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
@@ -5428,6 +5534,8 @@ assert.match(checksReadme, /distinct-path count/);
 assert.match(checksReadme, /reported first hit prefers a product-suite path/);
 assert.match(checksReadme, /installer.*examples.*abi/);
 assert.match(checksReadme, /An installer-only or examples-only or abi-only tree still passes/);
+assert.match(checksReadme, /A benchmark-only tree still passes/);
+assert.match(checksReadme, /tests\/FooTests\.cs/);
 assert.match(checksReadme, /`test\/test_\*\.rb` \(and `\*\*\/test\/test_\*\.rb`\) counts Jekyll-style prefix tests/);
 assert.match(checksReadme, /still do not add `test\/test_\*\.rb` without the `test\/` segment/);
 assert.match(checksReadme, /Do not add `\*\*\/\*\.cpp`/);

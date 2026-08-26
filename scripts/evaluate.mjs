@@ -92,6 +92,12 @@ function pathHasSegments(file, segments) {
   return file.split("/").some((part) => segments.includes(part));
 }
 
+function pathHasSegmentsIgnoreCase(file, segments) {
+  if (!segments?.length) return false;
+  const wanted = new Set(segments.map((s) => s.toLowerCase()));
+  return file.split("/").some((part) => wanted.has(part.toLowerCase()));
+}
+
 function pathHasIgnoredVersionPin(file) {
   const parts = file.split("/");
   for (let i = 0; i < parts.length; i += 1) {
@@ -141,7 +147,15 @@ const CONTAINER_FIRST_HIT_DEFER_SEGMENTS = [
   ...STYLE_FIRST_HIT_SAMPLE_SEGMENTS,
 ];
 const SETUP_FIRST_HIT_DEFER_SEGMENTS = ["support", "android", "examples"];
-const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = ["installer", "examples", "abi"];
+const TEST_FILE_FIRST_HIT_FUZZ_BENCH_SEGMENTS = ["benchmarks", "benchmark", "bench", "fuzz", "fuzzing"];
+const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = [
+  "installer",
+  "examples",
+  "abi",
+  ...STYLE_FIRST_HIT_DEFER_SEGMENTS,
+  ...STYLE_FIRST_HIT_SAMPLE_SEGMENTS,
+  ...TEST_FILE_FIRST_HIT_FUZZ_BENCH_SEGMENTS,
+];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
 
@@ -181,6 +195,15 @@ function isDeferredContainerConfig(file) {
 
 function productContainerHits(files) {
   const productHits = files.filter((file) => !isDeferredContainerConfig(file));
+  return productHits.length > 0 ? productHits : files;
+}
+
+function isDeferredTestFileFirstHit(file) {
+  return pathHasSegmentsIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS);
+}
+
+function productTestFileFirstHits(files) {
+  const productHits = files.filter((file) => !isDeferredTestFileFirstHit(file));
   return productHits.length > 0 ? productHits : files;
 }
 
@@ -499,8 +522,10 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // Fuzz/Benchmark *Tests.cs are not product C# tests; drop them when another hit exists
   // so they do not beat jest.config.* / FooTests.cs. A Fuzz-only tree still names Fuzz.
   const ranked = dropDeferredCsharpTestsWhenOtherHitsExist(afterJs);
-  // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer.
-  return productTestScriptHits(ranked);
+  // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer, then
+  // defer benchmarks/fuzz/fixtures/samples path segments (same class as
+  // containerization sample/integration). A benchmark-only tree still names that file.
+  return productTestFileFirstHits(productTestScriptHits(ranked));
 }
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
@@ -560,7 +585,7 @@ function testFileSidecarLanguageRank(file, languages, repoFiles) {
 
 function testFileFirstHitRank(file, languages, repoFiles) {
   const sidecar = testFileSidecarLanguageRank(file, languages, repoFiles);
-  const deferred = pathHasSegments(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ? 1 : 0;
+  const deferred = isDeferredTestFileFirstHit(file) ? 1 : 0;
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
   return sidecar * 4 + deferred * 2 + catchAllOnly + fuzzBench;
