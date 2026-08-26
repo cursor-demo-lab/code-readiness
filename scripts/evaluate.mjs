@@ -354,8 +354,30 @@ function deferJsTestSidecarForRuby(repoFiles) {
   return files.includes("Gemfile") && files.some(isRubyTestFile);
 }
 
+function isPythonTestFile(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, "test_*.py") ||
+    globMatch(name, "*_test.py") ||
+    (name === "conftest.py" && file.split("/").includes("tests"))
+  );
+}
+
+function treeHasPythonManifest(files) {
+  return files.includes("pyproject.toml") || files.includes("setup.py") || files.includes("setup.cfg");
+}
+
+function deferJsTestSidecarForPython(repoFiles) {
+  const files = repoFiles ?? [];
+  return treeHasPythonManifest(files) && files.some(isPythonTestFile);
+}
+
 function deferJsTestSidecarHits(repoFiles) {
-  return deferJsFrameworkSidecarHits(repoFiles) || deferJsTestSidecarForRuby(repoFiles);
+  return (
+    deferJsFrameworkSidecarHits(repoFiles) ||
+    deferJsTestSidecarForRuby(repoFiles) ||
+    deferJsTestSidecarForPython(repoFiles)
+  );
 }
 
 function isJsFormatterSidecar(file) {
