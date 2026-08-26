@@ -449,17 +449,34 @@ function isRubyFormatterFile(file) {
   return name === ".rubocop.yml" || name === ".rubocop.yaml" || name === ".standard.yml";
 }
 
-function deferJsFormatterSidecarHits(repoFiles) {
-  const files = repoFiles ?? [];
-  return (
-    (files.includes("mix.exs") && files.some(isMixFormatterFile)) ||
-    (files.includes("Gemfile") && files.some(isRubyFormatterFile))
-  );
+function isPythonFormatterFile(file) {
+  const name = posixBasename(file);
+  return name === "ruff.toml" || name === ".ruff.toml" || name === ".black";
 }
 
-function productFormatterHits(files, repoFiles) {
+const PYTHON_FORMATTER_PYPROJECT_NEEDLES = ["[tool.black]", "[tool.ruff"];
+
+function pyprojectHasPythonFormatter(repoRoot, files) {
+  if (!repoRoot) return false;
+  for (const file of files ?? []) {
+    if (posixBasename(file) !== "pyproject.toml") continue;
+    const content = readText(repoRoot, file) ?? "";
+    if (PYTHON_FORMATTER_PYPROJECT_NEEDLES.some((needle) => content.includes(needle))) return true;
+  }
+  return false;
+}
+
+function deferJsFormatterSidecarHits(repoFiles, repoRoot) {
+  const files = repoFiles ?? [];
+  if (files.includes("mix.exs") && files.some(isMixFormatterFile)) return true;
+  if (files.includes("Gemfile") && files.some(isRubyFormatterFile)) return true;
+  if (files.some(isPythonFormatterFile)) return true;
+  return pyprojectHasPythonFormatter(repoRoot, files);
+}
+
+function productFormatterHits(files, repoFiles, repoRoot) {
   const styleHits = productStyleHits(files);
-  if (!deferJsFormatterSidecarHits(repoFiles)) return styleHits;
+  if (!deferJsFormatterSidecarHits(repoFiles, repoRoot)) return styleHits;
   const withoutJsSidecar = styleHits.filter((file) => !isJsFormatterSidecar(file));
   return withoutJsSidecar.length > 0 ? withoutJsSidecar : styleHits;
 }
@@ -505,7 +522,7 @@ function productTypeCheckerHits(files) {
   return preferred.length > 0 ? preferred : files;
 }
 
-function firstFileHit(criterion, fileHits, languages, repoFiles) {
+function firstFileHit(criterion, fileHits, languages, repoFiles, repoRoot) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
   if (criterion.id === "test-framework") {
@@ -520,7 +537,7 @@ function firstFileHit(criterion, fileHits, languages, repoFiles) {
     return shallowestHit(productLinterHits(fileHits, languages, repoFiles));
   }
   if (criterion.id === "formatter") {
-    return shallowestHit(productFormatterHits(fileHits, repoFiles));
+    return shallowestHit(productFormatterHits(fileHits, repoFiles, repoRoot));
   }
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
@@ -650,6 +667,7 @@ function evalFileContains(repoRoot, files, rules, options = {}) {
       if (skipPackageSwift && posixBasename(file) === "Package.swift") return false;
       if (skipRubyVersion && posixBasename(file) === ".ruby-version") return false;
       if (shouldIgnorePath(file, ruleOptions)) return false;
+      if (options.skipJsFormatterSidecar && isJsFormatterSidecar(file)) return false;
       if (file === rule.file || globMatch(file, rule.file)) return true;
       return basenameOnly && posixBasename(file) === rule.file;
     });
@@ -859,7 +877,7 @@ function evalCriterion(criterion, ctx) {
   const deferMixJsFramework =
     criterion.id === "test-framework" && deferJsFrameworkSidecarHits(ctx.files);
   const deferJsFormatter =
-    criterion.id === "formatter" && deferJsFormatterSidecarHits(ctx.files);
+    criterion.id === "formatter" && deferJsFormatterSidecarHits(ctx.files, ctx.repoRoot);
   const productFileHits = styleFirstHit
     ? usableHits.filter((file) => {
         if (isDeferredStyleConfig(file)) return false;
@@ -874,7 +892,7 @@ function evalCriterion(criterion, ctx) {
         ? usableHits.filter((file) => !isDeferredSetupConfig(file))
         : usableHits;
   if (productFileHits.length > 0) {
-    return hit(`Found ${firstFileHit(criterion, productFileHits, ctx.languages, ctx.files)}`);
+    return hit(`Found ${firstFileHit(criterion, productFileHits, ctx.languages, ctx.files, ctx.repoRoot)}`);
   }
 
   if (criterion.id === "env-documentation") {
@@ -897,12 +915,13 @@ function evalCriterion(criterion, ctx) {
     preferShallowest: criterion.id === "version-pinned",
     preferProductStyleHit: styleFirstHit,
     skipRubyVersionIfSwift: criterion.id === "version-pinned",
+    skipJsFormatterSidecar: deferJsFormatter,
   });
   if (contains && (!styleFirstHit || !isDeferredStyleConfig(contains.file) || usableHits.length === 0)) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
   if (usableHits.length > 0) {
-    return hit(`Found ${firstFileHit(criterion, usableHits, ctx.languages, ctx.files)}`);
+    return hit(`Found ${firstFileHit(criterion, usableHits, ctx.languages, ctx.files, ctx.repoRoot)}`);
   }
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
