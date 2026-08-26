@@ -3893,6 +3893,94 @@ assert.equal(mixCmakeRanks["setup-script"].pass, true, mixCmakeRanks["setup-scri
 assert.match(mixCmakeRanks["setup-script"].message, /CMakeLists\.txt/);
 assert.equal(/support\//.test(mixCmakeRanks["setup-script"].message), false, mixCmakeRanks["setup-script"].message);
 assert.equal(/mix\.exs/.test(mixCmakeRanks["setup-script"].message), false, mixCmakeRanks["setup-script"].message);
+const pyprojectOverModulesSetup = evalTree({
+  "pyproject.toml": "[build-system]\nrequires = [\"setuptools\"]\n",
+  "lib/foo/modules/setup.py": "from setuptools import setup\n",
+});
+assert.equal(
+  pyprojectOverModulesSetup["setup-script"].pass,
+  true,
+  pyprojectOverModulesSetup["setup-script"].message,
+);
+assert.match(pyprojectOverModulesSetup["setup-script"].message, /pyproject\.toml/);
+assert.equal(
+  /modules\//.test(pyprojectOverModulesSetup["setup-script"].message),
+  false,
+  pyprojectOverModulesSetup["setup-script"].message,
+);
+const makefileOverModulesSetup = evalTree({
+  Makefile: "all:\n\t@echo ok\n",
+  "lib/foo/modules/setup.py": "from setuptools import setup\n",
+});
+assert.equal(
+  makefileOverModulesSetup["setup-script"].pass,
+  true,
+  makefileOverModulesSetup["setup-script"].message,
+);
+assert.match(makefileOverModulesSetup["setup-script"].message, /Makefile/);
+assert.equal(
+  /modules\//.test(makefileOverModulesSetup["setup-script"].message),
+  false,
+  makefileOverModulesSetup["setup-script"].message,
+);
+const rootSetupOverModulesSetup = evalTree({
+  "setup.py": "from setuptools import setup\n",
+  "lib/foo/modules/setup.py": "from setuptools import setup\n",
+});
+assert.equal(
+  rootSetupOverModulesSetup["setup-script"].pass,
+  true,
+  rootSetupOverModulesSetup["setup-script"].message,
+);
+assert.match(rootSetupOverModulesSetup["setup-script"].message, /^Found setup\.py$/);
+assert.equal(/modules\//.test(rootSetupOverModulesSetup["setup-script"].message), false);
+assertPass(
+  "setup-script",
+  { "lib/foo/modules/setup.py": "from setuptools import setup\n" },
+  /lib\/foo\/modules\/setup\.py/,
+);
+const setupCfgOverModulesSetup = evalTree({
+  "setup.cfg": "[metadata]\nname = foo\n",
+  "lib/foo/modules/setup.py": "from setuptools import setup\n",
+});
+assert.equal(setupCfgOverModulesSetup["setup-script"].pass, true, setupCfgOverModulesSetup["setup-script"].message);
+assert.match(setupCfgOverModulesSetup["setup-script"].message, /setup\.cfg/);
+assert.equal(/modules\//.test(setupCfgOverModulesSetup["setup-script"].message), false);
+const cmakeOverModulesSetup = evalTree({
+  "CMakeLists.txt": "project(demo)\n",
+  "lib/foo/modules/setup.py": "from setuptools import setup\n",
+});
+assert.equal(cmakeOverModulesSetup["setup-script"].pass, true, cmakeOverModulesSetup["setup-script"].message);
+assert.match(cmakeOverModulesSetup["setup-script"].message, /CMakeLists\.txt/);
+assert.equal(/modules\//.test(cmakeOverModulesSetup["setup-script"].message), false);
+const packageJsonOverModulesSetup = evalTree({
+  "package.json": { scripts: { test: "node --test" } },
+  "lib/foo/plugins/setup.py": "from setuptools import setup\n",
+});
+assert.equal(
+  packageJsonOverModulesSetup["setup-script"].pass,
+  true,
+  packageJsonOverModulesSetup["setup-script"].message,
+);
+assert.match(packageJsonOverModulesSetup["setup-script"].message, /scripts\.test/);
+assert.equal(/plugins\//.test(packageJsonOverModulesSetup["setup-script"].message), false);
+assertPass(
+  "setup-script",
+  { "lib/foo/plugin/setup.py": "from setuptools import setup\n" },
+  /lib\/foo\/plugin\/setup\.py/,
+);
+assertPass(
+  "setup-script",
+  { "lib/foo/module/setup.py": "from setuptools import setup\n" },
+  /lib\/foo\/module\/setup\.py/,
+);
+const goModAndModulesSetup = evalTree({
+  "go.mod": "module example.com/foo\n",
+  "lib/foo/modules/setup.py": "from setuptools import setup\n",
+});
+assert.equal(goModAndModulesSetup["setup-script"].pass, true, goModAndModulesSetup["setup-script"].message);
+assert.match(goModAndModulesSetup["setup-script"].message, /lib\/foo\/modules\/setup\.py/);
+assert.equal(/go\.mod/.test(goModAndModulesSetup["setup-script"].message), false);
 assertPass("setup-script", { "mix.exs": "defmodule Plug.MixProject do\nend\n" }, /mix\.exs/);
 assertPass("test-script", { "Foo.Tests.sln": "Microsoft Visual Studio Solution\n" }, /Foo\.Tests\.sln/);
 assertPass("test-script", { Makefile: "test:\n\t@echo ok\n" }, /Makefile/);
@@ -5551,6 +5639,8 @@ assert.match(rootReadme, /sample-only tree still passes/);
 assert.match(rootReadme, /shallowest leftover/);
 assert.match(rootReadme, /`setup-script` first-hit prefers/);
 assert.match(rootReadme, /support-only tree still passes/);
+assert.match(rootReadme, /modules-only tree still passes/);
+assert.match(rootReadme, /lib\/foo\/modules\/setup\.py/);
 assert.match(rootReadme, /`setup-script` first-hit among/);
 assert.match(rootReadme, /Console-only/);
 assert.match(rootReadme, /Fuzz-only or Tests-only tree still passes/);
@@ -5620,6 +5710,8 @@ assert.match(skillMd, /sample-only tree still passes/);
 assert.match(skillMd, /shallowest leftover/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
 assert.match(skillMd, /support-only tree still passes/);
+assert.match(skillMd, /modules-only tree still passes/);
+assert.match(skillMd, /lib\/foo\/modules\/setup\.py/);
 assert.match(skillMd, /`setup-script` first-hit among/);
 assert.match(skillMd, /Console-only/);
 assert.match(skillMd, /Fuzz-only or Tests-only tree still passes/);
@@ -5810,6 +5902,8 @@ assert.match(checksReadme, /A `build\.gradle` \/ `build\.gradle\.kts` or product
 assert.match(checksReadme, /`setup-script` first-hit is the shallowest product-tree/);
 assert.match(checksReadme, /support\/build\.gradle/);
 assert.match(checksReadme, /support-only tree still passes/);
+assert.match(checksReadme, /modules-only tree still passes/);
+assert.match(checksReadme, /lib\/foo\/modules\/setup\.py/);
 assert.match(checksReadme, /`setup-script` first-hit among/);
 assert.match(checksReadme, /Console-only/);
 assert.match(checksReadme, /Fuzz-only or Tests-only tree still passes/);
@@ -5827,7 +5921,7 @@ assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 const productRepoLiteral =
-  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|vscode-typescript|microsoft\/TypeScript/i;
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|vscode-typescript|microsoft\/TypeScript|ansible|django/i;
 for (const file of [
   path.join(skillRoot(), "scripts", "evaluate.mjs"),
   catalogPath(),

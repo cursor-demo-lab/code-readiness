@@ -64,7 +64,7 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `containerization` first-hit prefers `.devcontainer` / `.cursor/environment.json` / a root Dockerfile or compose file. Nested `integration/docker-compose.yml` or `sample/**/docker-compose.yml` is not the boot env when a product boot file exists; an integration-only tree still passes. A sample-only tree still passes. When only deferred hits remain, first-hit names the shallowest leftover.
 
-`setup-script` first-hit prefers the shallowest product-tree file (root `CMakeLists.txt` / `Makefile` / package.json). Nested `support/build.gradle` is not first-hit when a product setup file exists; a support-only tree still passes.
+`setup-script` first-hit prefers the shallowest product-tree file (root `CMakeLists.txt` / `Makefile` / package.json / `pyproject.toml` / `setup.cfg` / root `setup.py`). Nested `support/build.gradle` is not first-hit when a product setup file exists; a support-only tree still passes. A `setup.py` whose parent path has a whole segment named `modules` / `module` / `plugins` / `plugin` is not first-hit when another product setup file exists (`pyproject.toml` / `Makefile` over `lib/foo/modules/setup.py`); a modules-only tree still passes.
 
 `setup-script` first-hit among `*.csproj` / `*.sln` prefers a product library over a basename containing `Console` / `Demo`, then `*Tests.csproj`, then a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` (`Lib.csproj` over `Lib.TestConsole.csproj` / `Lib.Tests.csproj` / `FuzzTests.csproj`). A Console-only tree still passes. A Fuzz-only or Tests-only tree still passes.
 
