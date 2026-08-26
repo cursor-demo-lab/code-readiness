@@ -678,18 +678,18 @@
       "level": 3,
       "requiresLLM": false,
       "anyFiles": [
+        ".devcontainer",
+        ".devcontainer/devcontainer.json",
+        ".cursor/environment.json",
         "Dockerfile",
         "docker-compose.yml",
         "docker-compose.yaml",
         "compose.yaml",
         "compose.yml",
         "Containerfile",
-        ".devcontainer",
         "**/Dockerfile",
         "docker/Dockerfile",
-        "deploy/Dockerfile",
-        ".devcontainer/devcontainer.json",
-        ".cursor/environment.json"
+        "deploy/Dockerfile"
       ],
       "fail": "No Dockerfile, docker-compose, compose.yaml, Containerfile, .devcontainer, or .cursor/environment.json found.",
       "fix": "Add a Dockerfile, docker-compose, compose.yaml, Containerfile, .devcontainer, or .cursor/environment.json.",

@@ -534,11 +534,28 @@ assert.ok(containerization.anyFiles.includes("Dockerfile"));
 assert.ok(containerization.anyFiles.includes("compose.yaml"));
 assert.ok(containerization.anyFiles.includes("compose.yml"));
 assert.ok(containerization.anyFiles.includes("Containerfile"));
+assert.ok(containerization.anyFiles.includes(".devcontainer"));
+assert.ok(containerization.anyFiles.includes(".devcontainer/devcontainer.json"));
 assert.ok(containerization.anyFiles.includes(".cursor/environment.json"));
 assert.equal(
   containerization.anyFiles.includes("environment.json"),
   false,
   "root environment.json is the wrong path; only .cursor/environment.json counts",
+);
+assert.ok(
+  containerization.anyFiles.indexOf(".devcontainer") < containerization.anyFiles.indexOf("docker-compose.yml"),
+  "product boot files must precede compose so first-hit names the boot env",
+);
+assert.ok(
+  containerization.anyFiles.indexOf(".devcontainer/devcontainer.json") <
+    containerization.anyFiles.indexOf("docker-compose.yml"),
+);
+assert.ok(
+  containerization.anyFiles.indexOf(".cursor/environment.json") <
+    containerization.anyFiles.indexOf("docker-compose.yml"),
+);
+assert.ok(
+  containerization.anyFiles.indexOf(".devcontainer") < containerization.anyFiles.indexOf("Dockerfile"),
 );
 assert.match(containerization.fail, /Dockerfile/);
 assert.match(containerization.fail, /\.cursor\/environment\.json/);
@@ -2795,6 +2812,70 @@ assertPass(
 );
 assertFail("containerization", { "environment.json": JSON.stringify({ install: "npm install" }) });
 assertPass("containerization", { Dockerfile: "FROM node:20\n" }, /Dockerfile/);
+assertPass(
+  "containerization",
+  { ".devcontainer/devcontainer.json": "{ \"image\": \"mcr.microsoft.com/devcontainers/javascript-node\" }\n" },
+  /\.devcontainer/,
+);
+const nestBootAndIntegration = evalTree({
+  ".devcontainer/devcontainer.json": "{ \"image\": \"mcr.microsoft.com/devcontainers/javascript-node\" }\n",
+  "integration/docker-compose.yml": "services: {}\n",
+});
+assert.equal(nestBootAndIntegration.containerization.pass, true, nestBootAndIntegration.containerization.message);
+assert.match(nestBootAndIntegration.containerization.message, /\.devcontainer/);
+assert.equal(
+  /integration/.test(nestBootAndIntegration.containerization.message),
+  false,
+  nestBootAndIntegration.containerization.message,
+);
+assertPass(
+  "containerization",
+  { "integration/docker-compose.yml": "services: {}\n" },
+  /integration\/docker-compose\.yml/,
+);
+assertPass(
+  "containerization",
+  { "integration_test/docker-compose.yml": "services: {}\n" },
+  /integration_test\/docker-compose\.yml/,
+);
+assertPass(
+  "containerization",
+  { "test/docker-compose.yml": "services: {}\n" },
+  /test\/docker-compose\.yml/,
+);
+const envAndTestsCompose = evalTree({
+  ".cursor/environment.json": JSON.stringify({ install: "npm install" }),
+  "tests/docker-compose.yml": "services: {}\n",
+});
+assert.equal(envAndTestsCompose.containerization.pass, true, envAndTestsCompose.containerization.message);
+assert.match(envAndTestsCompose.containerization.message, /\.cursor\/environment\.json/);
+assert.equal(
+  /tests\//.test(envAndTestsCompose.containerization.message),
+  false,
+  envAndTestsCompose.containerization.message,
+);
+const rootDockerAndIntegration = evalTree({
+  Dockerfile: "FROM node:20\n",
+  "integration/docker-compose.yml": "services: {}\n",
+});
+assert.equal(rootDockerAndIntegration.containerization.pass, true, rootDockerAndIntegration.containerization.message);
+assert.match(rootDockerAndIntegration.containerization.message, /Found Dockerfile/);
+assert.equal(
+  /integration/.test(rootDockerAndIntegration.containerization.message),
+  false,
+  rootDockerAndIntegration.containerization.message,
+);
+const rootComposeAndTests = evalTree({
+  "compose.yml": "services: {}\n",
+  "tests/docker-compose.yml": "services: {}\n",
+});
+assert.equal(rootComposeAndTests.containerization.pass, true, rootComposeAndTests.containerization.message);
+assert.match(rootComposeAndTests.containerization.message, /Found compose\.yml/);
+assert.equal(
+  /tests\//.test(rootComposeAndTests.containerization.message),
+  false,
+  rootComposeAndTests.containerization.message,
+);
 
 assertPass("ci-config", { "azure-pipelines.yml": "pool: vm\n" }, /azure-pipelines\.yml/);
 assertPass("ci-config", { ".azure-pipelines/ci.yml": "pool: vm\n" }, /\.azure-pipelines/);
@@ -3285,6 +3366,8 @@ for (const file of exampleCanvasFiles) {
 const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
 assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
+assert.match(rootReadme, /`containerization` first-hit prefers/);
+assert.match(rootReadme, /integration-only tree still passes/);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
 assert.match(skillMd, /1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous/);
@@ -3304,6 +3387,8 @@ assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.match(skillMd, /criterion \+ file/);
 assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 fail/);
 assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
+assert.match(skillMd, /`containerization` first-hit prefers/);
+assert.match(skillMd, /integration-only tree still passes/);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
 assert.equal(/Nest is that shape|L2 10\/13/.test(skillMd), false);
 assert.equal(
@@ -3336,6 +3421,9 @@ assert.match(checksReadme, /golangci-lint/);
 assert.match(checksReadme, /\.toml/);
 assert.match(checksReadme, /containerization.*also passes on `\.cursor\/environment\.json`/);
 assert.match(checksReadme, /root `environment\.json` does not count/);
+assert.match(checksReadme, /First-hit prefers `\.devcontainer`/);
+assert.match(checksReadme, /integration\/docker-compose\.yml/);
+assert.match(checksReadme, /integration-only or tests-only compose still passes/);
 assert.match(checksReadme, /any walked path with that basename/);
 assert.match(checksReadme, /skip signals stay repository-root only/);
 assert.match(checksReadme, /IGNORE_DIRS/);
