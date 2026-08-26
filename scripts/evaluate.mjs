@@ -7,9 +7,11 @@ import {
   detectManifestLanguages,
   findMatches,
   globMatch,
+  isCppCmakeDominant,
   packageJson,
   packageJsonHas,
   parseTsconfigStrict,
+  posixBasename,
   readText,
   testFiles,
   walkFiles,
@@ -64,11 +66,6 @@ function skip(message) {
   return { pass: false, skipped: true, message };
 }
 
-function posixBasename(file) {
-  const slash = file.lastIndexOf("/");
-  return slash === -1 ? file : file.slice(slash + 1);
-}
-
 function isGlobPattern(pattern) {
   return /[*?]/.test(pattern);
 }
@@ -103,7 +100,7 @@ function pathHasIgnoredVersionPin(file) {
 }
 
 function shouldIgnorePath(file, options) {
-  if (typeof options.ignorePath === "function") return options.ignorePath(file);
+  if (typeof options.ignorePath === "function" && options.ignorePath(file)) return true;
   return pathHasSegments(file, options.ignorePathSegments);
 }
 
@@ -172,10 +169,18 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
 
 function evalFileContains(repoRoot, files, rules, options = {}) {
   if (!rules?.length) return null;
+  const skipPackageSwift = isCppCmakeDominant(files);
   for (const rule of rules) {
     const basenameOnly = isBasenameOnly(rule.file);
+    const ruleOptions = rule.ignorePathSegments?.length
+      ? {
+          ...options,
+          ignorePathSegments: [...(options.ignorePathSegments ?? []), ...rule.ignorePathSegments],
+        }
+      : options;
     const matches = files.filter((file) => {
-      if (shouldIgnorePath(file, options)) return false;
+      if (skipPackageSwift && posixBasename(file) === "Package.swift") return false;
+      if (shouldIgnorePath(file, ruleOptions)) return false;
       if (file === rule.file || globMatch(file, rule.file)) return true;
       return basenameOnly && posixBasename(file) === rule.file;
     });

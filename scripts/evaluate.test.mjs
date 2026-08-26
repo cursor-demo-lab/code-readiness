@@ -6,7 +6,7 @@ import { loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import { evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
 import { buildReport } from "./report.mjs";
-import { globMatch } from "./walk.mjs";
+import { detectLanguages, detectManifestLanguages, globMatch } from "./walk.mjs";
 
 const tmpDirs = [];
 function tmp(prefix) {
@@ -303,6 +303,22 @@ assert.ok(versionPinned.fileContains.some((rule) => rule.file === "setup.py" && 
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"engines\"")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"packageManager\"")));
 assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Cargo.toml" && rule.includes.includes("rust-version")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Gemfile" && rule.includes.includes("ruby \"")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "mix.exs" && rule.includes.includes("elixir:")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "composer.json" && rule.includes.includes("\"php\":")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "Package.swift" && rule.includes.includes("swift-tools-version")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "**/*.csproj" && rule.includes.includes("<TargetFramework")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "build.sbt" && rule.includes.includes("scalaVersion")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "stack.yaml" && rule.includes.includes("resolver")));
+assert.ok(versionPinned.fileContains.some((rule) => rule.file === "**/*.cabal" && rule.includes.includes("cabal-version:")));
+assert.ok(
+  versionPinned.fileContains.some(
+    (rule) =>
+      rule.file === "CMakeLists.txt" &&
+      rule.includes.includes("CMAKE_CXX_STANDARD") &&
+      (rule.ignorePathSegments ?? []).includes("docs"),
+  ),
+);
 assert.equal(
   versionPinned.anyFiles.includes("setup.py"),
   false,
@@ -331,6 +347,15 @@ assert.ok(setupScript.anyFiles.includes("Cargo.toml"));
 assert.ok(setupScript.anyFiles.includes("pom.xml"));
 assert.ok(setupScript.anyFiles.includes("CMakeLists.txt"));
 assert.ok(setupScript.anyFiles.includes("configure.ac"));
+assert.ok(setupScript.anyFiles.includes("Gemfile"));
+assert.ok(setupScript.anyFiles.includes("mix.exs"));
+assert.ok(setupScript.anyFiles.includes("composer.json"));
+assert.ok(setupScript.anyFiles.includes("Package.swift"));
+assert.ok(setupScript.anyFiles.includes("build.sbt"));
+assert.ok(
+  setupScript.anyFiles.some((pattern) => pattern.includes(".csproj")),
+  "setup-script must accept *.csproj, not only *.sln",
+);
 assert.equal(setupScript.anyFiles.includes("go.mod"), false);
 assert.equal(setupScript.makefileTarget, "setup|install");
 assert.match(String(setupScript.packageJsonPath), /scripts\.dev/);
@@ -1767,6 +1792,111 @@ assertPass(
   /sourceCompatibility/,
 );
 
+assertPass("setup-script", { Gemfile: 'source "https://rubygems.org"\n' }, /Gemfile/);
+assertPass("version-pinned", { Gemfile: 'ruby "3.2.0"\n' }, /ruby "/);
+assertPass("version-pinned", { Gemfile: "ruby '3.2.0'\n" }, /ruby '/);
+assertFail("version-pinned", { Gemfile: 'source "https://rubygems.org"\ngem "jekyll"\n' });
+assertFail("version-pinned", { "testdata/Gemfile": 'ruby "3.2.0"\n' });
+
+assertPass("setup-script", { "mix.exs": "defmodule Plug.MixProject do\nend\n" }, /mix\.exs/);
+assertPass(
+  "version-pinned",
+  { "mix.exs": "defmodule X do\n  def project, do: [app: :x, elixir: \"~> 1.14\"]\nend\n" },
+  /elixir:/,
+);
+assertFail("version-pinned", { "mix.exs": "defmodule X do\nend\n" });
+assertFail("version-pinned", { "fixtures/mix.exs": "defmodule X do\n  def project, do: [elixir: \"~> 1.14\"]\nend\n" });
+
+assertPass("setup-script", { "composer.json": "{}\n" }, /composer\.json/);
+assertPass(
+  "version-pinned",
+  { "composer.json": { require: { php: ">=8.1" } } },
+  /"php":/,
+);
+assertFail("version-pinned", { "composer.json": { name: "nesbot/carbon" } });
+
+assertPass("setup-script", { "Package.swift": "// swift-tools-version:5.9\n" }, /Package\.swift/);
+assertPass(
+  "version-pinned",
+  { "Package.swift": "// swift-tools-version:5.9\nimport PackageDescription\n" },
+  /swift-tools-version/,
+);
+assertFail("version-pinned", { "Package.swift": "import PackageDescription\n" });
+
+assertPass("setup-script", { "Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertPass("setup-script", { "Src/Lib/Lib.csproj": "<Project></Project>\n" }, /\.csproj/);
+assertPass(
+  "version-pinned",
+  { "Src/Lib/Lib.csproj": "<Project><TargetFramework>net8.0</TargetFramework></Project>\n" },
+  /TargetFramework/,
+);
+assertFail("version-pinned", { "Lib.csproj": "<Project></Project>\n" });
+
+assertPass("setup-script", { "build.sbt": "name := \"cats\"\n" }, /build\.sbt/);
+assertPass("version-pinned", { "build.sbt": "scalaVersion := \"2.13.12\"\n" }, /scalaVersion/);
+assertFail("version-pinned", { "build.sbt": "name := \"cats\"\n" });
+
+assertPass("version-pinned", { "stack.yaml": "resolver: lts-22.18\n" }, /resolver/);
+assertFail("version-pinned", { "stack.yaml": "packages: []\n" });
+assertPass("version-pinned", { "pandoc.cabal": "cabal-version: 2.4\nname: pandoc\n" }, /cabal-version:/);
+
+assertPass(
+  "version-pinned",
+  { "CMakeLists.txt": "set(CMAKE_CXX_STANDARD 17)\nproject(json)\n" },
+  /CMAKE_CXX_STANDARD/,
+);
+assertPass(
+  "version-pinned",
+  { "src/CMakeLists.txt": "set_property(TARGET x PROPERTY CXX_STANDARD 20)\n" },
+  /CXX_STANDARD/,
+);
+assertFail("version-pinned", { "CMakeLists.txt": "project(json)\n" });
+assertFail("version-pinned", { "docs/CMakeLists.txt": "set(CMAKE_CXX_STANDARD 17)\n" });
+
+const nlohmannLike = evalTree({
+  "CMakeLists.txt": "cmake_minimum_required(VERSION 3.5)\nproject(json)\nset(CMAKE_CXX_STANDARD 11)\n",
+  "include/nlohmann/json.hpp": "#pragma once\n",
+  "Package.swift":
+    "// swift-tools-version:5.0\nimport PackageDescription\nlet package = Package(name: \"nlohmann-json\")\n",
+});
+assert.equal(nlohmannLike["type-checker"].skipped, true, nlohmannLike["type-checker"].message);
+assert.match(nlohmannLike["type-checker"].message, /no conventional type-checker file/i);
+assert.equal(/Swift has a built-in static type system/.test(nlohmannLike["type-checker"].message), false);
+assert.equal(nlohmannLike["version-pinned"].pass, true, nlohmannLike["version-pinned"].message);
+assert.match(nlohmannLike["version-pinned"].message, /CMAKE_CXX_STANDARD/);
+assert.equal(/Package\.swift/.test(nlohmannLike["version-pinned"].message), false);
+assert.equal(nlohmannLike["setup-script"].pass, true, nlohmannLike["setup-script"].message);
+assert.match(nlohmannLike["setup-script"].message, /CMakeLists\.txt/);
+
+assertFail(
+  "version-pinned",
+  {
+    "CMakeLists.txt": "project(json)\n",
+    "src/json.cpp": "int x;\n",
+    "Package.swift": "// swift-tools-version:5.0\nimport PackageDescription\n",
+  },
+);
+
+const swiftPrimary = evalTree({
+  "Package.swift": "// swift-tools-version:5.9\nimport PackageDescription\n",
+  "Sources/Foo/Foo.swift": "public struct Foo {}\n",
+});
+assert.equal(swiftPrimary["setup-script"].pass, true, swiftPrimary["setup-script"].message);
+assert.match(swiftPrimary["setup-script"].message, /Package\.swift/);
+assert.equal(swiftPrimary["version-pinned"].pass, true, swiftPrimary["version-pinned"].message);
+assert.match(swiftPrimary["version-pinned"].message, /swift-tools-version/);
+assert.equal(swiftPrimary["type-checker"].pass, true, swiftPrimary["type-checker"].message);
+assert.match(swiftPrimary["type-checker"].message, /Swift has a built-in static type system/);
+
+const cppFiles = ["CMakeLists.txt", "include/nlohmann/json.hpp", "Package.swift"];
+assert.equal(detectManifestLanguages(cppFiles).has("swift"), false);
+assert.equal(detectLanguages(cppFiles).has("swift"), false);
+assert.equal(detectLanguages(cppFiles).has("cpp"), true);
+assert.equal(detectManifestLanguages(["Package.swift", "Sources/Foo/Foo.swift"]).has("swift"), true);
+assert.equal(detectLanguages(["Package.swift", "Sources/Foo/Foo.swift"]).has("swift"), true);
+assert.equal(detectManifestLanguages(["Package.swift"]).has("swift"), true);
+assert.equal(detectLanguages(["Package.swift"]).has("swift"), true);
+
 assertPass("containerization", { "compose.yaml": "services: {}\n" }, /compose\.yaml/);
 assertPass("containerization", { "compose.yml": "services: {}\n" }, /compose\.yml/);
 assertPass("containerization", { Containerfile: "FROM alpine\n" }, /Containerfile/);
@@ -2013,6 +2143,14 @@ assert.match(checksReadme, /packages-only linter/);
 assert.match(checksReadme, /Do not reject empty linter configs/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
+assert.match(checksReadme, /C\+\+\/CMake-dominant/);
+assert.match(checksReadme, /SPM sidecar/);
+assert.match(checksReadme, /mix\.exs/);
+assert.match(checksReadme, /composer\.json/);
+assert.match(checksReadme, /Gemfile/);
+assert.match(checksReadme, /build\.sbt/);
+assert.match(checksReadme, /swift-tools-version/);
+assert.match(checksReadme, /CMAKE_CXX_STANDARD/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {

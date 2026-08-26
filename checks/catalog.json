@@ -569,7 +569,14 @@
         "Cargo.toml",
         "pom.xml",
         "CMakeLists.txt",
-        "configure.ac"
+        "configure.ac",
+        "Gemfile",
+        "mix.exs",
+        "composer.json",
+        "Package.swift",
+        "*.csproj",
+        "**/*.csproj",
+        "build.sbt"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[build-system]"] }
@@ -611,7 +618,20 @@
         { "file": ".go-version", "includes": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] },
         { "file": ".php-version", "includes": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] },
         { "file": ".swift-version", "includes": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] },
-        { "file": "rust-toolchain", "includes": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "stable", "nightly", "beta"] }
+        { "file": "rust-toolchain", "includes": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "stable", "nightly", "beta"] },
+        { "file": "Gemfile", "includes": ["ruby \"", "ruby '"] },
+        { "file": "mix.exs", "includes": ["elixir:", "otp:"] },
+        { "file": "composer.json", "includes": ["\"php\":"] },
+        { "file": "Package.swift", "includes": ["swift-tools-version"] },
+        { "file": "**/*.csproj", "includes": ["<TargetFramework"] },
+        { "file": "build.sbt", "includes": ["scalaVersion"] },
+        { "file": "stack.yaml", "includes": ["resolver"] },
+        { "file": "**/*.cabal", "includes": ["cabal-version:", "tested-with:"] },
+        {
+          "file": "CMakeLists.txt",
+          "includes": ["CMAKE_CXX_STANDARD", "CXX_STANDARD", "CMAKE_C_STANDARD"],
+          "ignorePathSegments": ["docs"]
+        }
       ],
       "fail": "No runtime version pin found.",
       "fix": "Add .nvmrc, .python-version, .tool-versions, or go.mod.",

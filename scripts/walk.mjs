@@ -100,6 +100,31 @@ export function packageJsonHas(pkg, dotted) {
   return cur != null && cur !== "";
 }
 
+export function posixBasename(file) {
+  const slash = file.lastIndexOf("/");
+  return slash === -1 ? file : file.slice(slash + 1);
+}
+
+export function isSwiftSourceFile(file) {
+  return file.endsWith(".swift") && posixBasename(file) !== "Package.swift";
+}
+
+export function isCppSourceFile(file) {
+  return /\.(cpp|cc|cxx|hpp|hh)$/i.test(file);
+}
+
+export function isCppCmakeDominant(files) {
+  const hasSwiftSrc = files.some(isSwiftSourceFile);
+  if (hasSwiftSrc) return false;
+  const hasCmake = files.some((file) => posixBasename(file) === "CMakeLists.txt");
+  const hasCpp = files.some(isCppSourceFile);
+  return hasCmake || hasCpp;
+}
+
+function isSwiftManifest(files) {
+  return files.includes("Package.swift") && !isCppCmakeDominant(files);
+}
+
 export function detectLanguages(files) {
   const langs = new Set();
   const has = (name) => files.includes(name) || files.some((f) => f === name);
@@ -133,7 +158,7 @@ export function detectLanguages(files) {
   if (files.some((f) => f.endsWith(".csproj") || f.endsWith(".sln") || f === "global.json")) {
     langs.add("csharp");
   }
-  if (has("Package.swift") || files.some((f) => f.endsWith(".swift"))) langs.add("swift");
+  if (isSwiftManifest(files) || files.some(isSwiftSourceFile)) langs.add("swift");
   if (files.some((f) => f.endsWith(".c"))) langs.add("c");
   if (files.some((f) => /\.(cpp|cc|cxx|hpp|hh)$/i.test(f))) langs.add("cpp");
   if (
@@ -152,7 +177,7 @@ const LANGUAGE_PASS_MANIFESTS = {
   java: (files) => files.includes("pom.xml") || files.includes("build.gradle"),
   kotlin: (files) => files.includes("build.gradle.kts"),
   csharp: (files) => files.some((file) => file.endsWith(".csproj") || file === "global.json"),
-  swift: (files) => files.includes("Package.swift"),
+  swift: isSwiftManifest,
 };
 
 export function detectManifestLanguages(files) {
