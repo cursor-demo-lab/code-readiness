@@ -98,6 +98,7 @@ type Report = {
   pillar_scores: PillarScore[];
   criterion_results: CriterionRow[];
   remediations: Remediation[];
+  languages?: string[];
   run_metadata: {
     engine: string;
     catalogHash: string;
@@ -137,13 +138,13 @@ const OPEN_BY_ID: Record<string, string> = {
   contributing: "CONTRIBUTING.md",
   "api-docs": "openapi.yaml",
   codeowners: "CODEOWNERS",
-  "ai-context": "CLAUDE.md",
+  "ai-context": "AGENTS.md",
   "architecture-docs": "ARCHITECTURE.md",
   "lock-file": "package-lock.json",
   "env-documentation": ".env.example",
   "setup-script": "Makefile",
   "version-pinned": ".mise.toml",
-  containerization: ".cursor/environment.json",
+  containerization: ".devcontainer/devcontainer.json",
   "ci-config": ".github/workflows/ci.yml",
   "ci-runs-tests": ".github/workflows/ci.yml",
   "ci-runs-linters": ".github/workflows/ci.yml",
@@ -159,6 +160,67 @@ const OPEN_BY_ID: Record<string, string> = {
   "security-scanning": ".snyk",
   "secrets-detection": ".gitleaks.toml",
 };
+
+const LANG_ORDER = [
+  "go",
+  "rust",
+  "elixir",
+  "ruby",
+  "python",
+  "c",
+  "cpp",
+  "haskell",
+  "java",
+  "kotlin",
+  "csharp",
+  "swift",
+  "typescript",
+  "javascript",
+  "node",
+];
+
+const OPEN_BY_LANG: Record<string, Record<string, string>> = {
+  linter: {
+    javascript: "eslint.config.js",
+    typescript: "eslint.config.js",
+    node: "eslint.config.js",
+    go: ".golangci.yml",
+    rust: "clippy.toml",
+    python: "ruff.toml",
+    elixir: ".credo.exs",
+    c: ".clang-tidy",
+    cpp: ".clang-tidy",
+    ruby: ".rubocop.yml",
+  },
+  formatter: {
+    javascript: ".prettierrc",
+    typescript: ".prettierrc",
+    node: ".prettierrc",
+    elixir: ".formatter.exs",
+    rust: "rustfmt.toml",
+    c: ".clang-format",
+    cpp: ".clang-format",
+  },
+  "test-framework": {
+    javascript: "jest.config.js",
+    typescript: "vitest.config.ts",
+    node: "jest.config.js",
+    python: "pytest.ini",
+    elixir: "test/support",
+    ruby: ".rspec",
+  },
+};
+
+const LANG_HINTS: Array<[RegExp, string]> = [
+  [/\.golangci\.|gofmt|_test\.go\b|Go has a built-in/, "go"],
+  [/rustfmt|clippy|Cargo\.toml|\.rs\b|Rust has a built-in/, "rust"],
+  [/\.credo\.exs|\.formatter\.exs/, "elixir"],
+  [/\.rubocop|\.rspec|_spec\.rb/, "ruby"],
+  [/\.py\b|ruff\.toml|\[tool\.ruff|pytest\.ini/, "python"],
+  [/\.clang-tidy|\.clang-format|\.cpp\b|\.cc\b|\.c\b/, "c"],
+  [/\.hs\b/, "haskell"],
+  [/package-lock\.json|eslint\.config|\.eslintrc|\bbiome\.json/, "javascript"],
+];
 
 const WHY_FOR_AGENTS: Record<string, string> = {
   editorconfig:
@@ -250,10 +312,12 @@ const CONCRETE_PATHS = [
   ".github/settings.yml",
   ".github/CODEOWNERS",
   ".cursor/environment.json",
+  ".devcontainer/devcontainer.json",
   ".pre-commit-config.yaml",
   "playwright.config.ts",
   "eslint.config.js",
   "jest.config.js",
+  "vitest.config.ts",
   "package-lock.json",
   ".size-limit.json",
   ".gitleaks.toml",
@@ -269,8 +333,20 @@ const CONCRETE_PATHS = [
   "ARCHITECTURE.md",
   "SECURITY.md",
   "README.md",
-  "CLAUDE.md",
+  "AGENTS.md",
   "CODEOWNERS",
+  ".golangci.yml",
+  "clippy.toml",
+  "ruff.toml",
+  ".credo.exs",
+  ".clang-tidy",
+  ".rubocop.yml",
+  ".formatter.exs",
+  "rustfmt.toml",
+  ".clang-format",
+  "pytest.ini",
+  "test/support",
+  ".rspec",
   "LICENSE",
   "tsconfig.json",
   "package.json",
@@ -290,9 +366,50 @@ function scoreChartTone(percent: number): ChartTone {
   return "danger";
 }
 
-function failOpenPath(row: CriterionRow): string | null {
+function pickLangPath(
+  byLang: Record<string, string>,
+  languages: string[],
+): string | null | undefined {
+  if (languages.length === 0) return undefined;
+  const known = new Set(languages);
+  for (const lang of LANG_ORDER) {
+    if (known.has(lang) && Object.hasOwn(byLang, lang)) return byLang[lang];
+  }
+  return null;
+}
+
+function inferLanguagesFromRows(rows: CriterionRow[]): string[] {
+  const found = new Set<string>();
+  for (const row of rows) {
+    const blob = `${row.message} ${row.details ?? ""}`;
+    for (const [hint, lang] of LANG_HINTS) {
+      if (hint.test(blob)) found.add(lang);
+    }
+  }
+  return [...found];
+}
+
+function reportLanguages(report: Report): string[] {
+  if (Array.isArray(report.languages) && report.languages.length > 0) {
+    return report.languages;
+  }
+  return inferLanguagesFromRows(report.criterion_results);
+}
+
+function failOpenPath(
+  row: CriterionRow,
+  languages: string[] = [],
+): string | null {
+  const byLang = OPEN_BY_LANG[row.criterionId];
+  if (byLang) {
+    const picked = pickLangPath(byLang, languages);
+    if (picked !== undefined) return picked;
+  }
   const mapped = OPEN_BY_ID[row.criterionId];
-  if (mapped) return mapped;
+  if (mapped) {
+    if (byLang && languages.length > 0) return null;
+    return mapped;
+  }
   const blob = `${row.name} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`;
   return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
 }
@@ -314,14 +431,15 @@ function remainingGateFails(report: Report): CriterionRow[] {
 }
 
 function rankedFixRows(report: Report): CriterionRow[] {
+  const languages = reportLanguages(report);
   const gate = remainingGateFails(report);
   const gateIds = new Set(gate.map((row) => row.criterionId));
   const rest = report.criterion_results.filter(
     (row) => !row.pass && !row.skipped && !gateIds.has(row.criterionId),
   );
   const byFileThenCatalog = (a: CriterionRow, b: CriterionRow) => {
-    const aFile = failOpenPath(a) == null ? 1 : 0;
-    const bFile = failOpenPath(b) == null ? 1 : 0;
+    const aFile = failOpenPath(a, languages) == null ? 1 : 0;
+    const bFile = failOpenPath(b, languages) == null ? 1 : 0;
     if (aFile !== bFile) return aFile - bFile;
     return 0;
   };
@@ -331,8 +449,8 @@ function rankedFixRows(report: Report): CriterionRow[] {
   ].slice(0, 5);
 }
 
-function todoLine(row: CriterionRow): string {
-  const file = failOpenPath(row);
+function todoLine(row: CriterionRow, languages: string[]): string {
+  const file = failOpenPath(row, languages);
   if (file) return `${row.criterionId} — add ${file}`;
   const hint = row.fix || row.message;
   return hint ? `${row.criterionId} — ${hint}` : row.criterionId;
@@ -490,6 +608,7 @@ export default function CodeReadinessCanvas() {
 
   const band = report.maturity_level;
   const meta = report.run_metadata;
+  const languages = reportLanguages(report);
   const counted = report.criterion_results.filter((row) => !row.skipped);
   const passedCount = counted.filter((row) => row.pass).length;
   const failedCount = counted.length - passedCount;
@@ -498,11 +617,11 @@ export default function CodeReadinessCanvas() {
   const rankedRows = rankedFixRows(report);
   const todos: TodoItem[] = rankedRows.map((row) => ({
     id: row.criterionId,
-    content: todoLine(row),
+    content: todoLine(row, languages),
     status: "pending",
   }));
   const openable = rankedRows
-    .map((row) => ({ row, path: failOpenPath(row) }))
+    .map((row) => ({ row, path: failOpenPath(row, languages) }))
     .filter((entry): entry is { row: CriterionRow; path: string } => entry.path != null);
   const topFailPath = openable[0]?.path ?? null;
   const unblockFiles = openable.map((entry) => entry.path).slice(0, 3);
@@ -659,7 +778,7 @@ export default function CodeReadinessCanvas() {
             defaultExpanded
             onTodoClick={(todo) => {
               const row = rankedRows.find((item) => item.criterionId === todo.id);
-              const file = row ? failOpenPath(row) : null;
+              const file = row ? failOpenPath(row, languages) : null;
               if (file) dispatch({ type: "openFile", path: file });
             }}
           />
@@ -755,7 +874,7 @@ export default function CodeReadinessCanvas() {
                         </Text>
                       ) : (
                         fails.map((row) => {
-                          const file = failOpenPath(row);
+                          const file = failOpenPath(row, languages);
                           return (
                             <Stack key={row.criterionId} gap={4}>
                               <Text>
