@@ -371,7 +371,8 @@ function deferJsFrameworkSidecarHits(repoFiles) {
     deferJsTestSidecarForRuby(files) ||
     deferJsTestSidecarForPython(files) ||
     (files.includes("pytest.ini") && files.some(isPythonTestFile)) ||
-    deferJsTestSidecarForJava(files)
+    deferJsTestSidecarForJava(files) ||
+    deferJsTestSidecarForCsharp(files)
   );
 }
 
@@ -412,6 +413,11 @@ function shouldDeferCsharpFuzzTest(file, repoFiles) {
   const files = repoFiles ?? [];
   if (!isCsharpTestFile(file) || !isDeferredTestScriptProject(file)) return false;
   return files.some(isPreferredCsharpTestFile);
+}
+
+function dropDeferredCsharpTestsWhenOtherHitsExist(files) {
+  const preferredOrNonFuzz = files.filter((file) => !isCsharpTestFile(file) || isPreferredCsharpTestFile(file));
+  return preferredOrNonFuzz.length > 0 ? preferredOrNonFuzz : files;
 }
 
 function deferJsTestSidecarHits(repoFiles) {
@@ -464,7 +470,10 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   const withoutJsSidecar = deferJsFrameworkSidecarHits(repoFiles)
     ? afterGo.filter((file) => !isTestFrameworkConfigHit(file))
     : afterGo;
-  const ranked = withoutJsSidecar.length > 0 ? withoutJsSidecar : afterGo;
+  const afterJs = withoutJsSidecar.length > 0 ? withoutJsSidecar : afterGo;
+  // Fuzz/Benchmark *Tests.cs are not product C# tests; drop them when another hit exists
+  // so they do not beat jest.config.* / FooTests.cs. A Fuzz-only tree still names Fuzz.
+  const ranked = dropDeferredCsharpTestsWhenOtherHitsExist(afterJs);
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer.
   return productTestScriptHits(ranked);
 }
