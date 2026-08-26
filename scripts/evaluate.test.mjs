@@ -373,6 +373,11 @@ assert.equal(
   false,
   "examples/LICENSE can be a real product-tree license",
 );
+assert.equal(
+  license.ignorePathSegments.includes("packages"),
+  false,
+  "packages/LICENSE is a real monorepo license when no root file exists",
+);
 assert.equal(license.anyFilesNonEmpty, undefined);
 
 const preCommit = catalog.criteria.find((row) => row.id === "pre-commit-hooks");
@@ -1390,6 +1395,13 @@ const mixedVendorFmt = evalTree({
 assert.equal(mixedVendorFmt.formatter.pass, true, mixedVendorFmt.formatter.message);
 assert.match(mixedVendorFmt.formatter.message, /Found \.clang-format/);
 assert.equal(/deps/.test(mixedVendorFmt.formatter.message), false);
+const mixedDepthFmt = evalTree({
+  "packages/app/.prettierrc": "{}\n",
+  ".clang-format": "BasedOnStyle: LLVM\n",
+});
+assert.equal(mixedDepthFmt.formatter.pass, true, mixedDepthFmt.formatter.message);
+assert.match(mixedDepthFmt.formatter.message, /packages\/app\/\.prettierrc/);
+assert.equal(/\.clang-format/.test(mixedDepthFmt.formatter.message), false);
 assertPass(
   "formatter",
   {
@@ -1796,6 +1808,27 @@ const mixedVendorLic = evalTree({
 assert.equal(mixedVendorLic.license.pass, true, mixedVendorLic.license.message);
 assert.match(mixedVendorLic.license.message, /LICENSE\.txt/);
 assert.equal(/deps/.test(mixedVendorLic.license.message), false);
+const mixedRootAndPkgLic = evalTree({
+  "LICENSE.txt": "Apache-2.0\n",
+  "packages/vscode-typescript/LICENSE": "MIT\n",
+});
+assert.equal(mixedRootAndPkgLic.license.pass, true, mixedRootAndPkgLic.license.message);
+assert.match(mixedRootAndPkgLic.license.message, /LICENSE\.txt/);
+assert.equal(/packages/.test(mixedRootAndPkgLic.license.message), false);
+const mixedRootCopyingAndPkgLic = evalTree({
+  COPYING: "GNU GENERAL PUBLIC LICENSE\n",
+  "packages/app/LICENSE": "MIT\n",
+});
+assert.equal(mixedRootCopyingAndPkgLic.license.pass, true, mixedRootCopyingAndPkgLic.license.message);
+assert.match(mixedRootCopyingAndPkgLic.license.message, /COPYING/);
+assert.equal(/packages/.test(mixedRootCopyingAndPkgLic.license.message), false);
+const twoNestedLic = evalTree({
+  "docs/LICENSE": "MIT\n",
+  "packages/app/nested/LICENSE": "MIT\n",
+});
+assert.equal(twoNestedLic.license.pass, true, twoNestedLic.license.message);
+assert.match(twoNestedLic.license.message, /docs\/LICENSE/);
+assert.equal(/packages/.test(twoNestedLic.license.message), false);
 
 assertPass("security-policy", { "docs/SECURITY.md": "# Security\n" }, /docs\/SECURITY\.md/);
 assertPass("security-policy", { "security.md": "# Security\n" }, /security\.md/);
@@ -1943,6 +1976,8 @@ assert.match(checksReadme, /Empty or whitespace-only files do not count/);
 assert.match(checksReadme, /deps.*vendor.*third_party.*third-party/);
 assert.match(checksReadme, /examples\/\.prettierrc` still can/);
 assert.match(checksReadme, /`license` matches LICENSE/);
+assert.match(checksReadme, /shallowest/);
+assert.match(checksReadme, /packages\/\*\/LICENSE/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
