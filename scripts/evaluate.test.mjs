@@ -2526,6 +2526,77 @@ assertPass("ai-context", { "packages/app/AGENTS.md": "# agents\n" }, /packages\/
 assertPass("linter", { "apps/web/biome.json": "{}\n" }, /apps\/web\/biome\.json/);
 assertPass("type-checker", { "packages/lib/tsconfig.json": "{}\n" }, /packages\/lib\/tsconfig\.json/);
 assert.equal(evalTree({ "packages/lib/tsconfig.json": "{}\n" })["type-checker"].skipped, false);
+const typescriptProductAndTest = evalTree({
+  "packages/typescript/test/tsconfig.json": "{}\n",
+  "packages/typescript/tsconfig.json": "{}\n",
+});
+assert.equal(
+  typescriptProductAndTest["type-checker"].pass,
+  true,
+  typescriptProductAndTest["type-checker"].message,
+);
+assert.match(
+  typescriptProductAndTest["type-checker"].message,
+  /^Found packages\/typescript\/tsconfig\.json$/,
+);
+assert.equal(
+  /test\//.test(typescriptProductAndTest["type-checker"].message),
+  false,
+  typescriptProductAndTest["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  { "packages/typescript/test/tsconfig.json": "{}\n" },
+  /^Found packages\/typescript\/test\/tsconfig\.json$/,
+);
+const rootTsconfigWins = evalTree({
+  "tsconfig.json": "{}\n",
+  "packages/typescript/test/tsconfig.json": "{}\n",
+  "packages/lib/tsconfig.json": "{}\n",
+});
+assert.equal(rootTsconfigWins["type-checker"].pass, true, rootTsconfigWins["type-checker"].message);
+assert.match(rootTsconfigWins["type-checker"].message, /tsconfig\.json/);
+assert.equal(/packages\//.test(rootTsconfigWins["type-checker"].message), false);
+assertPass(
+  "type-checker",
+  {
+    "packages/typescript/tests/tsconfig.json": "{}\n",
+    "packages/typescript/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/typescript\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/app/spec/tsconfig.json": "{}\n",
+    "packages/app/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/app\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/app/__tests__/tsconfig.json": "{}\n",
+    "packages/app/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/app\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "test/tsconfig.json": "{}\n",
+    "packages/typescript/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/typescript\/tsconfig\.json$/,
+);
+assertPass("type-checker", { "test/tsconfig.json": "{}\n" }, /^Found test\/tsconfig\.json$/);
+assertPass("type-checker", { "tests/tsconfig.json": "{}\n" }, /^Found tests\/tsconfig\.json$/);
+assertPass("type-checker", { "spec/tsconfig.json": "{}\n" }, /^Found spec\/tsconfig\.json$/);
+assertPass(
+  "type-checker",
+  { "__tests__/tsconfig.json": "{}\n" },
+  /^Found __tests__\/tsconfig\.json$/,
+);
 assertPass("linter", { "crates/foo/.golangci.yml": "linters: {}\n" }, /crates\/foo\/\.golangci\.yml/);
 assertPass("security-policy", { "security/SECURITY.md": "# Security\n" }, /security\/SECURITY\.md/);
 const nestedEditor = evalTree({ "packages/foo/.editorconfig": "root = true\n" });
@@ -3611,6 +3682,8 @@ assert.match(rootReadme, /`test-script` first-hit among/);
 assert.match(rootReadme, /Fuzz-only tree still passes/);
 assert.match(rootReadme, /`test-framework` first-hit among/);
 assert.match(rootReadme, /A coverage-only or integration-only tree still passes/);
+assert.match(rootReadme, /`type-checker` first-hit among/);
+assert.match(rootReadme, /A test-only tree still passes/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -3641,6 +3714,8 @@ assert.match(skillMd, /`test-script` first-hit among/);
 assert.match(skillMd, /Fuzz-only tree still passes/);
 assert.match(skillMd, /`test-framework` first-hit among/);
 assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
+assert.match(skillMd, /`type-checker` first-hit among/);
+assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -3720,6 +3795,9 @@ assert.match(checksReadme, /`test-framework` first-hit prefers the shallowest pr
 assert.match(checksReadme, /sample \/ examples \/ docs samples/);
 assert.match(checksReadme, /vitest\.config\.coverage\.mts/);
 assert.match(checksReadme, /A coverage-only or integration-only tree still passes/);
+assert.match(checksReadme, /`type-checker` first-hit among `tsconfig\.json` \/ `jsconfig\.json`/);
+assert.match(checksReadme, /packages\/typescript\/tsconfig\.json/);
+assert.match(checksReadme, /A test-only tree still passes/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
