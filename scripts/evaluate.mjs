@@ -444,9 +444,17 @@ function isMixFormatterFile(file) {
   return posixBasename(file) === ".formatter.exs";
 }
 
+function isRubyFormatterFile(file) {
+  const name = posixBasename(file);
+  return name === ".rubocop.yml" || name === ".rubocop.yaml" || name === ".standard.yml";
+}
+
 function deferJsFormatterSidecarHits(repoFiles) {
   const files = repoFiles ?? [];
-  return files.includes("mix.exs") && files.some(isMixFormatterFile);
+  return (
+    (files.includes("mix.exs") && files.some(isMixFormatterFile)) ||
+    (files.includes("Gemfile") && files.some(isRubyFormatterFile))
+  );
 }
 
 function productFormatterHits(files, repoFiles) {
@@ -850,14 +858,14 @@ function evalCriterion(criterion, ctx) {
     criterion.id === "test-framework" && deferGoTestSidecarHits(ctx.languages, ctx.files);
   const deferMixJsFramework =
     criterion.id === "test-framework" && deferJsFrameworkSidecarHits(ctx.files);
-  const deferMixJsFormatter =
+  const deferJsFormatter =
     criterion.id === "formatter" && deferJsFormatterSidecarHits(ctx.files);
   const productFileHits = styleFirstHit
     ? usableHits.filter((file) => {
         if (isDeferredStyleConfig(file)) return false;
         if (deferGoFramework && isGoTestFile(file)) return false;
         if (deferMixJsFramework && isTestFrameworkConfigHit(file)) return false;
-        if (deferMixJsFormatter && isJsFormatterSidecar(file)) return false;
+        if (deferJsFormatter && isJsFormatterSidecar(file)) return false;
         return true;
       })
     : containerFirstHit
