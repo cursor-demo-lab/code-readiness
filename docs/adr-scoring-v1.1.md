@@ -48,6 +48,8 @@ Hill-climb after PR #17: `editorconfig` is an L2 Documented fail that caps OSS l
 
 Hill-climb: `containerization` (L3 Developer Environment) also passes on `.cursor/environment.json`. That path is Cursor-specific — Cloud Agents resolve the repo file first, then personal/team saved environments — not a new criterion id. Existence is enough, same as Dockerfile; a root `environment.json` does not count. Nest still fails this unless the stub actually has the file (it does not). No new ids, no dummy `.editorconfig`, no L4/L5 retune, no new pillars.
 
+Hill-climb after PR #56: nest and phoenix PASS `containerization` on `integration/docker-compose.yml` / `integration_test/docker-compose.yml`. That is a test harness, not a product boot environment. Product boot is `.devcontainer` / `.devcontainer/devcontainer.json` / `.cursor/environment.json` / a root `Dockerfile` / `docker-compose.yml` / `compose.yml`. First-hit now prefers those files and defers `tests/**` / `test/**` / `integration/**` / `integration_test/**` the way formatter defers `tests/format`. An integration-only tree still PASSES and names that file. Message-only when a product boot also exists. Do not fail nest/phoenix for integration-only compose. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `issue-templates` stays L3 (10 counted).
+
 ## Explicitly refused
 
 - New criterion ids

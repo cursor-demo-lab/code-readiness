@@ -62,6 +62,8 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `issue-templates` looks for `.github/ISSUE_TEMPLATE.md` or `.github/ISSUE_TEMPLATE/` (and the matching pull-request template paths). Agents need the issue/PR contract to open work the repo already accepts.
 
+`containerization` first-hit prefers `.devcontainer` / `.cursor/environment.json` / a root Dockerfile or compose file. Nested `integration/docker-compose.yml` is not the boot env when a product boot file exists; an integration-only tree still passes.
+
 Forbidden UI copy: "9 pillars".
 
 Required attribution: local filesystem heuristics from checks/catalog.json; not `/doctor`.
