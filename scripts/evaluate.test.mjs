@@ -302,6 +302,8 @@ assert.ok(testFramework.anyGlobs.includes("**/*_test.exs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_spec.exs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_spec.rb"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.rb"));
+assert.ok(testFramework.anyGlobs.includes("**/test_*.py"));
+assert.ok(testFramework.anyGlobs.includes("**/*_test.py"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
@@ -2198,6 +2200,82 @@ const railsJestOnly = evalTree({
 });
 assert.equal(railsJestOnly["test-framework"].pass, true, railsJestOnly["test-framework"].message);
 assert.match(railsJestOnly["test-framework"].message, /jest\.config\.js/);
+const pythonLikeFramework = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  pythonLikeFramework["test-framework"].pass,
+  true,
+  pythonLikeFramework["test-framework"].message,
+);
+assert.match(
+  pythonLikeFramework["test-framework"].message,
+  /test_foo\.py|conftest|pytest\.ini/,
+);
+assert.equal(
+  /jest\.config/.test(pythonLikeFramework["test-framework"].message),
+  false,
+  pythonLikeFramework["test-framework"].message,
+);
+const pythonIniFramework = evalTree({
+  "pytest.ini": "[pytest]\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  pythonIniFramework["test-framework"].pass,
+  true,
+  pythonIniFramework["test-framework"].message,
+);
+assert.match(
+  pythonIniFramework["test-framework"].message,
+  /test_foo\.py|conftest|pytest\.ini/,
+);
+assert.equal(
+  /jest\.config/.test(pythonIniFramework["test-framework"].message),
+  false,
+  pythonIniFramework["test-framework"].message,
+);
+const pythonHelperFramework = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/conftest.py": "# pytest fixtures\n",
+  "assets/jest.config.js": "export default {}\n",
+});
+assert.equal(
+  pythonHelperFramework["test-framework"].pass,
+  true,
+  pythonHelperFramework["test-framework"].message,
+);
+assert.match(pythonHelperFramework["test-framework"].message, /conftest\.py/);
+assert.equal(
+  /jest\.config/.test(pythonHelperFramework["test-framework"].message),
+  false,
+  pythonHelperFramework["test-framework"].message,
+);
+const pythonSuffixFramework = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "pkg/foo_test.py": "def test_ok():\n    assert True\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(
+  pythonSuffixFramework["test-framework"].pass,
+  true,
+  pythonSuffixFramework["test-framework"].message,
+);
+assert.match(pythonSuffixFramework["test-framework"].message, /foo_test\.py|conftest|pytest\.ini/);
+assert.equal(
+  /vitest\.config/.test(pythonSuffixFramework["test-framework"].message),
+  false,
+  pythonSuffixFramework["test-framework"].message,
+);
+const pythonJestOnly = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(pythonJestOnly["test-framework"].pass, true, pythonJestOnly["test-framework"].message);
+assert.match(pythonJestOnly["test-framework"].message, /jest\.config\.js/);
 assertPass(
   "test-framework",
   { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" },
@@ -2865,6 +2943,41 @@ assert.equal(
   /jest\.config/.test(railsSpecOverJestFramework["test-framework"].message),
   false,
   railsSpecOverJestFramework["test-framework"].message,
+);
+const pythonTestsOverJestFramework = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  pythonTestsOverJestFramework["test-framework"].pass,
+  true,
+  pythonTestsOverJestFramework["test-framework"].message,
+);
+assert.match(
+  pythonTestsOverJestFramework["test-framework"].message,
+  /test_foo\.py|conftest|pytest\.ini/,
+);
+assert.equal(
+  /jest\.config/.test(pythonTestsOverJestFramework["test-framework"].message),
+  false,
+  pythonTestsOverJestFramework["test-framework"].message,
+);
+const pythonTfeOverJsStillPython = evalTree({
+  "pyproject.toml": "[project]\nname = \"demo\"\n",
+  "tests/test_foo.py": "def test_ok():\n    assert True\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  pythonTfeOverJsStillPython["test-files-exist"].pass,
+  true,
+  pythonTfeOverJsStillPython["test-files-exist"].message,
+);
+assert.match(pythonTfeOverJsStillPython["test-files-exist"].message, /test_foo\.py/);
+assert.equal(
+  /foo\.test\.js/.test(pythonTfeOverJsStillPython["test-files-exist"].message),
+  false,
+  pythonTfeOverJsStillPython["test-files-exist"].message,
 );
 const railsTfeOverJsStillRuby = evalTree({
   Gemfile: 'source "https://rubygems.org"\n',
@@ -4502,6 +4615,8 @@ assert.match(rootReadme, /Mix\/Elixir-primary/);
 assert.match(rootReadme, /A JS-only jest tree still passes/);
 assert.match(rootReadme, /A Mix tree with only jest/);
 assert.match(rootReadme, /A Rails tree with only jest/);
+assert.match(rootReadme, /Python-primary/);
+assert.match(rootReadme, /A Python tree with only jest/);
 assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
 assert.match(rootReadme, /`linter` first-hit prefers/);
@@ -4557,6 +4672,8 @@ assert.match(skillMd, /Mix\/Elixir-primary/);
 assert.match(skillMd, /A JS-only jest tree still passes/);
 assert.match(skillMd, /A Mix tree with only jest/);
 assert.match(skillMd, /A Rails tree with only jest/);
+assert.match(skillMd, /Python-primary/);
+assert.match(skillMd, /A Python tree with only jest/);
 assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
 assert.match(skillMd, /`linter` first-hit prefers/);
@@ -4721,6 +4838,8 @@ assert.match(checksReadme, /Mix\/Elixir-primary/);
 assert.match(checksReadme, /A JS-only jest tree still passes/);
 assert.match(checksReadme, /A Mix tree with only jest/);
 assert.match(checksReadme, /A Rails tree with only jest/);
+assert.match(checksReadme, /Python-primary/);
+assert.match(checksReadme, /A Python tree with only jest/);
 assert.match(checksReadme, /`test-framework` also passes on `\*Tests\.csproj` \/ `\*Test\.csproj`/);
 assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
