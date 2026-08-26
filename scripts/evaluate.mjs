@@ -7,9 +7,11 @@ import {
   detectManifestLanguages,
   findMatches,
   globMatch,
+  isCppCmakeDominant,
   packageJson,
   packageJsonHas,
   parseTsconfigStrict,
+  posixBasename,
   readText,
   testFiles,
   walkFiles,
@@ -64,11 +66,6 @@ function skip(message) {
   return { pass: false, skipped: true, message };
 }
 
-function posixBasename(file) {
-  const slash = file.lastIndexOf("/");
-  return slash === -1 ? file : file.slice(slash + 1);
-}
-
 function isGlobPattern(pattern) {
   return /[*?]/.test(pattern);
 }
@@ -96,14 +93,24 @@ function pathHasSegments(file, segments) {
 }
 
 function pathHasIgnoredVersionPin(file) {
-  return file.split("/").some((part) => {
+  const parts = file.split("/");
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i];
     if (VERSION_PIN_IGNORE_SEGMENTS.includes(part)) return true;
-    return part.endsWith("-tests") || part.endsWith("_tests");
-  });
+    if (part.endsWith("-tests") || part.endsWith("_tests")) return true;
+    if (
+      part === "resources" &&
+      parts[i + 1] === "exceptions" &&
+      parts[i + 2] === "renderer"
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function shouldIgnorePath(file, options) {
-  if (typeof options.ignorePath === "function") return options.ignorePath(file);
+  if (typeof options.ignorePath === "function" && options.ignorePath(file)) return true;
   return pathHasSegments(file, options.ignorePathSegments);
 }
 
@@ -172,20 +179,43 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
 
 function evalFileContains(repoRoot, files, rules, options = {}) {
   if (!rules?.length) return null;
-  for (const rule of rules) {
+  const skipPackageSwift = isCppCmakeDominant(files);
+  const skipRubyVersion = Boolean(options.skipRubyVersionIfSwift) && detectManifestLanguages(files).has("swift");
+  const hits = [];
+  for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex += 1) {
+    const rule = rules[ruleIndex];
     const basenameOnly = isBasenameOnly(rule.file);
+    const ruleOptions = rule.ignorePathSegments?.length
+      ? {
+          ...options,
+          ignorePathSegments: [...(options.ignorePathSegments ?? []), ...rule.ignorePathSegments],
+        }
+      : options;
     const matches = files.filter((file) => {
-      if (shouldIgnorePath(file, options)) return false;
+      if (skipPackageSwift && posixBasename(file) === "Package.swift") return false;
+      if (skipRubyVersion && posixBasename(file) === ".ruby-version") return false;
+      if (shouldIgnorePath(file, ruleOptions)) return false;
       if (file === rule.file || globMatch(file, rule.file)) return true;
       return basenameOnly && posixBasename(file) === rule.file;
     });
     for (const file of matches) {
       const content = readText(repoRoot, file) ?? "";
       const needle = (rule.includes ?? []).find((token) => content.includes(token));
-      if (needle) return { file, needle };
+      if (!needle) continue;
+      if (!options.preferShallowest) return { file, needle };
+      hits.push({ file, needle, ruleIndex });
     }
   }
-  return null;
+  if (!hits.length) return null;
+  hits.sort((a, b) => {
+    const depth = pathSegmentCount(a.file) - pathSegmentCount(b.file);
+    if (depth !== 0) return depth;
+    if (a.ruleIndex !== b.ruleIndex) return a.ruleIndex - b.ruleIndex;
+    if (a.file < b.file) return -1;
+    if (a.file > b.file) return 1;
+    return 0;
+  });
+  return { file: hits[0].file, needle: hits[0].needle };
 }
 
 function evalFileRegex(repoRoot, rules) {
@@ -344,7 +374,11 @@ function evalCriterion(criterion, ctx) {
     return hit(`Makefile target matched: ${criterion.makefileTarget}`);
   }
 
-  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains, pathIgnore);
+  const contains = evalFileContains(ctx.repoRoot, ctx.files, criterion.fileContains, {
+    ...pathIgnore,
+    preferShallowest: criterion.id === "version-pinned",
+    skipRubyVersionIfSwift: criterion.id === "version-pinned",
+  });
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
