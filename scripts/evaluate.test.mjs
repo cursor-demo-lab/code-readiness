@@ -289,6 +289,7 @@ assert.ok(testFramework.anyFiles.includes("phpunit.xml"));
 assert.ok(testFramework.anyFiles.includes("phpunit.xml.dist"));
 assert.ok(testFramework.anyFiles.includes(".rspec"));
 assert.ok(testFramework.anyFiles.includes("spec/spec_helper.rb"));
+assert.ok(testFramework.anyFiles.includes("test/test_helper.rb"));
 assert.ok(testFramework.anyGlobs.includes("**/tests/**/*.rs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.rs"));
 assert.equal(testFramework.anyFiles.includes("Cargo.toml"), false);
@@ -299,6 +300,8 @@ assert.ok(testFramework.anyFiles.includes("**/*Test.csproj"));
 assert.ok(testFramework.anyFiles.includes("test/test_helper.exs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.exs"));
 assert.ok(testFramework.anyGlobs.includes("**/*_spec.exs"));
+assert.ok(testFramework.anyGlobs.includes("**/*_spec.rb"));
+assert.ok(testFramework.anyGlobs.includes("**/*_test.rb"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"node --test\"")));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("node --test")));
@@ -2138,6 +2141,63 @@ const mixJestOnly = evalTree({
 });
 assert.equal(mixJestOnly["test-framework"].pass, true, mixJestOnly["test-framework"].message);
 assert.match(mixJestOnly["test-framework"].message, /jest\.config\.js/);
+const railsLikeFramework = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "spec/foo_spec.rb": "RSpec.describe Foo do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  railsLikeFramework["test-framework"].pass,
+  true,
+  railsLikeFramework["test-framework"].message,
+);
+assert.match(
+  railsLikeFramework["test-framework"].message,
+  /foo_spec\.rb|spec_helper/,
+);
+assert.equal(
+  /jest\.config/.test(railsLikeFramework["test-framework"].message),
+  false,
+  railsLikeFramework["test-framework"].message,
+);
+const railsHelperFramework = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "spec/spec_helper.rb": "RSpec.configure {}\n",
+  "assets/jest.config.js": "export default {}\n",
+});
+assert.equal(
+  railsHelperFramework["test-framework"].pass,
+  true,
+  railsHelperFramework["test-framework"].message,
+);
+assert.match(railsHelperFramework["test-framework"].message, /spec_helper\.rb/);
+assert.equal(
+  /jest\.config/.test(railsHelperFramework["test-framework"].message),
+  false,
+  railsHelperFramework["test-framework"].message,
+);
+const railsTestFramework = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "test/foo_test.rb": "class FooTest < Minitest::Test\nend\n",
+  "vitest.config.ts": "export default {}\n",
+});
+assert.equal(
+  railsTestFramework["test-framework"].pass,
+  true,
+  railsTestFramework["test-framework"].message,
+);
+assert.match(railsTestFramework["test-framework"].message, /foo_test\.rb|test_helper/);
+assert.equal(
+  /vitest\.config/.test(railsTestFramework["test-framework"].message),
+  false,
+  railsTestFramework["test-framework"].message,
+);
+const railsJestOnly = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(railsJestOnly["test-framework"].pass, true, railsJestOnly["test-framework"].message);
+assert.match(railsJestOnly["test-framework"].message, /jest\.config\.js/);
 assertPass(
   "test-framework",
   { "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n" },
@@ -2707,6 +2767,41 @@ assert.equal(
   /jest\.config/.test(mixExUnitOverJestTfe["test-framework"].message),
   false,
   mixExUnitOverJestTfe["test-framework"].message,
+);
+const railsSpecOverJestFramework = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "spec/foo_spec.rb": "RSpec.describe Foo do\nend\n",
+  "jest.config.js": "export default {}\n",
+});
+assert.equal(
+  railsSpecOverJestFramework["test-framework"].pass,
+  true,
+  railsSpecOverJestFramework["test-framework"].message,
+);
+assert.match(
+  railsSpecOverJestFramework["test-framework"].message,
+  /foo_spec\.rb|spec_helper/,
+);
+assert.equal(
+  /jest\.config/.test(railsSpecOverJestFramework["test-framework"].message),
+  false,
+  railsSpecOverJestFramework["test-framework"].message,
+);
+const railsTfeOverJsStillRuby = evalTree({
+  Gemfile: 'source "https://rubygems.org"\n',
+  "test/foo_spec.rb": "RSpec.describe Foo do\nend\n",
+  "assets/foo.test.js": "test('ok');\n",
+});
+assert.equal(
+  railsTfeOverJsStillRuby["test-files-exist"].pass,
+  true,
+  railsTfeOverJsStillRuby["test-files-exist"].message,
+);
+assert.match(railsTfeOverJsStillRuby["test-files-exist"].message, /foo_spec\.rb/);
+assert.equal(
+  /foo\.test\.js/.test(railsTfeOverJsStillRuby["test-files-exist"].message),
+  false,
+  railsTfeOverJsStillRuby["test-files-exist"].message,
 );
 
 assertPass("test-script", { justfile: "test:\n    cargo test\n" }, /justfile/);
@@ -4327,6 +4422,7 @@ assert.match(rootReadme, /A coverage-only or integration-only tree still passes/
 assert.match(rootReadme, /Mix\/Elixir-primary/);
 assert.match(rootReadme, /A JS-only jest tree still passes/);
 assert.match(rootReadme, /A Mix tree with only jest/);
+assert.match(rootReadme, /A Rails tree with only jest/);
 assert.match(rootReadme, /`test-framework` also passes on/);
 assert.match(rootReadme, /Product `Foo\.csproj` is not a framework/);
 assert.match(rootReadme, /`linter` first-hit prefers/);
@@ -4379,6 +4475,7 @@ assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
 assert.match(skillMd, /Mix\/Elixir-primary/);
 assert.match(skillMd, /A JS-only jest tree still passes/);
 assert.match(skillMd, /A Mix tree with only jest/);
+assert.match(skillMd, /A Rails tree with only jest/);
 assert.match(skillMd, /`test-framework` also passes on/);
 assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
 assert.match(skillMd, /`linter` first-hit prefers/);
@@ -4538,6 +4635,7 @@ assert.match(checksReadme, /`test-framework` first-hit among `vitest\.config\.\*
 assert.match(checksReadme, /Mix\/Elixir-primary/);
 assert.match(checksReadme, /A JS-only jest tree still passes/);
 assert.match(checksReadme, /A Mix tree with only jest/);
+assert.match(checksReadme, /A Rails tree with only jest/);
 assert.match(checksReadme, /`test-framework` also passes on `\*Tests\.csproj` \/ `\*Test\.csproj`/);
 assert.match(checksReadme, /Product `Foo\.csproj` is not a framework/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);

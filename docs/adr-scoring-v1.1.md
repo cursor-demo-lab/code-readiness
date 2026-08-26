@@ -82,6 +82,8 @@ Hill-climb after PR #74: Rails/RSpec-primary trees may name a JS assets test as 
 
 Hill-climb after PR #76: Mix/Elixir-primary trees may name a JS assets prettier/biome config as `formatter` first-hit even when root `.formatter.exs` exists (same class as #72 jest vs ExUnit). When `mix.exs` and `.formatter.exs` exist, first-hit prefers `.formatter.exs` over `prettier.config.*` / `.prettierrc*` / `biome.json`. A Mix tree with only prettier still PASSES on prettier. A JS-only prettier tree is unchanged. Message-only. Stay L2. No dummy `.editorconfig`. No new ids, no L4/L5 retune. Keep #66–#76. `deferJsTestSidecarHits` / `deferJsTestSidecarForRuby` / `isRubyTestFile`, Mix TFE ExUnit rank, and `productLinterHits` stay.
 
+Hill-climb after PR #75: Rails/RSpec-primary trees may name `jest.config.js` / `vitest.config.*` as `test-framework` first-hit even when `*_spec.rb` / `*_test.rb` / `spec/spec_helper.rb` exist. Same class of lie as #72 Mix ExUnit over jest. When the tree is Rails/RSpec-primary (`Gemfile` present and `**/*_spec.rb` / `**/*_test.rb` / `spec/spec_helper.rb` / `test/test_helper.rb` exist), first-hit prefers those Ruby files over `jest.config.*` / `vitest.config.*`. A Rails tree with only jest still PASSES on jest. A JS-only jest tree is unchanged. Mix/Elixir-primary still prefers ExUnit over jest. Rails TFE still prefers `*_spec.rb` over `*.test.js`. Message-only. Do not dummy `.editorconfig`. Stay L2. No new ids, no L4/L5 retune. Keep #66–#76 and #75 `productFormatterHits` / `deferJsFormatterSidecarHits` / `isMixFormatterFile` / `isJsFormatterSidecar`. Keep #76 `deferJsTestSidecarHits` / `deferJsTestSidecarForRuby` / `isRubyTestFile`.
+
 ## Explicitly refused
 
 - New criterion ids

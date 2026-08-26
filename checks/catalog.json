@@ -237,6 +237,7 @@
         "phpunit.xml.dist",
         ".rspec",
         "spec/spec_helper.rb",
+        "test/test_helper.rb",
         "**/*Tests.csproj",
         "**/*Test.csproj",
         "test/test_helper.exs"
@@ -248,7 +249,9 @@
         "tests/**/*_test.c",
         "tests/**/*_test.cpp",
         "**/*_test.exs",
-        "**/*_spec.exs"
+        "**/*_spec.exs",
+        "**/*_spec.rb",
+        "**/*_test.rb"
       ],
       "fileContains": [
         { "file": "pyproject.toml", "includes": ["[tool.pytest"] },

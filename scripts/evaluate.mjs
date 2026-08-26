@@ -333,7 +333,10 @@ function isElixirTestFile(file) {
 
 function deferJsFrameworkSidecarHits(repoFiles) {
   const files = repoFiles ?? [];
-  return files.includes("mix.exs") && files.some(isElixirTestFile);
+  return (
+    (files.includes("mix.exs") && files.some(isElixirTestFile)) ||
+    deferJsTestSidecarForRuby(files)
+  );
 }
 
 function isRubyTestFile(file) {
@@ -341,6 +344,7 @@ function isRubyTestFile(file) {
   return (
     globMatch(name, "*_spec.rb") ||
     globMatch(name, "*_test.rb") ||
+    name === "spec_helper.rb" ||
     name === "test_helper.rb"
   );
 }
