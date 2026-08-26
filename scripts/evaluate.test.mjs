@@ -174,6 +174,12 @@ assert.equal(
 );
 assert.equal(linter.anyFiles.includes(".php-cs-fixer.php"), false);
 assert.equal(linter.languagesPass, undefined);
+assert.equal(linter.anyFilesNonEmpty, undefined, "empty optional linter configs still count");
+assert.equal(
+  (linter.ignorePathSegments ?? []).includes("packages"),
+  false,
+  "packages/.eslintrc is a real monorepo linter when no root file exists",
+);
 for (const formatterFile of [".prettierrc", "rustfmt.toml", ".rustfmt.toml", ".clang-format"]) {
   assert.equal(
     linter.anyFiles.includes(formatterFile),
@@ -1425,6 +1431,29 @@ assertFail("linter", { ".prettierrc": "{}\n" });
 assertFail("linter", { "rustfmt.toml": "max_width = 100\n" });
 assertFail("linter", { "README.md": "We use eslint, biome, golangci-lint, and ruff.\n" });
 assertFail("linter", { Makefile: "lint:\n\tgolangci-lint run\n", "go.mod": "module example.com/x\n" });
+assertPass("linter", { "packages/app/.eslintrc": "{}\n" }, /packages\/app\/\.eslintrc/);
+assertPass("linter", { "tests/fixtures/config-file/js/.eslintrc": "" }, /tests\/fixtures\/config-file\/js\/\.eslintrc/);
+const mixedRootAndFixtureLint = evalTree({
+  "eslint.config.js": "export default [];\n",
+  "tests/fixtures/config-file/js/.eslintrc": "",
+});
+assert.equal(mixedRootAndFixtureLint.linter.pass, true, mixedRootAndFixtureLint.linter.message);
+assert.match(mixedRootAndFixtureLint.linter.message, /eslint\.config\.js/);
+assert.equal(/fixtures/.test(mixedRootAndFixtureLint.linter.message), false);
+const mixedPkgAndFixtureLint = evalTree({
+  "packages/app/.eslintrc": "{}\n",
+  "fixtures/.eslintrc": "{}\n",
+});
+assert.equal(mixedPkgAndFixtureLint.linter.pass, true, mixedPkgAndFixtureLint.linter.message);
+assert.match(mixedPkgAndFixtureLint.linter.message, /packages\/app\/\.eslintrc/);
+assert.equal(/fixtures/.test(mixedPkgAndFixtureLint.linter.message), false);
+const twoNestedLint = evalTree({
+  "apps/web/.golangci.yml": "linters: {}\n",
+  "packages/app/nested/.eslintrc": "{}\n",
+});
+assert.equal(twoNestedLint.linter.pass, true, twoNestedLint.linter.message);
+assert.match(twoNestedLint.linter.message, /apps\/web\/\.golangci\.yml/);
+assert.equal(/packages/.test(twoNestedLint.linter.message), false);
 
 assertPass("pre-commit-hooks", { "lefthook.toml": "[pre-commit]\n" }, /lefthook\.toml/);
 assertPass("pre-commit-hooks", { ".lefthook.yaml": "pre-commit:\n  commands: {}\n" }, /\.lefthook\.yaml/);
@@ -1978,6 +2007,10 @@ assert.match(checksReadme, /examples\/\.prettierrc` still can/);
 assert.match(checksReadme, /`license` matches LICENSE/);
 assert.match(checksReadme, /shallowest/);
 assert.match(checksReadme, /packages\/\*\/LICENSE/);
+assert.match(checksReadme, /eslint\.config\.js/);
+assert.match(checksReadme, /tests\/fixtures/);
+assert.match(checksReadme, /packages-only linter/);
+assert.match(checksReadme, /Do not reject empty linter configs/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
