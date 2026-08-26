@@ -261,7 +261,10 @@ function isTypeCheckerConfigHit(file) {
 }
 
 function isDeferredTypeCheckerConfig(file) {
-  return pathHasSegments(file, TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS);
+  return (
+    pathHasSegments(file, TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS) ||
+    pathHasSegments(file, STYLE_FIRST_HIT_DEFER_SEGMENTS)
+  );
 }
 
 function productTypeCheckerHits(files) {
