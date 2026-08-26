@@ -12,7 +12,7 @@ export function globToRegExp(pattern) {
     const ch = pattern[i];
     if (ch === "*" && pattern[i + 1] === "*") {
       const afterSlash = pattern[i + 2] === "/";
-      src += afterSlash ? ".*" : ".*";
+      src += afterSlash ? "(?:.*/)?" : ".*";
       i += afterSlash ? 2 : 1;
       continue;
     }
