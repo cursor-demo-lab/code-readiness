@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=880"/>
+<title>cli/cli — code-readiness</title>
+<style>
+  @page { size: 880px 1400px; margin: 0; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: rgb(255,255,255);
+    color: rgb(20,20,20);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 880px;
+    box-sizing: border-box;
+    padding: 32px;
+    background: rgb(255,255,255);
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: rgb(113,113,113);
+    margin: 0 0 12px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  h2 {
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+  }
+  h3 {
+    font-size: 14px;
+    font-weight: 650;
+    margin: 0 0 8px;
+  }
+  p { margin: 0; }
+  .muted { color: rgb(113,113,113); }
+  .small { font-size: 12px; }
+  .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .wrap { flex-wrap: wrap; }
+  .gap24 { gap: 24px; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .stack-lg { display: flex; flex-direction: column; gap: 24px; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgb(228,228,228);
+    background: rgb(245,245,245);
+    color: rgb(20,20,20);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill.sm { font-size: 11px; padding: 2px 8px; }
+  .pill.active { background: rgb(37,37,37); color: rgb(255,255,255); border-color: rgb(37,37,37); }
+  .pill.warn { background: rgb(245,245,245); color: rgb(180,130,20); border-color: rgb(228,228,228); }
+  .pill.active.warn { background: rgb(37,37,37); color: rgb(255,255,255); border-color: rgb(37,37,37); }
+  .stats { display: flex; gap: 24px; align-items: flex-start; }
+  .stat .v { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+  .stat .l { font-size: 12px; color: rgb(113,113,113); margin-top: 2px; }
+  .usage { display: flex; flex-direction: column; gap: 4px; }
+  .usage-labels { display: flex; justify-content: space-between; font-size: 12px; color: rgb(113,113,113); }
+  .usage-track { display: flex; height: 8px; background: rgb(245,245,245); border: 1px solid rgb(228,228,228); overflow: hidden; }
+  .usage-ok { background: rgb(40,120,70); height: 100%; }
+  .usage-bad { background: rgb(180,50,40); height: 100%; }
+  .callout {
+    border: 1px solid rgb(228,228,228);
+    background: rgb(245,245,245);
+    padding: 12px 14px;
+  }
+  .callout-title { font-weight: 650; color: rgb(180,130,20); margin-bottom: 4px; }
+  .callout-body { color: rgb(20,20,20); }
+  .todos { margin: 0; padding-left: 20px; }
+  .todos li { margin: 4px 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: rgb(245,245,245);
+    border: 1px solid rgb(228,228,228);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .swatch { width: 10px; height: 10px; border: 1px solid rgb(228,228,228); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { border: 1px solid rgb(228,228,228); background: rgb(255,255,255); break-inside: avoid; }
+  .card-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgb(228,228,228); font-weight: 650; }
+  .card-b { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .fail-item { display: flex; flex-direction: column; gap: 2px; }
+  .gate-row { display: flex; align-items: center; gap: 0; }
+  .gate-box {
+    width: 88px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgb(228,228,228);
+    background: rgb(245,245,245);
+    border-radius: 6px;
+    font-size: 12px; font-weight: 650;
+  }
+  .gate-box.reached { background: rgb(245,245,245); }
+  .gate-box.active { background: rgb(37,37,37); color: rgb(255,255,255); border-color: rgb(37,37,37); }
+  .gate-line { width: 28px; height: 0; border-top: 1.5px solid rgb(228,228,228); }
+  .chart { display: block; }
+  .hbars { display: flex; flex-direction: column; gap: 10px; }
+  .hbar { display: grid; grid-template-columns: 28px 1fr 28px; gap: 8px; align-items: center; }
+  .hbar-label { font-size: 12px; font-weight: 650; }
+  .hbar-track { height: 10px; background: rgb(245,245,245); border: 1px solid rgb(228,228,228); }
+  .hbar-fill { height: 100%; background: rgb(180,50,40); }
+  .hbar-n { font-size: 12px; color: rgb(113,113,113); text-align: right; }
+  hr.div { border: 0; border-top: 1px solid rgb(228,228,228); margin: 8px 0; }
+  details.group { border: 1px solid rgb(228,228,228); margin: 0 0 10px; break-inside: avoid; }
+  details.group summary {
+    list-style: none;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    font-weight: 650;
+    cursor: default;
+    background: rgb(245,245,245);
+  }
+  details.group summary::-webkit-details-marker { display: none; }
+  .count { margin-left: auto; font-size: 12px; color: rgb(113,113,113); font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid rgb(228,228,228); }
+  th { font-weight: 650; background: rgb(255,255,255); color: rgb(113,113,113); }
+  tbody tr:nth-child(even) td { background: rgb(245,245,245); }
+  tbody tr td:first-child { font-weight: 550; }
+  .donut-row { display: flex; align-items: center; gap: 24px; }
+</style>
+</head>
+<body>
+<article class="page stack-lg">
+  <header class="stack">
+    <p class="eyebrow">/CODE-READINESS</p>
+    <div class="head">
+      <h1>cli/cli</h1>
+      <span class="pill active">Standardized</span>
+      
+    </div>
+    <div class="row wrap"><span class="pill sm " title="Functional">L1</span><span class="pill sm " title="Documented">L2</span><span class="pill sm active warn" title="Standardized">L3</span><span class="pill sm " title="Optimized">L4</span><span class="pill sm " title="Autonomous">L5</span></div>
+    <div class="stats">
+      <div class="stat"><div class="v">Level 3</div><div class="l">Standardized</div></div>
+      <div class="stat"><div class="v">73%</div><div class="l">Counted checks</div></div>
+    </div>
+    <div class="usage">
+    <div class="usage-labels"><span>24 / 33 counted</span><span>9 failed</span></div>
+    <div class="usage-track" role="img" aria-label="24 / 33 counted">
+      <div class="usage-ok" style="width:72.72727272727273%"></div>
+      <div class="usage-bad" style="width:27.27272727272727%"></div>
+    </div>
+  </div>
+    <p>cli/cli is Level 3 Standardized at 73% of counted checks. Fix Branch protection awareness, Dead code detection configured, and Secrets detection configured first. Scoring is repository root only.</p>
+    <p class="muted small">local filesystem heuristics from checks/catalog.json; not /doctor. Generated 2026-08-26T00:18:23.612Z. Git 5d3c4817f161. repository root only. llm_calls=0.</p>
+    
+  </header>
+
+  <aside class="callout"><div class="callout-title">Would be Optimized</div><div class="callout-body">Would be Optimized except coverage-config, e2e-tests, architecture-docs, branch-protection, dead-code-detection, secrets-detection. Have 2, need 7 Level 4 checks. Sequential 80% gate. Skipped AI checks are excluded from the denominator.</div></aside>
+  <div class="row wrap"><span class="pill sm warn">coverage-config</span><span class="pill sm warn">e2e-tests</span><span class="pill sm warn">architecture-docs</span><span class="pill sm warn">branch-protection</span><span class="pill sm warn">dead-code-detection</span><span class="pill sm warn">secrets-detection</span></div>
+  <section>
+          <h2>Unblock Optimized</h2>
+          <ol class="todos">
+            <li><code>architecture-docs</code> — add ARCHITECTURE.md</li>
+            <li><code>branch-protection</code> — add CONTRIBUTING.md</li>
+            <li><code>coverage-config</code> — Configure coverage in the test runner or add .coveragerc / .nycrc.</li>
+            <li><code>e2e-tests</code> — Add Playwright, Cypress, or an e2e directory.</li>
+            <li><code>dead-code-detection</code> — Add knip or similar unused-export config.</li>
+          </ol>
+        </section>
+
+  <section class="stack">
+    <h2>Pass, fail, skip</h2>
+    <div class="donut-row">
+      <svg class="donut" width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Pass 24, fail 9, skip 6">
+    <circle cx="56" cy="56" r="42" fill="none" stroke="rgb(228,228,228)" stroke-width="14"/>
+    <circle cx="56" cy="56" r="42" fill="none" stroke="rgb(40,120,70)" stroke-width="14" stroke-dasharray="162.396174093257 101.49760880828563" stroke-dashoffset="0" transform="rotate(-90 56 56)"/><circle cx="56" cy="56" r="42" fill="none" stroke="rgb(180,50,40)" stroke-width="14" stroke-dasharray="60.89856528497138 202.99521761657127" stroke-dashoffset="-162.396174093257" transform="rotate(-90 56 56)"/><circle cx="56" cy="56" r="42" fill="none" stroke="rgb(113,113,113)" stroke-width="14" stroke-dasharray="40.59904352331425 223.29473937822837" stroke-dashoffset="-223.29473937822837" transform="rotate(-90 56 56)"/>
+    <text x="56" y="52" text-anchor="middle" font-size="16" font-weight="600" fill="rgb(20,20,20)">39</text>
+    <text x="56" y="68" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">checks</text>
+  </svg>
+      <div class="legend">
+        <div class="legend-row"><span class="swatch" style="background:rgb(40,120,70)"></span><span>Pass 24</span></div>
+        <div class="legend-row"><span class="swatch" style="background:rgb(180,50,40)"></span><span>Fail 9</span></div>
+        <div class="legend-row"><span class="swatch" style="background:rgb(113,113,113)"></span><span>Skip 6</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack">
+    <h2>Category breakdown</h2>
+    <p class="muted small">Remaining counted fails in each pillar: the file to add, and why agents care.</p>
+    <div class="grid2">
+      <article class="card">
+        <header class="card-h"><span>Style &amp; Linting</span><span class="pill sm">75%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>3 / 4</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="3 / 4">
+      <div class="usage-ok" style="width:75%"></div>
+      <div class="usage-bad" style="width:25%"></div>
+    </div>
+  </div>
+          <div class="fail-item">
+                  <p><code>pre-commit-hooks</code> — add .pre-commit-config.yaml</p>
+                  <p class="muted small">Why agents care: Agents skip the human lint step. Hooks make the default commit path the same as CI.</p>
+                </div>
+        </div>
+      </article>
+<article class="card">
+        <header class="card-h"><span>Testing</span><span class="pill sm">60%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>3 / 5</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="3 / 5">
+      <div class="usage-ok" style="width:60%"></div>
+      <div class="usage-bad" style="width:40%"></div>
+    </div>
+  </div>
+          <div class="fail-item">
+                  <p><code>coverage-config</code> — Configure coverage in the test runner or add .coveragerc / .nycrc.</p>
+                  <p class="muted small">Why agents care: This file is a machine-readable signal agents can follow without guessing.</p>
+                </div><div class="fail-item">
+                  <p><code>e2e-tests</code> — Add Playwright, Cypress, or an e2e directory.</p>
+                  <p class="muted small">Why agents care: This file is a machine-readable signal agents can follow without guessing.</p>
+                </div>
+        </div>
+      </article>
+<article class="card">
+        <header class="card-h"><span>Documentation</span><span class="pill sm">67%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>4 / 6</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="4 / 6">
+      <div class="usage-ok" style="width:66.66666666666666%"></div>
+      <div class="usage-bad" style="width:33.33333333333333%"></div>
+    </div>
+  </div>
+          <div class="fail-item">
+                  <p><code>api-docs</code> — Add OpenAPI specs, TypeDoc, or docs/api.</p>
+                  <p class="muted small">Why agents care: Agents guess the public surface. OpenAPI or TypeDoc is a typed map of what callers expect.</p>
+                </div><div class="fail-item">
+                  <p><code>architecture-docs</code> — add ARCHITECTURE.md</p>
+                  <p class="muted small">Why agents care: Agents change the wrong layer. ADRs tell them the intended seams.</p>
+                </div>
+        </div>
+      </article>
+<article class="card">
+        <header class="card-h"><span>Developer Environment</span><span class="pill sm">100%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>4 / 4</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="4 / 4">
+      <div class="usage-ok" style="width:100%"></div>
+      <div class="usage-bad" style="width:0%"></div>
+    </div>
+  </div>
+          <p class="muted small">No counted gaps.</p>
+        </div>
+      </article>
+<article class="card">
+        <header class="card-h"><span>CI/CD</span><span class="pill sm">83%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>5 / 6</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="5 / 6">
+      <div class="usage-ok" style="width:83.33333333333334%"></div>
+      <div class="usage-bad" style="width:16.666666666666664%"></div>
+    </div>
+  </div>
+          <div class="fail-item">
+                  <p><code>branch-protection</code> — add CONTRIBUTING.md</p>
+                  <p class="muted small">Why agents care: Documented branch rules stop agents from pushing around review.</p>
+                </div>
+        </div>
+      </article>
+<article class="card">
+        <header class="card-h"><span>Code Health</span><span class="pill sm">33%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>1 / 3</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="1 / 3">
+      <div class="usage-ok" style="width:33.33333333333333%"></div>
+      <div class="usage-bad" style="width:66.66666666666666%"></div>
+    </div>
+  </div>
+          <div class="fail-item">
+                  <p><code>dead-code-detection</code> — Add knip or similar unused-export config.</p>
+                  <p class="muted small">Why agents care: Agents add files and rarely delete. Unused-export checks keep generated code from rotting.</p>
+                </div><div class="fail-item">
+                  <p><code>bundle-analysis</code> — Add size-limit or a bundle analyzer config.</p>
+                  <p class="muted small">Why agents care: This file is a machine-readable signal agents can follow without guessing.</p>
+                </div>
+        </div>
+      </article>
+<article class="card">
+        <header class="card-h"><span>Security</span><span class="pill sm">80%</span></header>
+        <div class="card-b">
+          <div class="usage">
+    <div class="usage-labels"><span>4 / 5</span><span></span></div>
+    <div class="usage-track" role="img" aria-label="4 / 5">
+      <div class="usage-ok" style="width:80%"></div>
+      <div class="usage-bad" style="width:20%"></div>
+    </div>
+  </div>
+          <div class="fail-item">
+                  <p><code>secrets-detection</code> — Add gitleaks or detect-secrets config.</p>
+                  <p class="muted small">Why agents care: Agents paste keys into examples. A detector is the last gate before that lands on main.</p>
+                </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="stack">
+    <h2>Sequential gate</h2>
+    <div class="gate-row" role="img" aria-label="Sequential maturity gate, current level 3"><div class="gate-box reached" title="Functional">L1</div><div class="gate-line"></div><div class="gate-box reached" title="Documented">L2</div><div class="gate-line"></div><div class="gate-box active" title="Standardized (current)">L3</div><div class="gate-line"></div><div class="gate-box" title="Optimized">L4</div><div class="gate-line"></div><div class="gate-box" title="Autonomous">L5</div></div>
+    <p class="muted small">L1 to L5 walk. Highlighted node is the current band. The canvas does not recompute the 80% gate.</p>
+  </section>
+
+  <section class="stack">
+    <h2>Pillar scores</h2>
+    <svg class="chart" width="816" height="220" viewBox="0 0 816 220" role="img" aria-label="Pillar scores">
+    <line x1="36" y1="172" x2="804" y2="172" stroke="rgb(228,228,228)" stroke-width="1"/>
+        <text x="30" y="175" text-anchor="end" font-size="10" fill="rgb(113,113,113)">0</text><line x1="36" y1="133" x2="804" y2="133" stroke="rgb(228,228,228)" stroke-width="1"/>
+        <text x="30" y="136" text-anchor="end" font-size="10" fill="rgb(113,113,113)">25</text><line x1="36" y1="94" x2="804" y2="94" stroke="rgb(228,228,228)" stroke-width="1"/>
+        <text x="30" y="97" text-anchor="end" font-size="10" fill="rgb(113,113,113)">50</text><line x1="36" y1="55" x2="804" y2="55" stroke="rgb(228,228,228)" stroke-width="1"/>
+        <text x="30" y="58" text-anchor="end" font-size="10" fill="rgb(113,113,113)">75</text><line x1="36" y1="16" x2="804" y2="16" stroke="rgb(228,228,228)" stroke-width="1"/>
+        <text x="30" y="19" text-anchor="end" font-size="10" fill="rgb(113,113,113)">100</text>
+    <line x1="36" y1="47.19999999999999" x2="804" y2="47.19999999999999" stroke="rgb(180,130,20)" stroke-width="1" stroke-dasharray="4 3"/>
+    <text x="804" y="42.19999999999999" text-anchor="end" font-size="10" fill="rgb(180,130,20)">80%</text>
+    <polyline fill="none" stroke="rgb(37,37,37)" stroke-width="1.5" points="36.0,55.0 164.0,78.4 292.0,67.5 420.0,16.0 548.0,42.5 676.0,120.5 804.0,47.2"/>
+    <circle cx="36" cy="55" r="4" fill="rgb(37,37,37)"/><circle cx="164" cy="78.4" r="4" fill="rgb(37,37,37)"/><circle cx="292" cy="67.47999999999999" r="4" fill="rgb(37,37,37)"/><circle cx="420" cy="16" r="4" fill="rgb(37,37,37)"/><circle cx="548" cy="42.52000000000001" r="4" fill="rgb(37,37,37)"/><circle cx="676" cy="120.51999999999998" r="4" fill="rgb(37,37,37)"/><circle cx="804" cy="47.19999999999999" r="4" fill="rgb(37,37,37)"/>
+    <text x="36" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">Style</text>
+        <text x="36" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">75%</text><text x="164" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">Testing</text>
+        <text x="164" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">60%</text><text x="292" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">Documentation</text>
+        <text x="292" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">67%</text><text x="420" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">Developer</text>
+        <text x="420" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">100%</text><text x="548" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">CI/CD</text>
+        <text x="548" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">83%</text><text x="676" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">Code</text>
+        <text x="676" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">33%</text><text x="804" y="192" text-anchor="middle" font-size="10" fill="rgb(113,113,113)">Security</text>
+        <text x="804" y="206" text-anchor="middle" font-size="10" fill="rgb(20,20,20)">80%</text>
+  </svg>
+    <p class="muted small">Dashed line is the 80% gate for the current level's non-skipped checks. Local filesystem heuristics on the repository root only. v1 never runs AI. Not /doctor.</p>
+  </section>
+
+  <section class="stack">
+    <h2>Remaining to next level</h2>
+    <div class="hbars"><div class="hbar">
+      <div class="hbar-label">L1</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:0%"></div></div>
+      <div class="hbar-n">0</div>
+    </div><div class="hbar">
+      <div class="hbar-label">L2</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:16.666666666666664%"></div></div>
+      <div class="hbar-n">1</div>
+    </div><div class="hbar">
+      <div class="hbar-label">L3</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:16.666666666666664%"></div></div>
+      <div class="hbar-n">1</div>
+    </div><div class="hbar">
+      <div class="hbar-label">L4</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:100%"></div></div>
+      <div class="hbar-n">6</div>
+    </div><div class="hbar">
+      <div class="hbar-label">L5</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:16.666666666666664%"></div></div>
+      <div class="hbar-n">1</div>
+    </div></div>
+    <p class="muted small">Failing counted checks left at each sequential gate. Would be Optimized except coverage-config, e2e-tests, architecture-docs, branch-protection, dead-code-detection, secrets-detection.</p>
+  </section>
+
+  <hr class="div"/>
+
+  <section class="stack">
+    <h2>Checks</h2>
+    <h3>Failing checks</h3>
+    <details open class="group">
+        <summary><span>Style &amp; Linting</span><span class="pill sm">75%</span><span class="count">1</span></summary>
+        <table>
+          <thead><tr><th>Check</th><th>Id</th><th>Level</th><th>Gap</th><th>Fix</th></tr></thead>
+          <tbody><tr>
+            <td>Pre-commit hooks configured</td>
+            <td><code>pre-commit-hooks</code></td>
+            <td><span class="pill sm">L2</span></td>
+            <td>No pre-commit hooks found.</td>
+            <td>Add Husky, Lefthook, lint-staged, or pre-commit hooks.</td>
+          </tr></tbody>
+        </table>
+      </details>
+<details open class="group">
+        <summary><span>Testing</span><span class="pill sm">60%</span><span class="count">2</span></summary>
+        <table>
+          <thead><tr><th>Check</th><th>Id</th><th>Level</th><th>Gap</th><th>Fix</th></tr></thead>
+          <tbody><tr>
+            <td>Coverage configured</td>
+            <td><code>coverage-config</code></td>
+            <td><span class="pill sm">L4</span></td>
+            <td>No coverage configuration found.</td>
+            <td>Configure coverage in the test runner or add .coveragerc / .nycrc.</td>
+          </tr>
+<tr>
+            <td>E2E / integration tests</td>
+            <td><code>e2e-tests</code></td>
+            <td><span class="pill sm">L4</span></td>
+            <td>No E2E or integration test setup found.</td>
+            <td>Add Playwright, Cypress, or an e2e directory.</td>
+          </tr></tbody>
+        </table>
+      </details>
+<details open class="group">
+        <summary><span>Documentation</span><span class="pill sm">67%</span><span class="count">2</span></summary>
+        <table>
+          <thead><tr><th>Check</th><th>Id</th><th>Level</th><th>Gap</th><th>Fix</th></tr></thead>
+          <tbody><tr>
+            <td>API documentation</td>
+            <td><code>api-docs</code></td>
+            <td><span class="pill sm">L3</span></td>
+            <td>No API documentation found.</td>
+            <td>Add OpenAPI specs, TypeDoc, or docs/api.</td>
+          </tr>
+<tr>
+            <td>Architecture documentation</td>
+            <td><code>architecture-docs</code></td>
+            <td><span class="pill sm">L4</span></td>
+            <td>No architecture documentation found.</td>
+            <td>Add ARCHITECTURE.md or docs/adr.</td>
+          </tr></tbody>
+        </table>
+      </details>
+<details open class="group">
+        <summary><span>CI/CD</span><span class="pill sm">83%</span><span class="count">1</span></summary>
+        <table>
+          <thead><tr><th>Check</th><th>Id</th><th>Level</th><th>Gap</th><th>Fix</th></tr></thead>
+          <tbody><tr>
+            <td>Branch protection awareness</td>
+            <td><code>branch-protection</code></td>
+            <td><span class="pill sm">L4</span></td>
+            <td>No branch protection rules documented or configured.</td>
+            <td>Document branch protection in CONTRIBUTING.md or .github/settings.yml.</td>
+          </tr></tbody>
+        </table>
+      </details>
+<details open class="group">
+        <summary><span>Code Health</span><span class="pill sm">33%</span><span class="count">2</span></summary>
+        <table>
+          <thead><tr><th>Check</th><th>Id</th><th>Level</th><th>Gap</th><th>Fix</th></tr></thead>
+          <tbody><tr>
+            <td>Dead code detection configured</td>
+            <td><code>dead-code-detection</code></td>
+            <td><span class="pill sm">L4</span></td>
+            <td>No dead code detection tool found.</td>
+            <td>Add knip or similar unused-export config.</td>
+          </tr>
+<tr>
+            <td>Bundle analysis configured</td>
+            <td><code>bundle-analysis</code></td>
+            <td><span class="pill sm">L5</span></td>
+            <td>No bundle analysis configuration found.</td>
+            <td>Add size-limit or a bundle analyzer config.</td>
+          </tr></tbody>
+        </table>
+      </details>
+<details open class="group">
+        <summary><span>Security</span><span class="pill sm">80%</span><span class="count">1</span></summary>
+        <table>
+          <thead><tr><th>Check</th><th>Id</th><th>Level</th><th>Gap</th><th>Fix</th></tr></thead>
+          <tbody><tr>
+            <td>Secrets detection configured</td>
+            <td><code>secrets-detection</code></td>
+            <td><span class="pill sm">L4</span></td>
+            <td>No secrets detection tool configured.</td>
+            <td>Add gitleaks or detect-secrets config.</td>
+          </tr></tbody>
+        </table>
+      </details>
+  </section>
+</article>
+</body>
+</html>
