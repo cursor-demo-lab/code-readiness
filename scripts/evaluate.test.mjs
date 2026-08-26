@@ -1378,6 +1378,8 @@ assert.equal(capReport.maturity_level.l1CapReasons.includes("license"), false);
 assert.equal(capReport.maturity_level.l1Passed, 3);
 assert.equal(capReport.maturity_level.l1Total, 3);
 assert.ok(capReport.maturity_level.l2Total >= 8);
+assert.ok(Array.isArray(capReport.languages));
+assert.ok(capReport.languages.includes("javascript"));
 
 const functionalRoot = tmp("code-readiness-l1-functional-");
 fs.writeFileSync(
@@ -2608,6 +2610,8 @@ assert.equal(
   false,
   "OPEN_BY_ID must not map type-checker to tsconfig.json",
 );
+assert.match(canvasTemplate, /const OPEN_BY_LANG/);
+assert.match(canvasTemplate, /function reportLanguages/);
 assert.match(canvasTemplate, /const WHY_FOR_AGENTS/);
 assert.match(canvasTemplate, /Why agents care/);
 assert.match(canvasTemplate, /No counted gaps\./);
@@ -2618,7 +2622,8 @@ assert.match(
   /Agents generate code that looks right/,
   "pillar Cards must render a technical why-for-agents sentence",
 );
-assert.match(canvasTemplate, /containerization: "\.cursor\/environment\.json"/);
+assert.match(canvasTemplate, /containerization: "\.devcontainer\/devcontainer\.json"/);
+assert.match(canvasTemplate, /"\.cursor\/environment\.json"/);
 assert.match(canvasTemplate, /"Dockerfile"/);
 assert.match(
   canvasTemplate,
@@ -2701,9 +2706,63 @@ function parseTsStringArray(source, constName) {
   return [...source.slice(start, end).matchAll(/"([^"]+)"/g)].map((match) => match[1]);
 }
 
-function simulateFailOpenPath(row, openById, concretePaths) {
+function parseTsNestedStringRecord(source, constName) {
+  const header = `const ${constName}: Record<string, Record<string, string>> = {`;
+  const start = source.indexOf(header);
+  assert.ok(start >= 0, `missing ${constName}`);
+  let i = start + header.length;
+  let depth = 1;
+  while (i < source.length && depth > 0) {
+    if (source[i] === "{") depth += 1;
+    else if (source[i] === "}") depth -= 1;
+    i += 1;
+  }
+  const body = source.slice(start + header.length, i - 1);
+  const out = {};
+  let current = null;
+  const re =
+    /(?:^|\n)\s*(?:([A-Za-z_][\w]*)|"([^"]+)")\s*:\s*(?:\{|"((?:\\.|[^"\\])*)")/g;
+  let match;
+  while ((match = re.exec(body))) {
+    const key = match[1] || match[2];
+    if (match[3] != null) {
+      assert.ok(current, `${constName} value before nested key`);
+      out[current][key] = match[3];
+    } else {
+      current = key;
+      out[current] = {};
+    }
+  }
+  return out;
+}
+
+function pickLangPath(byLang, languages, langOrder) {
+  if (languages.length === 0) return undefined;
+  const known = new Set(languages);
+  for (const lang of langOrder) {
+    if (known.has(lang) && Object.hasOwn(byLang, lang)) return byLang[lang];
+  }
+  return null;
+}
+
+function simulateFailOpenPath(
+  row,
+  openById,
+  concretePaths,
+  languages = [],
+  openByLang = {},
+  langOrder = [],
+) {
+  const byLang = openByLang[row.criterionId];
+  if (byLang) {
+    const picked = pickLangPath(byLang, languages, langOrder);
+    if (picked !== undefined) return picked;
+  }
   const mapped = openById[row.criterionId];
-  if (mapped) return mapped;
+  if (mapped) {
+    if (byLang && languages.length > 0) return null;
+    return mapped;
+  }
   const blob = `${row.name} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`;
   return concretePaths.find((file) => blob.includes(file)) ?? null;
 }
@@ -2737,6 +2796,8 @@ for (const criterion of catalog.criteria) {
 }
 
 const openById = parseTsStringRecord(canvasTemplate, "OPEN_BY_ID");
+const openByLang = parseTsNestedStringRecord(canvasTemplate, "OPEN_BY_LANG");
+const langOrder = parseTsStringArray(canvasTemplate, "LANG_ORDER");
 const concretePaths = parseTsStringArray(canvasTemplate, "CONCRETE_PATHS");
 assert.equal(
   openById["version-pinned"],
@@ -2744,6 +2805,72 @@ assert.equal(
   "version-pinned conventional file is catalog anyFiles .mise.toml, not .nvmrc",
 );
 assert.equal(openById["type-checker"], undefined);
+assert.equal(openById["ai-context"], "AGENTS.md");
+assert.equal(openById.containerization, ".devcontainer/devcontainer.json");
+assert.ok(concretePaths.includes(".cursor/environment.json"));
+assert.equal(openById.linter, "eslint.config.js");
+assert.equal(openByLang.linter.go, ".golangci.yml");
+assert.equal(openByLang.linter.elixir, ".credo.exs");
+assert.equal(openByLang.linter.rust, "clippy.toml");
+assert.equal(openByLang.linter.c, ".clang-tidy");
+assert.notEqual(
+  simulateFailOpenPath(
+    { criterionId: "linter", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["go"],
+    openByLang,
+    langOrder,
+  ),
+  "eslint.config.js",
+  "Go remaining-fail must not recommend eslint.config.js",
+);
+assert.notEqual(
+  simulateFailOpenPath(
+    { criterionId: "linter", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["elixir"],
+    openByLang,
+    langOrder,
+  ),
+  "eslint.config.js",
+  "Elixir remaining-fail must not recommend eslint.config.js",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "linter", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["go"],
+    openByLang,
+    langOrder,
+  ),
+  ".golangci.yml",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "linter", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["elixir"],
+    openByLang,
+    langOrder,
+  ),
+  ".credo.exs",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "formatter", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["go"],
+    openByLang,
+    langOrder,
+  ),
+  null,
+  "Go formatter is gofmt; do not recommend .prettierrc",
+);
 for (const criterion of catalog.criteria) {
   if (criterion.requiresLLM) continue;
   const hasAnyFiles = (criterion.anyFiles ?? []).length > 0;
@@ -2765,6 +2892,9 @@ for (const criterion of catalog.criteria) {
     },
     openById,
     concretePaths,
+    [],
+    openByLang,
+    langOrder,
   );
   assert.ok(
     file,
@@ -2819,6 +2949,8 @@ assert.match(canvasMd, /`nextLevel` fails first/);
 assert.match(canvasMd, /category breakdown/);
 assert.match(canvasMd, /Every catalog criterion has a technical/);
 assert.match(canvasMd, /Remaining counted fails name a concrete file/);
+assert.match(canvasMd, /language-honest/);
+assert.match(canvasMd, /AGENTS\.md/);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.match(checksReadme, /would be L2 except/);

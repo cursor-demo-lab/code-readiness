@@ -98,6 +98,7 @@ export function buildReport(evaluation, options = {}) {
     pillar_scores: scored.pillarScores,
     criterion_results,
     remediations,
+    languages: [...(evaluation.languages ?? [])],
     run_metadata: {
       engine: ENGINE_NAME,
       catalogHash: hashCatalog(),
