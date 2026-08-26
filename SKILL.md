@@ -68,6 +68,8 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 
 `test-script` first-hit among `*Tests.csproj` / `*Test.csproj` / `*Tests.sln` defers a basename containing `Fuzz` / `fuzz` / `Benchmark` / `bench` when another Tests project exists (`Newtonsoft.Json.Tests.csproj` over `Newtonsoft.Json.FuzzTests.csproj`). A Fuzz-only tree still passes.
 
+`test-framework` first-hit among `vitest.config.*` / `jest.config.*` defers a basename containing `coverage` / `coverage.` / `integration` when another product runner exists (`vitest.config.mts` over `vitest.config.coverage.mts`). A coverage-only or integration-only tree still passes.
+
 Forbidden UI copy: "9 pillars".
 
 Required attribution: local filesystem heuristics from checks/catalog.json; not `/doctor`.

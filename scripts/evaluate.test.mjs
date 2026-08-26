@@ -1972,6 +1972,51 @@ const nestRootVitest = evalTree({
 assert.equal(nestRootVitest["test-framework"].pass, true, nestRootVitest["test-framework"].message);
 assert.match(nestRootVitest["test-framework"].message, /vitest\.config\.ts/);
 assert.equal(/sample\//.test(nestRootVitest["test-framework"].message), false);
+const nestCoverageSidecar = evalTree({
+  "vitest.config.mts": "export default {}\n",
+  "vitest.config.coverage.mts": "export default {}\n",
+});
+assert.equal(nestCoverageSidecar["test-framework"].pass, true, nestCoverageSidecar["test-framework"].message);
+assert.match(nestCoverageSidecar["test-framework"].message, /^Found vitest\.config\.mts$/);
+assert.equal(/coverage/.test(nestCoverageSidecar["test-framework"].message), false);
+assertPass(
+  "test-framework",
+  { "vitest.config.coverage.mts": "export default {}\n" },
+  /^Found vitest\.config\.coverage\.mts$/,
+);
+assertPass(
+  "test-framework",
+  { "vitest.config.coverage.ts": "export default {}\n" },
+  /^Found vitest\.config\.coverage\.ts$/,
+);
+const nestIntegrationSidecar = evalTree({
+  "vitest.config.mts": "export default {}\n",
+  "vitest.config.integration.mts": "export default {}\n",
+});
+assert.equal(
+  nestIntegrationSidecar["test-framework"].pass,
+  true,
+  nestIntegrationSidecar["test-framework"].message,
+);
+assert.match(nestIntegrationSidecar["test-framework"].message, /^Found vitest\.config\.mts$/);
+assert.equal(/integration/.test(nestIntegrationSidecar["test-framework"].message), false);
+assertPass(
+  "test-framework",
+  { "vitest.config.integration.mts": "export default {}\n" },
+  /^Found vitest\.config\.integration\.mts$/,
+);
+assertPass(
+  "test-framework",
+  { "sample/15-mvc/vitest.config.mts": "export default {}\n" },
+  /sample\/15-mvc\/vitest\.config\.mts/,
+);
+const jestCoverageSidecar = evalTree({
+  "jest.config.js": "export default {}\n",
+  "jest.config.coverage.js": "export default {}\n",
+});
+assert.equal(jestCoverageSidecar["test-framework"].pass, true, jestCoverageSidecar["test-framework"].message);
+assert.match(jestCoverageSidecar["test-framework"].message, /^Found jest\.config\.js$/);
+assert.equal(/coverage/.test(jestCoverageSidecar["test-framework"].message), false);
 const nestLikeFramework = evalTree({
   "package.json": { scripts: { test: "jest" }, devDependencies: { jest: "29.0.0" } },
   "sample/01-cats-app/vitest.config.e2e.mts": "export default {}\n",
@@ -3564,6 +3609,8 @@ assert.match(rootReadme, /`setup-script` first-hit prefers/);
 assert.match(rootReadme, /support-only tree still passes/);
 assert.match(rootReadme, /`test-script` first-hit among/);
 assert.match(rootReadme, /Fuzz-only tree still passes/);
+assert.match(rootReadme, /`test-framework` first-hit among/);
+assert.match(rootReadme, /A coverage-only or integration-only tree still passes/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -3592,6 +3639,8 @@ assert.match(skillMd, /`setup-script` first-hit prefers/);
 assert.match(skillMd, /support-only tree still passes/);
 assert.match(skillMd, /`test-script` first-hit among/);
 assert.match(skillMd, /Fuzz-only tree still passes/);
+assert.match(skillMd, /`test-framework` first-hit among/);
+assert.match(skillMd, /A coverage-only or integration-only tree still passes/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -3669,6 +3718,8 @@ assert.match(checksReadme, /match the basename at any depth for `linter`, `forma
 assert.match(checksReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(checksReadme, /`test-framework` first-hit prefers the shallowest product-tree/);
 assert.match(checksReadme, /sample \/ examples \/ docs samples/);
+assert.match(checksReadme, /vitest\.config\.coverage\.mts/);
+assert.match(checksReadme, /A coverage-only or integration-only tree still passes/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
@@ -3712,6 +3763,7 @@ assert.match(checksReadme, /support\/build\.gradle/);
 assert.match(checksReadme, /support-only tree still passes/);
 assert.match(checksReadme, /`test-script` first-hit among/);
 assert.match(checksReadme, /Fuzz-only tree still passes/);
+assert.match(checksReadme, /`test-framework` first-hit among `vitest\.config\.\*` \/ `jest\.config\.\*`/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 function walkTextFiles(dir, acc = []) {
