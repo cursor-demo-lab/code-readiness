@@ -542,7 +542,30 @@ for (const glob of [
 ]) {
   assert.ok(CI_GLOBS.includes(glob), `CI_GLOBS missing ${glob}`);
 }
-for (const glob of ["**/*_test.py", "**/tests/**/*.rs", "**/*_test.rs", "**/*_test.c", "**/*_test.cpp", "test/**/*.c", "**/*Spec.hs", "**/*Test.hs", "test/*.hs", "**/tests/**/*.tcl", "tests/*.test", "test/**/*.js"]) {
+for (const glob of [
+  "**/*_test.py",
+  "**/tests/**/*.rs",
+  "**/*_test.rs",
+  "**/*_test.c",
+  "**/*_test.cpp",
+  "test/**/*.c",
+  "**/*Spec.hs",
+  "**/*Test.hs",
+  "test/*.hs",
+  "**/tests/**/*.tcl",
+  "tests/*.test",
+  "test/**/*.js",
+  "**/*_test.exs",
+  "**/*_spec.exs",
+  "**/*Spec.scala",
+  "**/*Test.scala",
+  "**/*Tests.scala",
+  "**/*Suite.scala",
+  "src/test/**/*.scala",
+  "**/*.tests.cpp",
+  "test/**/*.cpp",
+  "**/tests/**/*.cpp",
+]) {
   assert.ok(TEST_FILE_GLOBS.includes(glob), `TEST_FILE_GLOBS missing ${glob}`);
 }
 
@@ -569,6 +592,20 @@ assert.equal(globMatch("pkg/tests/foo.rs", "tests/**/*.rs"), false);
 assert.equal(globMatch("test/router.js", "test/**/*.js"), true);
 assert.equal(globMatch("FooSpec.hs", "**/*Spec.hs"), true);
 assert.equal(globMatch("FooTest.hs", "**/*Test.hs"), true);
+assert.equal(globMatch("test/phoenix/endpoint_test.exs", "**/*_test.exs"), true);
+assert.equal(globMatch("test/ecto/schema_spec.exs", "**/*_spec.exs"), true);
+assert.equal(globMatch("lib/phoenix/endpoint.ex", "**/*_test.exs"), false);
+assert.equal(globMatch("core/src/test/scala/cats/FunctorSpec.scala", "**/*Spec.scala"), true);
+assert.equal(globMatch("core/src/test/scala/cats/FunctorTest.scala", "**/*Test.scala"), true);
+assert.equal(globMatch("tests/shared/src/test/scala/cats/tests/FoldableSuite.scala", "**/*Suite.scala"), true);
+assert.equal(globMatch("src/test/scala/foo/Bar.scala", "src/test/**/*.scala"), true);
+assert.equal(globMatch("src/main/scala/foo/Bar.scala", "src/test/**/*.scala"), false);
+assert.equal(globMatch("tests/SelfTest/UsageTests/Approx.tests.cpp", "**/*.tests.cpp"), true);
+assert.equal(globMatch("tests/src/unit-algorithms.cpp", "**/tests/**/*.cpp"), true);
+assert.equal(globMatch("test/format.cpp", "test/**/*.cpp"), true);
+assert.equal(globMatch("src/foo.cpp", "**/*.tests.cpp"), false);
+assert.equal(globMatch("src/foo.cpp", "test/**/*.cpp"), false);
+assert.equal(globMatch("src/foo.cpp", "**/tests/**/*.cpp"), false);
 assert.equal(globMatch("test/main.c", "test/**/*.c"), true);
 assert.equal(globMatch("azure-pipelines.yml", "azure-pipelines.yml"), true);
 assert.equal(globMatch(".buildkite/pipeline.yml", ".buildkite/*.yml"), true);
@@ -1557,6 +1594,20 @@ assertPass("test-files-exist", { "math_test.cpp": "int main() { return 0; }\n" }
 assertPass("test-files-exist", { "test/main.c": "int main() { return 0; }\n" });
 assertPass("test-files-exist", { "FooSpec.hs": "main = putStrLn \"ok\"\n" });
 assertPass("test-files-exist", { "FooTest.hs": "main = putStrLn \"ok\"\n" });
+assertPass("test-files-exist", { "test/phoenix/endpoint_test.exs": "defmodule Phoenix.EndpointTest do\nend\n" });
+assertPass("test-files-exist", { "test/ecto/schema_spec.exs": "defmodule Ecto.SchemaSpec do\nend\n" });
+assertPass("test-files-exist", { "core/src/test/scala/cats/FunctorSpec.scala": "class FunctorSpec\n" });
+assertPass("test-files-exist", { "core/src/test/scala/cats/FunctorTest.scala": "class FunctorTest\n" });
+assertPass("test-files-exist", {
+  "tests/shared/src/test/scala/cats/tests/FoldableSuite.scala": "class FoldableSuite\n",
+});
+assertPass("test-files-exist", {
+  "tests/SelfTest/UsageTests/Approx.tests.cpp": "TEST_CASE(\"approx\") {}\n",
+});
+assertPass("test-files-exist", { "tests/src/unit-algorithms.cpp": "TEST_CASE(\"algo\") {}\n" });
+assertFail("test-files-exist", { "src/foo.cpp": "int main() { return 0; }\n" });
+assertFail("test-files-exist", { "src/json.cpp": "int x;\n" });
+assertFail("test-files-exist", { "lib/phoenix/endpoint.ex": "defmodule Phoenix.Endpoint do\nend\n" });
 const hiddenInVendor = evalTree({
   "node_modules/pkg/foo_test.py": "def test_ok():\n    assert True\n",
   "vendor/lib_test.rs": "#[test] fn ok() {}\n",
