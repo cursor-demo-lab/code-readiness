@@ -2470,6 +2470,7 @@ const prettierLikeIssueTemplates = evalTree({
   ".github/ISSUE_TEMPLATE/config.yml": "blank_issues_enabled: false\n",
   ".github/ISSUE_TEMPLATE/formatting.md": "## Formatting\n",
   ".github/ISSUE_TEMPLATE/integration.md": "## Integration\n",
+  ".github/PULL_REQUEST_TEMPLATE.md": "## Summary\n",
 });
 assert.equal(
   prettierLikeIssueTemplates["issue-templates"].pass,
@@ -2479,6 +2480,11 @@ assert.equal(
 assert.match(prettierLikeIssueTemplates["issue-templates"].message, /formatting\.md/);
 assert.equal(
   /config\.ya?ml/.test(prettierLikeIssueTemplates["issue-templates"].message),
+  false,
+  prettierLikeIssueTemplates["issue-templates"].message,
+);
+assert.equal(
+  /PULL_REQUEST_TEMPLATE/.test(prettierLikeIssueTemplates["issue-templates"].message),
   false,
   prettierLikeIssueTemplates["issue-templates"].message,
 );
@@ -2501,6 +2507,36 @@ const nestedFormAndConfig = evalTree({
 assert.equal(nestedFormAndConfig["issue-templates"].pass, true, nestedFormAndConfig["issue-templates"].message);
 assert.match(nestedFormAndConfig["issue-templates"].message, /formatting\.md/);
 assert.equal(/nested\//.test(nestedFormAndConfig["issue-templates"].message), false);
+const bugReportAndPrTemplate = evalTree({
+  ".github/ISSUE_TEMPLATE/Bug_report.yml": "name: Bug\n",
+  ".github/PULL_REQUEST_TEMPLATE.md": "## Summary\n",
+});
+assert.equal(
+  bugReportAndPrTemplate["issue-templates"].pass,
+  true,
+  bugReportAndPrTemplate["issue-templates"].message,
+);
+assert.match(bugReportAndPrTemplate["issue-templates"].message, /Bug_report\.yml/);
+assert.equal(
+  /PULL_REQUEST_TEMPLATE/.test(bugReportAndPrTemplate["issue-templates"].message),
+  false,
+  bugReportAndPrTemplate["issue-templates"].message,
+);
+const bugMdAndPrTemplate = evalTree({
+  ".github/ISSUE_TEMPLATE/bug_report.md": "## Bug\n",
+  ".github/PULL_REQUEST_TEMPLATE.md": "## Summary\n",
+});
+assert.equal(
+  bugMdAndPrTemplate["issue-templates"].pass,
+  true,
+  bugMdAndPrTemplate["issue-templates"].message,
+);
+assert.match(bugMdAndPrTemplate["issue-templates"].message, /bug_report\.md/);
+assert.equal(
+  /PULL_REQUEST_TEMPLATE/.test(bugMdAndPrTemplate["issue-templates"].message),
+  false,
+  bugMdAndPrTemplate["issue-templates"].message,
+);
 assertPass(
   "issue-templates",
   { ".github/ISSUE_TEMPLATE/config.yml": "blank_issues_enabled: false\n" },
@@ -3673,6 +3709,7 @@ const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
 assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
 assert.match(rootReadme, /First-hit prefers a form/);
 assert.match(rootReadme, /config\.yml-only tree still passes/);
+assert.match(rootReadme, /PR-template-only tree still passes/);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
 assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
@@ -3706,6 +3743,7 @@ assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 
 assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
 assert.match(skillMd, /First-hit prefers a form/);
 assert.match(skillMd, /config\.yml-only tree still passes/);
+assert.match(skillMd, /PR-template-only tree still passes/);
 assert.match(skillMd, /`containerization` first-hit prefers/);
 assert.match(skillMd, /integration-only tree still passes/);
 assert.match(skillMd, /`setup-script` first-hit prefers/);
@@ -3746,6 +3784,7 @@ const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md
 assert.equal((checksReadme.match(/issue-templates/g) ?? []).length, 1);
 assert.match(checksReadme, /First-hit prefers a form/);
 assert.match(checksReadme, /config\.yml-only tree still passes/);
+assert.match(checksReadme, /PR-template-only tree still passes/);
 assert.match(checksReadme, /empty `\.github\/ISSUE_TEMPLATE\/` directory is not a hit/);
 assert.match(checksReadme, /Style & Validation \(`style-linting`\)/);
 assert.equal(/Style & Linting/.test(checksReadme), false);

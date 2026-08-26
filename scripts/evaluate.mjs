@@ -215,9 +215,17 @@ function isIssueTemplateChooserConfig(file) {
   return name === "config.yml" || name === "config.yaml";
 }
 
+function isIssueForm(file) {
+  if (isIssueTemplateChooserConfig(file)) return false;
+  if (file === ".github/ISSUE_TEMPLATE.md" || file === ".github/ISSUE_TEMPLATE") return true;
+  return file.startsWith(".github/ISSUE_TEMPLATE/");
+}
+
 function productIssueTemplateHits(files) {
-  const forms = files.filter((file) => !isIssueTemplateChooserConfig(file));
-  return forms.length > 0 ? forms : files;
+  const forms = files.filter(isIssueForm);
+  if (forms.length > 0) return forms;
+  const withoutChooser = files.filter((file) => !isIssueTemplateChooserConfig(file));
+  return withoutChooser.length > 0 ? withoutChooser : files;
 }
 
 function isTestFrameworkConfigHit(file) {
