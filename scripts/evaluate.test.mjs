@@ -6,7 +6,7 @@ import { loadCatalog, skillRoot } from "./catalog.mjs";
 import { ATTRIBUTION, CI_GLOBS, IGNORE_DIRS, LEVEL_LABELS, LEVEL_THRESHOLD, TEST_FILE_GLOBS, thresholdForLevel } from "./constants.mjs";
 import { CASE_INSENSITIVE_NAME_IDS, evaluateRepo, LOCK_FILES, recommend, scoreResults } from "./evaluate.mjs";
 import { buildReport, chatFixFile, chatLines } from "./report.mjs";
-import { ciFiles, detectLanguages, detectManifestLanguages, findMatches, globMatch, testFiles } from "./walk.mjs";
+import { ciFiles, detectLanguages, detectManifestLanguages, findMatches, globMatch, globToRegExp, testFiles } from "./walk.mjs";
 
 const tmpDirs = [];
 function tmp(prefix) {
@@ -616,6 +616,16 @@ assert.equal(globMatch("dprint.json", ".prettierrc.*"), false);
 assert.equal(globMatch(".prettierrc.json", ".prettierrc.*"), true);
 assert.equal(globMatch("pkg/foo_test.py", "**/*_test.py"), true);
 assert.equal(globMatch("test_foo.py", "**/test_*.py"), true);
+assert.equal(globToRegExp("**/test_*.py").test("tests/test_client.py"), true);
+assert.equal(globToRegExp("**/test_*.py").test("add_latest_release_date.py"), false);
+assert.equal(globMatch("tests/test_client.py", "**/test_*.py"), true);
+assert.equal(globMatch("test_client.py", "**/test_*.py"), true);
+assert.equal(globMatch("add_latest_release_date.py", "**/test_*.py"), false);
+assert.equal(globMatch("parse_test_outputs.py", "**/test_*.py"), false);
+assert.equal(globMatch("check_test_missing.py", "**/test_*.py"), false);
+assert.equal(globMatch("utils/parse_test_outputs.py", "**/test_*.py"), false);
+assert.equal(globMatch("foo.test.js", "**/*.test.js"), true);
+assert.equal(globMatch("src/foo.test.js", "**/*.test.js"), true);
 assert.equal(globMatch("src/lib_test.rs", "**/*_test.rs"), true);
 assert.equal(globMatch("tests/foo.rs", "tests/**/*.rs"), true);
 assert.equal(globMatch("tests/foo.rs", "**/tests/**/*.rs"), true);
@@ -1970,6 +1980,12 @@ assertFail("test-files-exist", { "test/fixtures/format-test.cc": "int x;\n" });
 assertFail("test-files-exist", { "src/foo.cpp": "int main() { return 0; }\n" });
 assertFail("test-files-exist", { "src/json.cpp": "int x;\n" });
 assertFail("test-files-exist", { "lib/phoenix/endpoint.ex": "defmodule Phoenix.Endpoint do\nend\n" });
+assertFail("test-files-exist", { "scripts/add_latest_release_date.py": "print('ok')\n" });
+assertFail("test-files-exist", { "parse_test_outputs.py": "print('ok')\n" });
+assertFail("test-files-exist", { "check_test_missing.py": "print('ok')\n" });
+assertFail("test-files-exist", { "utils/parse_test_outputs.py": "print('ok')\n" });
+assertPass("test-files-exist", { "tests/test_client.py": "def test_ok():\n    assert True\n" });
+assertPass("test-files-exist", { "test_client.py": "def test_ok():\n    assert True\n" });
 const hiddenInVendor = evalTree({
   "node_modules/pkg/foo_test.py": "def test_ok():\n    assert True\n",
   "vendor/lib_test.rs": "#[test] fn ok() {}\n",
@@ -3224,6 +3240,7 @@ assert.match(checksReadme, /Ruby `spec\/\*\*\/\*_spec\.rb` \/ `\*\*\/test\/\*\*\
 assert.match(checksReadme, /`\.cc` and `\.cxx` extensions/);
 assert.match(checksReadme, /`src\/\*\.cpp` and `src\/\*\.cc` do not/);
 assert.match(checksReadme, /`testdata\/user_test\.rb` does not count/);
+assert.match(checksReadme, /slash-anchored and does not eat into the basename/);
 assert.match(checksReadme, /deduped by path/);
 assert.match(checksReadme, /distinct-path count/);
 assert.match(checksReadme, /reported first hit prefers a product-suite path/);
