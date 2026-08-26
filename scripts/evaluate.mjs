@@ -322,19 +322,42 @@ function hasEnvSignals(files) {
   });
 }
 
+const LOCK_FIRST_HIT_DEFER_SEGMENTS = [
+  "examples",
+  "_examples",
+  "example",
+  "vendor",
+  "vendors",
+  "third_party",
+  "third-party",
+  "thirdparty",
+];
+
+function productLockFiles(files) {
+  const hits = files.filter((file) => LOCK_FILES.includes(posixBasename(file)));
+  const productHits = hits.filter(
+    (file) => !pathHasSegments(file, LOCK_FIRST_HIT_DEFER_SEGMENTS),
+  );
+  const ranked = productHits.length > 0 ? productHits : hits;
+  return [...ranked].sort((a, b) => {
+    const depth = comparePathDepth(a, b);
+    if (depth !== 0) return depth;
+    return LOCK_FILES.indexOf(posixBasename(a)) - LOCK_FILES.indexOf(posixBasename(b));
+  });
+}
+
 function lockFresh(repoRoot, files, days) {
-  const found = LOCK_FILES.filter((name) => files.includes(name));
+  const found = productLockFiles(files);
   if (found.length === 0) return { ok: false, reason: "no lock file" };
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  for (const name of found) {
-    try {
-      const mtime = fs.statSync(path.join(repoRoot, name)).mtimeMs;
-      if (mtime >= cutoff) return { ok: true, file: name };
-    } catch {
-      continue;
-    }
+  const name = found[0];
+  try {
+    const mtime = fs.statSync(path.join(repoRoot, name)).mtimeMs;
+    if (mtime >= cutoff) return { ok: true, file: name };
+  } catch {
+    // missing or unreadable: treat as stale
   }
-  return { ok: false, reason: "lock file older than 6 months", file: found[0] };
+  return { ok: false, reason: "lock file older than 6 months", file: name };
 }
 
 function evalCriterion(criterion, ctx) {
@@ -385,6 +408,15 @@ function evalCriterion(criterion, ctx) {
     return miss(criterion.fail);
   }
 
+  if (criterion.id === "lock-file") {
+    const found = productLockFiles(ctx.files);
+    if (found.length > 0) return hit(`Found ${found[0]}`);
+    if (hasNoConventionalLockfile(ctx.languages)) {
+      return skip("This language has no conventional committed lockfile.");
+    }
+    return miss(criterion.fail);
+  }
+
   if (criterion.lockFileFreshDays) {
     const result = lockFresh(ctx.repoRoot, ctx.files, criterion.lockFileFreshDays);
     if (result.ok) return hit(`Lock file ${result.file} modified within 6 months`);
@@ -404,12 +436,6 @@ function evalCriterion(criterion, ctx) {
       if (realHit) return hit(`Found ${realHit}`);
     } else {
       return hit(`Found ${firstFileHit(criterion, fileHits)}`);
-    }
-  }
-
-  if (criterion.id === "lock-file") {
-    if (hasNoConventionalLockfile(ctx.languages)) {
-      return skip("This language has no conventional committed lockfile.");
     }
   }
 
