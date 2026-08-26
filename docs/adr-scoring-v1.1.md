@@ -56,6 +56,8 @@ Hill-climb after PR #60: JamesNK/Newtonsoft.Json PASSes `test-script` on `Src/Ne
 
 Hill-climb after PR #61: prettier/prettier PASSes `issue-templates` on `.github/ISSUE_TEMPLATE/config.yml` even though `formatting.md` / `integration.md` exist. `config.yml` is the GitHub issue chooser sidecar, not a template an agent would fill. First-hit now prefers a form (`bug_report.md` / `Bug_report.yml` / `formatting.md`) over `config.yml` / `config.yaml` when both exist; the shallowest form wins. A config.yml-only tree still PASSES and names that file. Message-only. Empty `.github/ISSUE_TEMPLATE/` is still not a hit (`skipDirectoryHits`). Do not fail `docs/ISSUE_TEMPLATE.md` or root `ISSUE_TEMPLATE.md`. Stay L3. No new ids, no dummy `.editorconfig`, no L4/L5 retune, `codeowners` stays Security, `test-script` still defers FuzzTests, `setup-script` still prefers product-tree first-hit.
 
+Hill-climb after PR #63: nestjs/nest PASSes `test-framework` on `vitest.config.coverage.mts` even though `vitest.config.mts` exists. Both match `vitest.config.*`; same-depth lex sort hits `coverage` first. First-hit among those `vitest.config.*` / `jest.config.*` hits now defers a basename containing `coverage` / `coverage.` / `integration` when another product runner exists (`vitest.config.mts` over `vitest.config.coverage.mts` / `vitest.config.integration.mts`). A coverage-only or integration-only tree still PASSES. Sample-only trees still pass via product-tree first-hit. Message-only. Do not dummy `.editorconfig`. Stay L3. No new ids, no L4/L5 retune, `issue-templates` stays L3, `codeowners` stays Security, `setup-script` product first-hit and FuzzTests defer stay. `[tool.ty]` / `[tool.basedpyright]` still pass `type-checker`.
+
 ## Explicitly refused
 
 - New criterion ids

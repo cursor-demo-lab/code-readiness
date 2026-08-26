@@ -220,9 +220,29 @@ function productIssueTemplateHits(files) {
   return forms.length > 0 ? forms : files;
 }
 
+function isTestFrameworkConfigHit(file) {
+  const name = posixBasename(file);
+  return globMatch(name, "vitest.config.*") || globMatch(name, "jest.config.*");
+}
+
+function isDeferredTestFrameworkSidecar(file) {
+  return /coverage|integration/i.test(posixBasename(file));
+}
+
+function productTestFrameworkHits(files) {
+  const configHits = files.filter(isTestFrameworkConfigHit);
+  const preferredConfigs = configHits.filter((file) => !isDeferredTestFrameworkSidecar(file));
+  const withoutSidecars =
+    preferredConfigs.length > 0
+      ? files.filter((file) => !isTestFrameworkConfigHit(file) || !isDeferredTestFrameworkSidecar(file))
+      : files;
+  return productStyleHits(withoutSidecars);
+}
+
 function firstFileHit(criterion, fileHits) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
+  if (criterion.id === "test-framework") return shallowestHit(productTestFrameworkHits(fileHits));
   if (isStyleFirstHitId(criterion.id)) return shallowestHit(productStyleHits(fileHits));
   if (criterion.id === "containerization") return shallowestHit(productContainerHits(fileHits));
   if (criterion.id === "setup-script") return shallowestHit(productSetupHits(fileHits));
