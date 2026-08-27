@@ -4144,6 +4144,69 @@ const e2eOnlyStillPasses = assertTfeFirstHit(
 );
 assert.equal(e2eOnlyStillPasses["test-files-exist"].pass, true);
 
+const productCommonTestOverIntegrationTesting = assertJavaFirstHit(
+  {
+    "foo/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
+    "integration-testing/smoke/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /foo\/src\/commonTest\/kotlin\/FooTest\.kt/,
+  { not: /integration-testing|SampleTest/ },
+);
+assert.equal(
+  productCommonTestOverIntegrationTesting["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+assert.equal(productCommonTestOverIntegrationTesting["test-framework"].pass, true);
+
+const productCommonTestOverIntegrationTestingSameDepth = assertJavaFirstHit(
+  {
+    "zoo/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
+    "integration-testing/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /zoo\/src\/commonTest\/kotlin\/FooTest\.kt/,
+  { not: /integration-testing|SampleTest/ },
+);
+assert.equal(productCommonTestOverIntegrationTestingSameDepth["test-files-exist"].pass, true);
+
+const productCommonTestOverTestingSuffix = assertJavaFirstHit(
+  {
+    "zoo/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
+    "foo-testing/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /zoo\/src\/commonTest\/kotlin\/FooTest\.kt/,
+  { not: /foo-testing|SampleTest/ },
+);
+assert.equal(productCommonTestOverTestingSuffix["test-framework"].pass, true);
+
+const integrationTestingOnlyStillPasses = assertJavaFirstHit(
+  {
+    "integration-testing/smoke/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/,
+);
+assert.equal(integrationTestingOnlyStillPasses["test-files-exist"].pass, true);
+assert.equal(integrationTestingOnlyStillPasses["test-framework"].pass, true);
+
+const testingLettersInSegmentNotDeferred = assertJavaFirstHit(
+  {
+    "contesting/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
+    "zoo/src/commonTest/kotlin/BarTest.kt": "class BarTest\n",
+  },
+  /contesting\/src\/commonTest\/kotlin\/FooTest\.kt/,
+  { not: /zoo\/src|BarTest/ },
+);
+assert.equal(testingLettersInSegmentNotDeferred["test-files-exist"].pass, true);
+
+const exactIntegrationStillDeferred = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "integration/cors/e2e/express.spec.ts": "test('cors', () => {});\n",
+  },
+  /packages\/foo\/test\/foo\.spec\.ts/,
+  { not: /integration|express\.spec/ },
+);
+assert.equal(exactIntegrationStillDeferred["test-files-exist"].pass, true);
+
 const autoMockNotLetterSuffix = assertTfeFirstHit(
   {
     "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
@@ -6616,6 +6679,11 @@ assert.match(rootReadme, /packages\/foo\/test\/foo\.spec\.ts/);
 assert.match(rootReadme, /integration\/cors\/e2e\/express\.spec\.ts/);
 assert.match(rootReadme, /integration\/auto-mock/);
 assert.match(rootReadme, /e2e-only tree still passes/);
+assert.match(rootReadme, /foo\/src\/commonTest\/kotlin\/FooTest\.kt/);
+assert.match(rootReadme, /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/);
+assert.match(rootReadme, /integration-testing-only tree still passes/);
+assert.match(rootReadme, /letters testing/);
+assert.equal(/kotlinx|coroutines/i.test(rootReadme), false);
 assert.match(rootReadme, /foo-keeper/);
 assert.match(rootReadme, /foo\/java-test/);
 assert.match(rootReadme, /KeepTest\.kt/);
@@ -6719,6 +6787,11 @@ assert.match(skillMd, /packages\/foo\/test\/foo\.spec\.ts/);
 assert.match(skillMd, /integration\/cors\/e2e\/express\.spec\.ts/);
 assert.match(skillMd, /integration\/auto-mock/);
 assert.match(skillMd, /e2e-only tree still passes/);
+assert.match(skillMd, /foo\/src\/commonTest\/kotlin\/FooTest\.kt/);
+assert.match(skillMd, /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/);
+assert.match(skillMd, /integration-testing-only tree still passes/);
+assert.match(skillMd, /letters testing/);
+assert.equal(/kotlinx|coroutines/i.test(skillMd), false);
 assert.match(skillMd, /foo-keeper/);
 assert.match(skillMd, /foo\/java-test/);
 assert.match(skillMd, /KeepTest\.kt/);
@@ -6901,6 +6974,11 @@ assert.match(checksReadme, /packages\/foo\/test\/foo\.spec\.ts/);
 assert.match(checksReadme, /integration\/cors\/e2e\/express\.spec\.ts/);
 assert.match(checksReadme, /integration\/auto-mock/);
 assert.match(checksReadme, /e2e-only tree still passes/);
+assert.match(checksReadme, /foo\/src\/commonTest\/kotlin\/FooTest\.kt/);
+assert.match(checksReadme, /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/);
+assert.match(checksReadme, /integration-testing-only tree still passes/);
+assert.match(checksReadme, /letters testing/);
+assert.equal(/kotlinx|coroutines/i.test(checksReadme), false);
 assert.match(checksReadme, /foo-keeper/);
 assert.match(checksReadme, /foo\/java-test/);
 assert.match(checksReadme, /KeepTest\.kt/);
@@ -6945,7 +7023,7 @@ assert.match(checksReadme, /packages\/ext\/package\.json/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 const productRepoLiteral =
-  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|vscode-typescript|microsoft\/TypeScript|ansible|django/i;
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|vscode-typescript|microsoft\/TypeScript|ansible|django|kotlinx|coroutines/i;
 for (const file of [
   path.join(skillRoot(), "scripts", "evaluate.mjs"),
   catalogPath(),
@@ -6954,7 +7032,7 @@ for (const file of [
   assert.equal(productRepoLiteral.test(text), false, file);
 }
 const evaluateProductRepoLiteral =
-  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript/i;
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript|kotlinx|coroutines/i;
 {
   const file = path.join(skillRoot(), "scripts", "evaluate.mjs");
   const text = fs.readFileSync(file, "utf8");
