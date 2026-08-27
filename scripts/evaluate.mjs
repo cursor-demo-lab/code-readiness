@@ -477,9 +477,12 @@ function treeHasJavaManifest(files) {
 
 // Gradle/Maven language source sets. Consecutive `src/<set>` beats `src/main`.
 // Unit sets (`src/test` / `src/jvmTest` / `src/commonTest` / `src/androidUnitTest`)
-// are one first-hit class: do not prefer `src/test` over `src/jvmTest`. Rank
-// those ahead of instrumented `src/androidTest`. An androidTest-only tree still
-// names that file. Path-segment names are not special-cased.
+// are one first-hit class: do not prefer `src/test` over `src/jvmTest`. When
+// consecutive `src/jvmTest` and `src/commonTest` both exist (same module or
+// any), prefer `src/jvmTest` so lex cannot pick `commonTest` (`c` < `j`). A
+// commonTest-only tree still names that file. Rank those unit sets ahead of
+// instrumented `src/androidTest`. An androidTest-only tree still names that
+// file. Path-segment names are not special-cased.
 const JVM_UNIT_SOURCE_SETS = new Set(["test", "jvmtest", "androidunittest", "commontest"]);
 const JVM_INSTRUMENTED_SOURCE_SETS = new Set(["androidtest"]);
 const JVM_TEST_SOURCE_SETS = new Set([...JVM_UNIT_SOURCE_SETS, ...JVM_INSTRUMENTED_SOURCE_SETS]);
@@ -522,6 +525,24 @@ function isOtherModuleSrcTestWhenJvmTestExists(file, hits) {
 
 function preferJvmTestOverOtherModuleSrcTest(files) {
   const preferred = files.filter((file) => !isOtherModuleSrcTestWhenJvmTestExists(file, files));
+  return preferred.length > 0 ? preferred : files;
+}
+
+// When consecutive src/jvmTest and src/commonTest hits both exist (same module
+// or any), prefer src/jvmTest. Lex would pick commonTest (`c` < `j`). A
+// commonTest-only tree still names that file. src/test stays the same
+// first-hit class as src/jvmTest.
+function isCommonTestWhenJvmTestExists(file, hits) {
+  const self = jvmTestSourceSetAt(file);
+  if (!self || self.set !== "commontest") return false;
+  return hits.some((hit) => {
+    const other = jvmTestSourceSetAt(hit);
+    return Boolean(other && other.set === "jvmtest");
+  });
+}
+
+function preferJvmTestOverCommonTest(files) {
+  const preferred = files.filter((file) => !isCommonTestWhenJvmTestExists(file, files));
   return preferred.length > 0 ? preferred : files;
 }
 
@@ -698,9 +719,10 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // consecutive src/jvmTest over src/test in other modules (foo/ over bar/),
   // then defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
   // processor/keeper/integration-testing/-testing path segments (same class as
-  // containerization sample/integration), then prefer unit source sets over
+  // containerization sample/integration), then prefer src/jvmTest over
+  // src/commonTest when both exist, then prefer unit source sets over
   // instrumented src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
-  // src/test-only, androidTest-only, integration-only, e2e-only,
+  // src/test-only, commonTest-only, androidTest-only, integration-only, e2e-only,
   // integration-testing-only, or satellite-only tree still names that file.
   // Java-primary trees prefer *Test.java over sidecar Python test_*.py /
   // *_test.py; a Java tree with only Python still names Python.
@@ -711,10 +733,13 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // tie with product src/jvmTest and win by lex (bar/ < foo/). Prefer
   // consecutive src/jvmTest over src/test in other modules. Same-module
   // src/test stays the JVM unit source-set class. A src/test-only tree still
-  // names that file.
+  // names that file. When consecutive src/jvmTest and src/commonTest both
+  // exist (same module or any), prefer src/jvmTest so lex cannot pick
+  // commonTest (`c` < `j`). A commonTest-only tree still names that file.
   const afterJvmTestSibling = preferJvmTestOverOtherModuleSrcTest(afterProductModule);
   const afterDefer = productTestFileFirstHits(afterJvmTestSibling);
-  const afterUnitSourceSet = preferJvmUnitSourceSetHits(afterDefer);
+  const afterJvmTestOverCommon = preferJvmTestOverCommonTest(afterDefer);
+  const afterUnitSourceSet = preferJvmUnitSourceSetHits(afterJvmTestOverCommon);
   const withoutPySidecar = deferPythonTestSidecarForJava(repoFiles)
     ? afterUnitSourceSet.filter((file) => !isPythonTestFile(file))
     : afterUnitSourceSet;
@@ -845,24 +870,27 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
   const hyphenSat = isHyphenSatellitePath(file, hits) ? 1 : 0;
   const otherModuleSrcTest = isOtherModuleSrcTestWhenJvmTestExists(file, hits) ? 1 : 0;
+  const commonTestWhenJvmTest = isCommonTestWhenJvmTestExists(file, hits) ? 1 : 0;
   const instrumented = isJvmTestFile(file) && isJvmInstrumentedSourceSetPath(file) ? 1 : 0;
   // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock/integration/e2e/keeper
   // /integration-testing/-testing defer > catch-all / C# fuzz basename > hyphen
-  // satellite / other-module src/test when a src/jvmTest hit exists >
-  // instrumented src/androidTest. Product src/jvmTest Java beats sibling
-  // src/test (bar/) and satellite src/test (foo-tls/), which still beat
-  // src/main API *Test.java, which still beats sidecar Python. Unit source
-  // sets beat instrumented src/androidTest when both exist. Do not prefer
-  // src/test over src/jvmTest on the same product module. Product instrumented
-  // still beats a hyphen satellite's src/test. packages/<name>/test beats
+  // satellite / other-module src/test when a src/jvmTest hit exists / src/commonTest
+  // when a src/jvmTest hit exists > instrumented src/androidTest. Product
+  // src/jvmTest Java beats sibling src/test (bar/) and satellite src/test
+  // (foo-tls/), which still beat src/main API *Test.java, which still beats
+  // sidecar Python. Unit source sets beat instrumented src/androidTest when
+  // both exist. Do not prefer src/test over src/jvmTest on the same product
+  // module. When src/jvmTest and src/commonTest both exist, prefer src/jvmTest
+  // (foo/src/jvmTest over foo/src/commonTest). Product instrumented still
+  // beats a hyphen satellite's src/test. packages/<name>/test beats
   // integration/ and e2e/ at the same depth. Product src/commonTest beats
-  // integration-testing/.
+  // integration-testing/. A commonTest-only tree still names that file.
   return (
     sidecar * 32 +
     javaLayout * 16 +
     deferred * 8 +
     (catchAllOnly + fuzzBench) * 4 +
-    Math.max(hyphenSat, otherModuleSrcTest) * 2 +
+    Math.max(hyphenSat, otherModuleSrcTest, commonTestWhenJvmTest) * 2 +
     instrumented
   );
 }

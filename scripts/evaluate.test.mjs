@@ -3966,6 +3966,75 @@ const javaCommonTestOverSatellite = assertJavaFirstHit(
 );
 assert.equal(javaCommonTestOverSatellite["test-framework"].pass, true);
 
+const kotlinJvmTestOverSameModuleCommonTest = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
+    "foo/src/commonTest/kotlin/BarTest.kt": "class BarTest\n",
+  },
+  /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/,
+  { not: /commonTest|BarTest/ },
+);
+assert.match(
+  kotlinJvmTestOverSameModuleCommonTest["test-files-exist"].details,
+  /^foo\/src\/jvmTest\/kotlin\/FooTest\.kt\b/,
+);
+assert.equal(
+  kotlinJvmTestOverSameModuleCommonTest["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const kotlinJvmTestOverAnyModuleCommonTest = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
+    "bar/src/commonTest/kotlin/BarTest.kt": "class BarTest\n",
+  },
+  /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/,
+  { not: /commonTest|BarTest/ },
+);
+assert.equal(kotlinJvmTestOverAnyModuleCommonTest["test-framework"].pass, true);
+
+const kotlinCommonTestOnly = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "foo/src/commonTest/kotlin/BarTest.kt": "class BarTest\n",
+});
+assert.equal(
+  kotlinCommonTestOnly["test-framework"].pass,
+  true,
+  kotlinCommonTestOnly["test-framework"].message,
+);
+assert.match(kotlinCommonTestOnly["test-framework"].message, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
+assert.equal(
+  kotlinCommonTestOnly["test-files-exist"].pass,
+  true,
+  kotlinCommonTestOnly["test-files-exist"].message,
+);
+assert.match(kotlinCommonTestOnly["test-files-exist"].message, /commonTest/);
+
+const kotlinJvmTestOverCommonTestKeepsSiblingSrcTestRank = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
+    "foo/src/commonTest/kotlin/BarTest.kt": "class BarTest\n",
+    "bar/src/test/java/BarTest.java": "class BarTest {}\n",
+  },
+  /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/,
+  { not: /commonTest|BarTest/ },
+);
+assert.equal(kotlinJvmTestOverCommonTestKeepsSiblingSrcTestRank["test-files-exist"].pass, true);
+
+const kotlinCommonTestOverInstrumented = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
+    "foo/src/androidTest/java/BarTest.java": "class BarTest {}\n",
+  },
+  /foo\/src\/commonTest\/kotlin\/FooTest\.kt/,
+  { not: /androidTest|BarTest/ },
+);
+assert.equal(kotlinCommonTestOverInstrumented["test-framework"].pass, true);
+
 const kotlinJvmTestOverSatellite = evalTree({
   "build.gradle": "plugins { java }\n",
   "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
@@ -6670,6 +6739,9 @@ assert.match(rootReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
 assert.match(rootReadme, /A `src\/test`-only tree still passes/);
 assert.match(rootReadme, /A jvmTest-only tree still passes/);
 assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
+assert.match(rootReadme, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
+assert.match(rootReadme, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
+assert.match(rootReadme, /A commonTest-only tree still passes/);
 assert.match(rootReadme, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
 assert.match(rootReadme, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
 assert.match(rootReadme, /androidTest-only tree still passes/);
@@ -6778,6 +6850,9 @@ assert.match(skillMd, /foo-tls\/src\/test\/java\/TlsTest\.java/);
 assert.match(skillMd, /A `src\/test`-only tree still passes/);
 assert.match(skillMd, /A jvmTest-only tree still passes/);
 assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
+assert.match(skillMd, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
+assert.match(skillMd, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
+assert.match(skillMd, /A commonTest-only tree still passes/);
 assert.match(skillMd, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
 assert.match(skillMd, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
 assert.match(skillMd, /androidTest-only tree still passes/);
@@ -6965,6 +7040,9 @@ assert.match(checksReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
 assert.match(checksReadme, /A `src\/test`-only tree still passes/);
 assert.match(checksReadme, /A jvmTest-only tree still passes/);
 assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
+assert.match(checksReadme, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
+assert.match(checksReadme, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
+assert.match(checksReadme, /A commonTest-only tree still passes/);
 assert.match(checksReadme, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
 assert.match(checksReadme, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
 assert.match(checksReadme, /androidTest-only tree still passes/);
