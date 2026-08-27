@@ -612,6 +612,7 @@ function productTestFrameworkHits(files, languages, repoFiles) {
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
 const TYPE_CHECKER_SATELLITE_SEGMENTS = new Set(["plugin", "plugins", "hooks"]);
+const TYPE_CHECKER_APPS_PLAYGROUND_SEGMENTS = ["apps", "playground"];
 
 function isTypeCheckerConfigHit(file) {
   const name = posixBasename(file);
@@ -638,14 +639,25 @@ function isRootTypeCheckerConfig(file) {
 function isPackagesProductTypeCheckerConfig(file) {
   if (isTypeCheckerSatellitePath(file)) return false;
   const parts = file.split("/");
-  if (parts.length !== 3 || parts[0] !== "packages") return false;
-  return isTypeCheckerConfigHit(parts[2]);
+  if (!isTypeCheckerConfigHit(parts[parts.length - 1])) return false;
+  // packages/<name>/ at any depth (compiler/packages/foo/tsconfig.json), not
+  // only repo-root packages/foo/tsconfig.json. A lone packages/tsconfig.json
+  // has no <name> segment.
+  for (let i = 0; i < parts.length - 2; i += 1) {
+    if (parts[i] === "packages") return true;
+  }
+  return false;
+}
+
+function isAppsOrPlaygroundTypeCheckerPath(file) {
+  return pathHasSegments(file, TYPE_CHECKER_APPS_PLAYGROUND_SEGMENTS);
 }
 
 function typeCheckerConfigRank(file) {
-  if (isTypeCheckerSatellitePath(file)) return 3;
+  if (isTypeCheckerSatellitePath(file)) return 4;
   if (isRootTypeCheckerConfig(file)) return 0;
   if (isPackagesProductTypeCheckerConfig(file)) return 1;
+  if (isAppsOrPlaygroundTypeCheckerPath(file)) return 3;
   return 2;
 }
 
