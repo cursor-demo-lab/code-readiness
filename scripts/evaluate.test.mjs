@@ -3798,6 +3798,51 @@ assert.match(
   /^foo\/src\/jvmTest\/java\/FooTest\.java\b/,
 );
 
+const javaJvmTestOverSiblingSrcTest = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/java/FooTest.java": "class FooTest {}\n",
+    "bar/src/test/java/BarTest.java": "class BarTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /BarTest/ },
+);
+assert.match(
+  javaJvmTestOverSiblingSrcTest["test-files-exist"].details,
+  /^foo\/src\/jvmTest\/java\/FooTest\.java\b/,
+);
+
+const javaSameModuleJvmTestAndSrcTest = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/java/FooTest.java": "class FooTest {}\n",
+    "foo/src/test/java/FooSrcTest.java": "class FooSrcTest {}\n",
+  },
+  /jvmTest/,
+  { not: /FooSrcTest/ },
+);
+assert.match(
+  javaSameModuleJvmTestAndSrcTest["test-files-exist"].details,
+  /^foo\/src\/jvmTest\/java\/FooTest\.java\b/,
+);
+
+const javaSiblingSrcTestOnly = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "bar/src/test/java/BarTest.java": "class BarTest {}\n",
+});
+assert.equal(
+  javaSiblingSrcTestOnly["test-framework"].pass,
+  true,
+  javaSiblingSrcTestOnly["test-framework"].message,
+);
+assert.match(javaSiblingSrcTestOnly["test-framework"].message, /BarTest\.java/);
+assert.equal(
+  javaSiblingSrcTestOnly["test-files-exist"].pass,
+  true,
+  javaSiblingSrcTestOnly["test-files-exist"].message,
+);
+assert.match(javaSiblingSrcTestOnly["test-files-exist"].message, /BarTest\.java/);
+
 const javaJvmTestOverMain = assertJavaFirstHit(
   {
     "pom.xml": "<project></project>\n",
@@ -6454,7 +6499,9 @@ assert.match(rootReadme, /A Java tree with only Python tests still passes/);
 assert.match(rootReadme, /src\/test\/java\/FooTest\.java/);
 assert.match(rootReadme, /src\/jvmTest/);
 assert.match(rootReadme, /foo\/src\/jvmTest\/java\/FooTest\.java/);
+assert.match(rootReadme, /bar\/src\/test\/java\/BarTest\.java/);
 assert.match(rootReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
+assert.match(rootReadme, /A `src\/test`-only tree still passes/);
 assert.match(rootReadme, /A jvmTest-only tree still passes/);
 assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(rootReadme, /A testlib-only tree still passes/);
@@ -6550,7 +6597,9 @@ assert.match(skillMd, /A Java tree with only Python tests still passes/);
 assert.match(skillMd, /src\/test\/java\/FooTest\.java/);
 assert.match(skillMd, /src\/jvmTest/);
 assert.match(skillMd, /foo\/src\/jvmTest\/java\/FooTest\.java/);
+assert.match(skillMd, /bar\/src\/test\/java\/BarTest\.java/);
 assert.match(skillMd, /foo-tls\/src\/test\/java\/TlsTest\.java/);
+assert.match(skillMd, /A `src\/test`-only tree still passes/);
 assert.match(skillMd, /A jvmTest-only tree still passes/);
 assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(skillMd, /A testlib-only tree still passes/);
@@ -6723,7 +6772,9 @@ assert.match(checksReadme, /A Java tree with only Python tests still passes/);
 assert.match(checksReadme, /src\/test\/java\/FooTest\.java/);
 assert.match(checksReadme, /src\/jvmTest/);
 assert.match(checksReadme, /foo\/src\/jvmTest\/java\/FooTest\.java/);
+assert.match(checksReadme, /bar\/src\/test\/java\/BarTest\.java/);
 assert.match(checksReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
+assert.match(checksReadme, /A `src\/test`-only tree still passes/);
 assert.match(checksReadme, /A jvmTest-only tree still passes/);
 assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(checksReadme, /A testlib-only tree still passes/);

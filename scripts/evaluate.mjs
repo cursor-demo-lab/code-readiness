@@ -481,14 +481,35 @@ const JVM_TEST_SOURCE_SETS = new Set([
   "commontest",
 ]);
 
-function isJavaSrcTestPath(file) {
+function jvmTestSourceSetAt(file) {
   const parts = file.split("/");
   for (let i = 0; i < parts.length - 1; i += 1) {
     if (parts[i].toLowerCase() === "src" && JVM_TEST_SOURCE_SETS.has(parts[i + 1].toLowerCase())) {
-      return true;
+      return { module: parts.slice(0, i).join("/"), set: parts[i + 1].toLowerCase() };
     }
   }
-  return false;
+  return null;
+}
+
+function isJavaSrcTestPath(file) {
+  return jvmTestSourceSetAt(file) != null;
+}
+
+// When any hit is under consecutive src/jvmTest, prefer those over src/test
+// hits in other modules. Same-module src/test stays the same first-hit class
+// as src/jvmTest. A src/test-only tree is unchanged.
+function isOtherModuleSrcTestWhenJvmTestExists(file, hits) {
+  const self = jvmTestSourceSetAt(file);
+  if (!self || self.set !== "test") return false;
+  return hits.some((hit) => {
+    const other = jvmTestSourceSetAt(hit);
+    return Boolean(other && other.set === "jvmtest" && other.module !== self.module);
+  });
+}
+
+function preferJvmTestOverOtherModuleSrcTest(files) {
+  const preferred = files.filter((file) => !isOtherModuleSrcTestWhenJvmTestExists(file, files));
+  return preferred.length > 0 ? preferred : files;
 }
 
 function javaTestLayoutRank(file) {
@@ -652,17 +673,24 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer, then
   // prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
   // src/androidUnitTest / src/commonTest over src/main / bare src/, then prefer
-  // a product module over a hyphen satellite (foo/ over foo-tls/), then defer
-  // benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/processor/keeper
-  // path segments (same class as containerization sample/integration). A
-  // benchmark-only, testlib-only, jvmTest-only, integration-only, e2e-only, or
-  // satellite-only tree still names that file. Java-primary trees prefer
-  // *Test.java over sidecar Python test_*.py / *_test.py; a Java tree with only
-  // Python still names Python.
+  // a product module over a hyphen satellite (foo/ over foo-tls/), then prefer
+  // consecutive src/jvmTest over src/test in other modules (foo/ over bar/),
+  // then defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
+  // processor/keeper path segments (same class as containerization
+  // sample/integration). A benchmark-only, testlib-only, jvmTest-only,
+  // src/test-only, integration-only, e2e-only, or satellite-only tree still
+  // names that file. Java-primary trees prefer *Test.java over sidecar Python
+  // test_*.py / *_test.py; a Java tree with only Python still names Python.
   const afterScript = productTestScriptHits(ranked);
   const afterJavaLayout = preferJavaSrcTestHits(afterScript);
   const afterProductModule = preferProductModuleHits(afterJavaLayout);
-  const afterDefer = productTestFileFirstHits(afterProductModule);
+  // After hyphen-satellite defer, an unsuffixed sibling src/test can still
+  // tie with product src/jvmTest and win by lex (bar/ < foo/). Prefer
+  // consecutive src/jvmTest over src/test in other modules. Same-module
+  // src/test stays the JVM source-set class. A src/test-only tree still
+  // names that file.
+  const afterJvmTestSibling = preferJvmTestOverOtherModuleSrcTest(afterProductModule);
+  const afterDefer = productTestFileFirstHits(afterJvmTestSibling);
   const withoutPySidecar = deferPythonTestSidecarForJava(repoFiles)
     ? afterDefer.filter((file) => !isPythonTestFile(file))
     : afterDefer;
@@ -779,12 +807,21 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
   const hyphenSat = isHyphenSatellitePath(file, hits) ? 1 : 0;
+  const otherModuleSrcTest = isOtherModuleSrcTestWhenJvmTestExists(file, hits) ? 1 : 0;
   // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock/integration/e2e/keeper
-  // defer > catch-all / C# fuzz basename > hyphen satellite. Product src/jvmTest
-  // Java beats satellite src/test, which still beats src/main API *Test.java,
-  // which still beats sidecar Python. Do not prefer src/test over src/jvmTest.
+  // defer > catch-all / C# fuzz basename > hyphen satellite / other-module src/test
+  // when a src/jvmTest hit exists. Product src/jvmTest Java beats sibling
+  // src/test (bar/) and satellite src/test (foo-tls/), which still beat
+  // src/main API *Test.java, which still beats sidecar Python. Do not prefer
+  // src/test over src/jvmTest on the same product module.
   // packages/<name>/test beats integration/ and e2e/ at the same depth.
-  return sidecar * 16 + javaLayout * 8 + deferred * 4 + (catchAllOnly + fuzzBench) * 2 + hyphenSat;
+  return (
+    sidecar * 16 +
+    javaLayout * 8 +
+    deferred * 4 +
+    (catchAllOnly + fuzzBench) * 2 +
+    Math.max(hyphenSat, otherModuleSrcTest)
+  );
 }
 
 function rankTestFileHits(files, languages, repoFiles) {
