@@ -451,29 +451,78 @@ function isJavaTestFile(file) {
   return globMatch(name, "*Test.java") || globMatch(name, "*Tests.java");
 }
 
+function isKotlinTestFile(file) {
+  const name = posixBasename(file);
+  return (
+    globMatch(name, "*Test.kt") || globMatch(name, "*Tests.kt") || globMatch(name, "*Spec.kt")
+  );
+}
+
+function isJvmTestFile(file) {
+  return isJavaTestFile(file) || isKotlinTestFile(file);
+}
+
 function treeHasJavaManifest(files) {
   return files.includes("pom.xml") || files.includes("build.gradle") || files.includes("build.gradle.kts");
 }
 
+// Gradle/Maven language source sets. Consecutive `src/<set>` is one first-hit
+// class: do not prefer `src/test` over `src/jvmTest`.
+const JVM_TEST_SOURCE_SETS = new Set([
+  "test",
+  "jvmtest",
+  "androidtest",
+  "androidunittest",
+  "commontest",
+]);
+
 function isJavaSrcTestPath(file) {
   const parts = file.split("/");
   for (let i = 0; i < parts.length - 1; i += 1) {
-    if (parts[i].toLowerCase() === "src" && parts[i + 1].toLowerCase() === "test") return true;
+    if (parts[i].toLowerCase() === "src" && JVM_TEST_SOURCE_SETS.has(parts[i + 1].toLowerCase())) {
+      return true;
+    }
   }
   return false;
 }
 
 function javaTestLayoutRank(file) {
-  if (!isJavaTestFile(file)) return 0;
+  if (!isJvmTestFile(file)) return 0;
   return isJavaSrcTestPath(file) ? 0 : 1;
 }
 
 function preferJavaSrcTestHits(files) {
-  const javaHits = files.filter(isJavaTestFile);
+  const javaHits = files.filter(isJvmTestFile);
   if (javaHits.length === 0) return files;
   const srcTestHits = javaHits.filter(isJavaSrcTestPath);
   if (srcTestHits.length === 0) return files;
-  return files.filter((file) => !isJavaTestFile(file) || isJavaSrcTestPath(file));
+  return files.filter((file) => !isJvmTestFile(file) || isJavaSrcTestPath(file));
+}
+
+// `foo-tls` is a satellite of sibling module `foo` when both appear as whole
+// path segments. Lex would pick `foo-tls` over `foo` (`-` < `/`); a satellite
+// with only `src/test` must not beat a product module with `src/jvmTest`.
+function isHyphenSatellitePath(file, hits) {
+  const parts = file.split("/");
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    const part = parts[i];
+    let from = 1;
+    while (from < part.length) {
+      const dash = part.indexOf("-", from);
+      if (dash < 0) break;
+      const prefix = part.slice(0, dash);
+      const sibling = [...parts.slice(0, i), prefix].join("/");
+      const prefixDir = `${sibling}/`;
+      if (hits.some((hit) => hit === sibling || hit.startsWith(prefixDir))) return true;
+      from = dash + 1;
+    }
+  }
+  return false;
+}
+
+function preferProductModuleHits(files) {
+  const productHits = files.filter((file) => !isHyphenSatellitePath(file, files));
+  return productHits.length > 0 ? productHits : files;
 }
 
 function deferJsTestSidecarForJava(repoFiles) {
@@ -596,14 +645,18 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // so they do not beat jest.config.* / FooTests.cs. A Fuzz-only tree still names Fuzz.
   const ranked = dropDeferredCsharpTestsWhenOtherHitsExist(afterJs);
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer, then
-  // prefer Java src/test over src/main / bare src/, then defer
+  // prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
+  // src/androidUnitTest / src/commonTest over src/main / bare src/, then prefer
+  // a product module over a hyphen satellite (foo/ over foo-tls/), then defer
   // benchmarks/fuzz/fixtures/samples/testlib/mock path segments (same class as
-  // containerization sample/integration). A benchmark-only or testlib-only tree
-  // still names that file. Java-primary trees prefer *Test.java over sidecar
-  // Python test_*.py / *_test.py; a Java tree with only Python still names Python.
+  // containerization sample/integration). A benchmark-only, testlib-only, or
+  // jvmTest-only tree still names that file. Java-primary trees prefer
+  // *Test.java over sidecar Python test_*.py / *_test.py; a Java tree with only
+  // Python still names Python.
   const afterScript = productTestScriptHits(ranked);
   const afterJavaLayout = preferJavaSrcTestHits(afterScript);
-  const afterDefer = productTestFileFirstHits(afterJavaLayout);
+  const afterProductModule = preferProductModuleHits(afterJavaLayout);
+  const afterDefer = productTestFileFirstHits(afterProductModule);
   const withoutPySidecar = deferPythonTestSidecarForJava(repoFiles)
     ? afterDefer.filter((file) => !isPythonTestFile(file))
     : afterDefer;
@@ -711,22 +764,25 @@ function testFileSidecarLanguageRank(file, languages, repoFiles) {
   return 0;
 }
 
-function testFileFirstHitRank(file, languages, repoFiles) {
+function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const sidecar = testFileSidecarLanguageRank(file, languages, repoFiles);
   const javaLayout = javaTestLayoutRank(file);
   const deferred = isDeferredTestFileFirstHit(file) ? 1 : 0;
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
-  // sidecar (JS/Python) > Java src/main vs src/test > testlib/mock defer >
-  // catch-all / C# fuzz basename. Product src/test Java beats mock src/test,
-  // which beats src/main API *Test.java, which still beats sidecar Python.
-  return sidecar * 8 + javaLayout * 4 + deferred * 2 + catchAllOnly + fuzzBench;
+  const hyphenSat = isHyphenSatellitePath(file, hits) ? 1 : 0;
+  // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock
+  // defer > catch-all / C# fuzz basename > hyphen satellite. Product src/jvmTest
+  // Java beats satellite src/test, which still beats src/main API *Test.java,
+  // which still beats sidecar Python. Do not prefer src/test over src/jvmTest.
+  return sidecar * 16 + javaLayout * 8 + deferred * 4 + (catchAllOnly + fuzzBench) * 2 + hyphenSat;
 }
 
 function rankTestFileHits(files, languages, repoFiles) {
   return [...files].sort((a, b) => {
     const rank =
-      testFileFirstHitRank(a, languages, repoFiles) - testFileFirstHitRank(b, languages, repoFiles);
+      testFileFirstHitRank(a, languages, repoFiles, files) -
+      testFileFirstHitRank(b, languages, repoFiles, files);
     if (rank !== 0) return rank;
     return comparePathDepth(a, b);
   });
