@@ -107,6 +107,15 @@ function pathHasExactOrHyphenSuffixIgnoreCase(file, names) {
   });
 }
 
+function pathHasHyphenSuffixIgnoreCase(file, names) {
+  if (!names?.length) return false;
+  const wanted = names.map((name) => name.toLowerCase());
+  return file.split("/").some((part) => {
+    const lower = part.toLowerCase();
+    return wanted.some((name) => lower.endsWith(`-${name}`));
+  });
+}
+
 function pathHasIgnoredVersionPin(file) {
   const parts = file.split("/");
   for (let i = 0; i < parts.length; i += 1) {
@@ -174,8 +183,12 @@ const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = [
 // Trailing hyphen component (case-insensitive): foo-testlib, foo-integration-tests,
 // foo-processor, foo-keeper, integration-testing / foo-testing. Not a letter suffix:
 // automock is not testlib; contesting is not testing. Exact mock/mocks/support and
-// integration/e2e live in TEST_FILE_FIRST_HIT_DEFER_SEGMENTS. Do not treat a path
-// that merely contains the letters testing (src/commonTest) as deferred.
+// integration/e2e live in TEST_FILE_FIRST_HIT_DEFER_SEGMENTS. Exact segment
+// `testing` is a product test dir, not this satellite class; only a hyphen
+// suffix `-testing` (or the full token `integration-testing`) defers. Do not
+// treat a path that merely contains the letters testing (src/commonTest) as
+// deferred. Exact `bench` stays with benchmarks/fuzz so leftover cannot land
+// on bench/ when a product test dir exists.
 const TEST_FILE_FIRST_HIT_DEFER_SUFFIXES = [
   "testlib",
   "integration-test",
@@ -184,8 +197,8 @@ const TEST_FILE_FIRST_HIT_DEFER_SUFFIXES = [
   "support-tests",
   "processor",
   "keeper",
-  "testing",
 ];
+const TEST_FILE_FIRST_HIT_DEFER_HYPHEN_SUFFIXES = ["testing"];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
 
@@ -255,6 +268,7 @@ function isDeferredTestFileFirstHit(file) {
   return (
     pathHasSegmentsIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ||
     pathHasExactOrHyphenSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SUFFIXES) ||
+    pathHasHyphenSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_HYPHEN_SUFFIXES) ||
     isDeferredDocsOrTemplateTestFile(file)
   );
 }
@@ -862,21 +876,22 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // so they do not beat jest.config.* / FooTests.cs. A Fuzz-only tree still names Fuzz.
   const ranked = dropDeferredCsharpTestsWhenOtherHitsExist(afterJs);
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer, then
-  // defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
+  // defer benchmarks/fuzz/bench/fixtures/samples/testlib/mock/integration/e2e/
   // processor/keeper/integration-testing/-testing/docs/doc/.template path
   // segments (same class as containerization sample/integration; docs/template
   // apply to named test files, not package.json / vitest.config) before unit
   // source-set preference so a smoke file under src/commonTest cannot cancel
   // integration-testing / -testing defer when another language-native product
-  // test exists, then prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
+  // test exists. Exact segment `testing` is not that satellite class. Then
+  // prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
   // src/androidUnitTest / src/commonTest / consecutive common/test (no src/)
   // over src/main / bare src/, then prefer a product module over a hyphen
   // satellite (foo/ over foo-tls/), then prefer consecutive src/jvmTest over
   // src/test in other modules (foo/ over bar/), then prefer src/jvmTest over
   // src/commonTest when both exist, then prefer unit source sets over
-  // instrumented src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
-  // src/test-only, commonTest-only, common/test-only, androidTest-only, docs-only,
-  // template-only, integration-only, e2e-only,
+  // instrumented src/androidTest. A benchmark-only, bench-only, testlib-only,
+  // testing-only, jvmTest-only, src/test-only, commonTest-only, common/test-only,
+  // androidTest-only, docs-only, template-only, integration-only, e2e-only,
   // integration-testing-only, or satellite-only tree still names that file.
   // Java-primary trees prefer *Test.java over sidecar Python test_*.py /
   // *_test.py; a Java tree with only Python still names Python.
@@ -1055,8 +1070,10 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   // sidecar (JS/Python) > catch-all (`**/*.test.*` / `**/*.spec.*`) so a
   // language-native glob cannot lose to docs/foo.test.template > testlib/mock/
   // integration/e2e/keeper/docs/doc/.template /integration-testing/-testing defer
-  // so a unit source set under src/commonTest cannot cancel that defer > Java
-  // src/main vs src/test|jvmTest|commonTest|common/test > C# fuzz basename >
+  // so a unit source set under src/commonTest cannot cancel that defer. Exact
+  // segment `testing` is not that satellite class; hyphen `foo-testing` still
+  // is. Exact `bench` stays with benchmarks/fuzz. Then Java src/main vs
+  // src/test|jvmTest|commonTest|common/test > C# fuzz basename >
   // hyphen satellite / other-module src/test when a src/jvmTest hit exists /
   // src/commonTest when a src/jvmTest hit exists > instrumented src/androidTest.
   // Product src/jvmTest Java beats sibling src/test (bar/) and satellite src/test
@@ -1070,10 +1087,12 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   // still beats a hyphen satellite's src/test. packages/<name>/test beats
   // integration/ and e2e/ at the same depth. Product src/commonTest and
   // common/test beat integration-testing/ even when the smoke file sits under
-  // src/commonTest. Language-native `**/*Test.kt` / `**/test/**/*Test.kt` /
+  // src/commonTest. Product testing/ beats deferred bench/ and hyphen
+  // foo-testing/. Language-native `**/*Test.kt` / `**/test/**/*Test.kt` /
   // `**/*_test.go` beat catch-alls (foo/common/test/FooTest.kt over
   // docs/foo.test.template). A docs-only, template-only, commonTest-only,
-  // common/test-only, or integration-testing-only tree still names that file.
+  // common/test-only, testing-only, bench-only, or integration-testing-only
+  // tree still names that file.
   return (
     sidecar * 64 +
     catchAllOnly * 32 +
