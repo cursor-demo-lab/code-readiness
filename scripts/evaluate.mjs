@@ -98,12 +98,12 @@ function pathHasSegmentsIgnoreCase(file, segments) {
   return file.split("/").some((part) => wanted.has(part.toLowerCase()));
 }
 
-function pathHasSegmentNameOrSuffixIgnoreCase(file, names) {
+function pathHasExactOrHyphenSuffixIgnoreCase(file, names) {
   if (!names?.length) return false;
   const wanted = names.map((name) => name.toLowerCase());
   return file.split("/").some((part) => {
     const lower = part.toLowerCase();
-    return wanted.some((name) => lower === name || lower.endsWith(name));
+    return wanted.some((name) => lower === name || lower.endsWith(`-${name}`));
   });
 }
 
@@ -162,20 +162,23 @@ const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = [
   "installer",
   "examples",
   "abi",
+  "integration",
+  "e2e",
+  "mock",
+  "mocks",
+  "support",
   ...STYLE_FIRST_HIT_DEFER_SEGMENTS,
   ...STYLE_FIRST_HIT_SAMPLE_SEGMENTS,
   ...TEST_FILE_FIRST_HIT_FUZZ_BENCH_SEGMENTS,
 ];
-// Whole segment name is or ends with these (case-insensitive): Java testlib /
-// mock / integration-test / support modules. Exact-name list above stays exact.
+// Trailing hyphen component (case-insensitive): foo-testlib, foo-integration-tests.
+// Not a letter suffix: automock is not testlib. Exact mock/mocks/support and
+// integration/e2e live in TEST_FILE_FIRST_HIT_DEFER_SEGMENTS.
 const TEST_FILE_FIRST_HIT_DEFER_SUFFIXES = [
   "testlib",
-  "mock",
-  "mocks",
   "integration-test",
   "integration-tests",
   "support-tests",
-  "support",
 ];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
@@ -222,7 +225,7 @@ function productContainerHits(files) {
 function isDeferredTestFileFirstHit(file) {
   return (
     pathHasSegmentsIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ||
-    pathHasSegmentNameOrSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SUFFIXES)
+    pathHasExactOrHyphenSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SUFFIXES)
   );
 }
 
@@ -648,11 +651,11 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
   // src/androidUnitTest / src/commonTest over src/main / bare src/, then prefer
   // a product module over a hyphen satellite (foo/ over foo-tls/), then defer
-  // benchmarks/fuzz/fixtures/samples/testlib/mock path segments (same class as
-  // containerization sample/integration). A benchmark-only, testlib-only, or
-  // jvmTest-only tree still names that file. Java-primary trees prefer
-  // *Test.java over sidecar Python test_*.py / *_test.py; a Java tree with only
-  // Python still names Python.
+  // benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e path segments
+  // (same class as containerization sample/integration). A benchmark-only,
+  // testlib-only, jvmTest-only, integration-only, or e2e-only tree still names
+  // that file. Java-primary trees prefer *Test.java over sidecar Python
+  // test_*.py / *_test.py; a Java tree with only Python still names Python.
   const afterScript = productTestScriptHits(ranked);
   const afterJavaLayout = preferJavaSrcTestHits(afterScript);
   const afterProductModule = preferProductModuleHits(afterJavaLayout);
@@ -771,10 +774,11 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const catchAllOnly = matchesLanguageTestGlob(file) ? 0 : 1;
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
   const hyphenSat = isHyphenSatellitePath(file, hits) ? 1 : 0;
-  // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock
+  // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock/integration/e2e
   // defer > catch-all / C# fuzz basename > hyphen satellite. Product src/jvmTest
   // Java beats satellite src/test, which still beats src/main API *Test.java,
   // which still beats sidecar Python. Do not prefer src/test over src/jvmTest.
+  // packages/<name>/test beats integration/ and e2e/ at the same depth.
   return sidecar * 16 + javaLayout * 8 + deferred * 4 + (catchAllOnly + fuzzBench) * 2 + hyphenSat;
 }
 
