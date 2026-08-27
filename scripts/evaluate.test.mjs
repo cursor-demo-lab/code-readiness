@@ -3771,6 +3771,107 @@ const javaSrcTestOverSupport = assertJavaFirstHit(
 );
 assert.equal(javaSrcTestOverSupport["test-files-exist"].pass, true);
 
+const javaJvmTestOverSatellite = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/java/FooTest.java": "class FooTest {}\n",
+    "foo-tls/src/test/java/TlsTest.java": "class TlsTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /TlsTest/ },
+);
+assert.match(
+  javaJvmTestOverSatellite["test-files-exist"].details,
+  /^foo\/src\/jvmTest\/java\/FooTest\.java\b/,
+);
+
+const javaJvmTestOverMain = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/jvmTest/java/FooTest.java": "class FooTest {}\n",
+    "src/main/java/DynamicTest.java": "class DynamicTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /DynamicTest/ },
+);
+assert.equal(javaJvmTestOverMain["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+
+const javaJvmTestOnly = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "src/jvmTest/java/FooTest.java": "class FooTest {}\n",
+});
+assert.equal(javaJvmTestOnly["test-framework"].pass, true, javaJvmTestOnly["test-framework"].message);
+assert.match(javaJvmTestOnly["test-framework"].message, /FooTest\.java/);
+assert.equal(javaJvmTestOnly["test-files-exist"].pass, true, javaJvmTestOnly["test-files-exist"].message);
+assert.match(javaJvmTestOnly["test-files-exist"].message, /jvmTest/);
+
+const javaSatelliteSrcTestOnly = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "foo-tls/src/test/java/TlsTest.java": "class TlsTest {}\n",
+});
+assert.equal(
+  javaSatelliteSrcTestOnly["test-framework"].pass,
+  true,
+  javaSatelliteSrcTestOnly["test-framework"].message,
+);
+assert.match(javaSatelliteSrcTestOnly["test-framework"].message, /TlsTest\.java/);
+assert.equal(
+  javaSatelliteSrcTestOnly["test-files-exist"].pass,
+  true,
+  javaSatelliteSrcTestOnly["test-files-exist"].message,
+);
+assert.match(javaSatelliteSrcTestOnly["test-files-exist"].message, /TlsTest\.java/);
+
+const javaAndroidTestOverSatellite = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/androidTest/java/FooTest.java": "class FooTest {}\n",
+    "foo-tls/src/test/java/TlsTest.java": "class TlsTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /TlsTest/ },
+);
+assert.equal(javaAndroidTestOverSatellite["test-framework"].pass, true);
+
+const javaAndroidUnitTestOverSatellite = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/androidUnitTest/java/FooTest.java": "class FooTest {}\n",
+    "foo-tls/src/test/java/TlsTest.java": "class TlsTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /TlsTest/ },
+);
+assert.equal(javaAndroidUnitTestOverSatellite["test-framework"].pass, true);
+
+const javaCommonTestOverSatellite = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/commonTest/java/FooTest.java": "class FooTest {}\n",
+    "foo-tls/src/test/java/TlsTest.java": "class TlsTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /TlsTest/ },
+);
+assert.equal(javaCommonTestOverSatellite["test-framework"].pass, true);
+
+const kotlinJvmTestOverSatellite = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
+  "foo-tls/src/test/java/TlsTest.java": "class TlsTest {}\n",
+});
+assert.equal(
+  kotlinJvmTestOverSatellite["test-files-exist"].pass,
+  true,
+  kotlinJvmTestOverSatellite["test-files-exist"].message,
+);
+assert.match(kotlinJvmTestOverSatellite["test-files-exist"].message, /FooTest\.kt/);
+assert.equal(
+  /TlsTest/.test(kotlinJvmTestOverSatellite["test-files-exist"].message),
+  false,
+  kotlinJvmTestOverSatellite["test-files-exist"].message,
+);
+
 const javaSrcTestOverTestlibCase = assertJavaFirstHit(
   {
     "build.gradle": "plugins { java }\n",
@@ -6082,6 +6183,11 @@ assert.match(rootReadme, /A Java tree with only JS tests still passes/);
 assert.match(rootReadme, /Java-primary/);
 assert.match(rootReadme, /A Java tree with only Python tests still passes/);
 assert.match(rootReadme, /src\/test\/java\/FooTest\.java/);
+assert.match(rootReadme, /src\/jvmTest/);
+assert.match(rootReadme, /foo\/src\/jvmTest\/java\/FooTest\.java/);
+assert.match(rootReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
+assert.match(rootReadme, /A jvmTest-only tree still passes/);
+assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(rootReadme, /A testlib-only tree still passes/);
 assert.match(rootReadme, /foo-testlib/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
@@ -6163,6 +6269,11 @@ assert.match(skillMd, /A Java tree with only JS tests still passes/);
 assert.match(skillMd, /Java-primary/);
 assert.match(skillMd, /A Java tree with only Python tests still passes/);
 assert.match(skillMd, /src\/test\/java\/FooTest\.java/);
+assert.match(skillMd, /src\/jvmTest/);
+assert.match(skillMd, /foo\/src\/jvmTest\/java\/FooTest\.java/);
+assert.match(skillMd, /foo-tls\/src\/test\/java\/TlsTest\.java/);
+assert.match(skillMd, /A jvmTest-only tree still passes/);
+assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(skillMd, /A testlib-only tree still passes/);
 assert.match(skillMd, /foo-testlib/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
@@ -6319,6 +6430,11 @@ assert.match(checksReadme, /A Java tree with only JS tests still passes/);
 assert.match(checksReadme, /Java-primary/);
 assert.match(checksReadme, /A Java tree with only Python tests still passes/);
 assert.match(checksReadme, /src\/test\/java\/FooTest\.java/);
+assert.match(checksReadme, /src\/jvmTest/);
+assert.match(checksReadme, /foo\/src\/jvmTest\/java\/FooTest\.java/);
+assert.match(checksReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
+assert.match(checksReadme, /A jvmTest-only tree still passes/);
+assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(checksReadme, /A testlib-only tree still passes/);
 assert.match(checksReadme, /foo-testlib/);
 assert.match(checksReadme, /A C# tree with only JS tests still passes/);
@@ -6368,6 +6484,13 @@ for (const file of [
 ]) {
   const text = fs.readFileSync(file, "utf8");
   assert.equal(productRepoLiteral.test(text), false, file);
+}
+const evaluateProductRepoLiteral =
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript/i;
+{
+  const file = path.join(skillRoot(), "scripts", "evaluate.mjs");
+  const text = fs.readFileSync(file, "utf8");
+  assert.equal(evaluateProductRepoLiteral.test(text), false, file);
 }
 
 function walkTextFiles(dir, acc = []) {
