@@ -4578,6 +4578,53 @@ assert.equal(
 );
 assert.equal(productCommonTestOverIntegrationTesting["test-framework"].pass, true);
 
+const productCommonSlashTestOverIntegrationTestingSmoke = assertJavaFirstHit(
+  {
+    "foo/common/test/FooTest.kt": "class FooTest\n",
+    "integration-testing/smoke/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /foo\/common\/test\/FooTest\.kt/,
+  { not: /integration-testing|SampleTest/ },
+);
+assert.equal(
+  productCommonSlashTestOverIntegrationTestingSmoke["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+assert.equal(productCommonSlashTestOverIntegrationTestingSmoke["test-framework"].pass, true);
+
+const productCommonSlashTestOverOtherModuleSrcCommonTest = assertJavaFirstHit(
+  {
+    "foo/common/test/FooTest.kt": "class FooTest\n",
+    "bar/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /foo\/common\/test\/FooTest\.kt/,
+  { not: /src\/commonTest|SampleTest/ },
+);
+assert.equal(productCommonSlashTestOverOtherModuleSrcCommonTest["test-files-exist"].pass, true);
+
+const srcCommonTestEqualsSrcTestSameModule = assertJavaFirstHit(
+  {
+    "foo/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
+    "foo/src/test/kotlin/BarTest.kt": "class BarTest\n",
+  },
+  /foo\/src\/commonTest\/kotlin\/FooTest\.kt/,
+  { not: /src\/test\/kotlin|BarTest/ },
+);
+assert.equal(
+  srcCommonTestEqualsSrcTestSameModule["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const productCommonSlashTestOverTestingSuffix = assertJavaFirstHit(
+  {
+    "foo/common/test/FooTest.kt": "class FooTest\n",
+    "foo-testing/src/commonTest/kotlin/SampleTest.kt": "class SampleTest\n",
+  },
+  /foo\/common\/test\/FooTest\.kt/,
+  { not: /foo-testing|SampleTest/ },
+);
+assert.equal(productCommonSlashTestOverTestingSuffix["test-framework"].pass, true);
+
 const productCommonTestOverIntegrationTestingSameDepth = assertJavaFirstHit(
   {
     "zoo/src/commonTest/kotlin/FooTest.kt": "class FooTest\n",
@@ -4606,6 +4653,15 @@ const integrationTestingOnlyStillPasses = assertJavaFirstHit(
 );
 assert.equal(integrationTestingOnlyStillPasses["test-files-exist"].pass, true);
 assert.equal(integrationTestingOnlyStillPasses["test-framework"].pass, true);
+
+const commonSlashTestOnlyStillPasses = assertJavaFirstHit(
+  {
+    "foo/common/test/FooTest.kt": "class FooTest\n",
+  },
+  /foo\/common\/test\/FooTest\.kt/,
+);
+assert.equal(commonSlashTestOnlyStillPasses["test-files-exist"].pass, true);
+assert.equal(commonSlashTestOnlyStillPasses["test-framework"].pass, true);
 
 const testingLettersInSegmentNotDeferred = assertJavaFirstHit(
   {
@@ -7346,6 +7402,9 @@ assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(rootReadme, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
 assert.match(rootReadme, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
 assert.match(rootReadme, /A commonTest-only tree still passes/);
+assert.match(rootReadme, /A common\/test-only tree still passes/);
+assert.match(rootReadme, /Consecutive `common\/test`/);
+assert.match(rootReadme, /does not cancel that defer/);
 assert.match(rootReadme, /foo\/common\/test\/FooTest\.kt/);
 assert.match(rootReadme, /docs\/foo\.test\.template/);
 assert.match(rootReadme, /docs\/example\.test\.js/);
@@ -7473,6 +7532,9 @@ assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(skillMd, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
 assert.match(skillMd, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
 assert.match(skillMd, /A commonTest-only tree still passes/);
+assert.match(skillMd, /A common\/test-only tree still passes/);
+assert.match(skillMd, /Consecutive `common\/test`/);
+assert.match(skillMd, /does not cancel that defer/);
 assert.match(skillMd, /foo\/common\/test\/FooTest\.kt/);
 assert.match(skillMd, /docs\/foo\.test\.template/);
 assert.match(skillMd, /docs\/example\.test\.js/);
@@ -7690,6 +7752,9 @@ assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(checksReadme, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
 assert.match(checksReadme, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
 assert.match(checksReadme, /A commonTest-only tree still passes/);
+assert.match(checksReadme, /A common\/test-only tree still passes/);
+assert.match(checksReadme, /Consecutive `common\/test`/);
+assert.match(checksReadme, /does not cancel that defer/);
 assert.match(checksReadme, /foo\/common\/test\/FooTest\.kt/);
 assert.match(checksReadme, /docs\/foo\.test\.template/);
 assert.match(checksReadme, /docs\/example\.test\.js/);
