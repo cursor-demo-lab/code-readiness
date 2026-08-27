@@ -5826,6 +5826,139 @@ assertPass(
   },
   /^Found packages\/utils\.js\/tsconfig\.json$/,
 );
+const productOverFooHealthcheck = evalTree({
+  "packages/foo-runtime/tsconfig.json": "{}\n",
+  "packages/foo-healthcheck/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverFooHealthcheck["type-checker"].pass,
+  true,
+  productOverFooHealthcheck["type-checker"].message,
+);
+assert.match(
+  productOverFooHealthcheck["type-checker"].message,
+  /^Found packages\/foo-runtime\/tsconfig\.json$/,
+);
+assert.equal(
+  /foo-healthcheck/.test(productOverFooHealthcheck["type-checker"].message),
+  false,
+  productOverFooHealthcheck["type-checker"].message,
+);
+const nestedProductOverFooHealthcheck = evalTree({
+  "compiler/packages/foo-runtime/tsconfig.json": "{}\n",
+  "compiler/packages/foo-healthcheck/tsconfig.json": "{}\n",
+});
+assert.equal(
+  nestedProductOverFooHealthcheck["type-checker"].pass,
+  true,
+  nestedProductOverFooHealthcheck["type-checker"].message,
+);
+assert.match(
+  nestedProductOverFooHealthcheck["type-checker"].message,
+  /^Found compiler\/packages\/foo-runtime\/tsconfig\.json$/,
+);
+assert.equal(
+  /foo-healthcheck/.test(nestedProductOverFooHealthcheck["type-checker"].message),
+  false,
+  nestedProductOverFooHealthcheck["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-healthcheck/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/healthcheck/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-cli/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-bin/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/cli/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-cmd/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-tools/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/foo-healthcheck/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/zzz\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-healthcheck/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-healthcheck\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/healthcheck/tsconfig.json": "{}\n" },
+  /^Found packages\/healthcheck\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "compiler/packages/foo-healthcheck/tsconfig.json": "{}\n" },
+  /^Found compiler\/packages\/foo-healthcheck\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-cli/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-cli\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-bin/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-bin\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/healthcheck.js/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/healthcheck\.js\/tsconfig\.json$/,
+);
 const pkgOverNestedPlayground = evalTree({
   "packages/foo/tsconfig.json": "{}\n",
   "compiler/apps/playground/tsconfig.json": "{}\n",
@@ -7188,9 +7321,14 @@ assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(rootReadme, /A plugin-only tree still passes/);
 assert.match(rootReadme, /A playground-only tree still passes/);
 assert.match(rootReadme, /A util-only tree still passes/);
+assert.match(rootReadme, /A healthcheck-only tree still passes/);
 assert.match(rootReadme, /make-read-only-util/);
 assert.match(rootReadme, /foo-util/);
+assert.match(rootReadme, /foo-healthcheck/);
+assert.match(rootReadme, /foo-runtime/);
+assert.match(rootReadme, /foo-cli/);
 assert.match(rootReadme, /utils\.js/);
+assert.match(rootReadme, /healthcheck\.js/);
 assert.match(rootReadme, /packages\/eslint-plugin-foo/);
 assert.match(rootReadme, /packages\/babel-plugin-foo/);
 assert.match(rootReadme, /compiler\/packages\/foo-plugin/);
@@ -7310,9 +7448,14 @@ assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
 assert.match(skillMd, /A plugin-only tree still passes/);
 assert.match(skillMd, /A playground-only tree still passes/);
 assert.match(skillMd, /A util-only tree still passes/);
+assert.match(skillMd, /A healthcheck-only tree still passes/);
 assert.match(skillMd, /make-read-only-util/);
 assert.match(skillMd, /foo-util/);
+assert.match(skillMd, /foo-healthcheck/);
+assert.match(skillMd, /foo-runtime/);
+assert.match(skillMd, /foo-cli/);
 assert.match(skillMd, /utils\.js/);
+assert.match(skillMd, /healthcheck\.js/);
 assert.match(skillMd, /packages\/eslint-plugin-foo/);
 assert.match(skillMd, /packages\/babel-plugin-foo/);
 assert.match(skillMd, /compiler\/packages\/foo-plugin/);
@@ -7410,9 +7553,14 @@ assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/)
 assert.match(checksReadme, /A plugin-only tree still passes/);
 assert.match(checksReadme, /A playground-only tree still passes/);
 assert.match(checksReadme, /A util-only tree still passes/);
+assert.match(checksReadme, /A healthcheck-only tree still passes/);
 assert.match(checksReadme, /make-read-only-util/);
 assert.match(checksReadme, /foo-util/);
+assert.match(checksReadme, /foo-healthcheck/);
+assert.match(checksReadme, /foo-runtime/);
+assert.match(checksReadme, /foo-cli/);
 assert.match(checksReadme, /utils\.js/);
+assert.match(checksReadme, /healthcheck\.js/);
 assert.match(checksReadme, /packages\/eslint-plugin-foo/);
 assert.match(checksReadme, /packages\/babel-plugin-foo/);
 assert.match(checksReadme, /compiler\/packages\/foo-plugin/);
