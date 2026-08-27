@@ -172,15 +172,19 @@ const TEST_FILE_FIRST_HIT_DEFER_SEGMENTS = [
   ...TEST_FILE_FIRST_HIT_FUZZ_BENCH_SEGMENTS,
 ];
 // Trailing hyphen component (case-insensitive): foo-testlib, foo-integration-tests,
-// foo-processor, foo-keeper. Not a letter suffix: automock is not testlib.
-// Exact mock/mocks/support and integration/e2e live in TEST_FILE_FIRST_HIT_DEFER_SEGMENTS.
+// foo-processor, foo-keeper, integration-testing / foo-testing. Not a letter suffix:
+// automock is not testlib; contesting is not testing. Exact mock/mocks/support and
+// integration/e2e live in TEST_FILE_FIRST_HIT_DEFER_SEGMENTS. Do not treat a path
+// that merely contains the letters testing (src/commonTest) as deferred.
 const TEST_FILE_FIRST_HIT_DEFER_SUFFIXES = [
   "testlib",
   "integration-test",
   "integration-tests",
+  "integration-testing",
   "support-tests",
   "processor",
   "keeper",
+  "testing",
 ];
 const TEST_FILE_CATCH_ALL_GLOBS = new Set(["**/*.test.*", "**/*.spec.*"]);
 const BASENAME_GLOB_ANY_DEPTH_IDS = new Set(["linter", "formatter", "test-framework"]);
@@ -693,13 +697,13 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // a product module over a hyphen satellite (foo/ over foo-tls/), then prefer
   // consecutive src/jvmTest over src/test in other modules (foo/ over bar/),
   // then defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
-  // processor/keeper path segments (same class as containerization
-  // sample/integration), then prefer unit source sets over instrumented
-  // src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
-  // src/test-only, androidTest-only, integration-only, e2e-only, or
-  // satellite-only tree still names that file. Java-primary trees prefer
-  // *Test.java over sidecar Python test_*.py / *_test.py; a Java tree with
-  // only Python still names Python.
+  // processor/keeper/integration-testing/-testing path segments (same class as
+  // containerization sample/integration), then prefer unit source sets over
+  // instrumented src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
+  // src/test-only, androidTest-only, integration-only, e2e-only,
+  // integration-testing-only, or satellite-only tree still names that file.
+  // Java-primary trees prefer *Test.java over sidecar Python test_*.py /
+  // *_test.py; a Java tree with only Python still names Python.
   const afterScript = productTestScriptHits(ranked);
   const afterJavaLayout = preferJavaSrcTestHits(afterScript);
   const afterProductModule = preferProductModuleHits(afterJavaLayout);
@@ -843,14 +847,16 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const otherModuleSrcTest = isOtherModuleSrcTestWhenJvmTestExists(file, hits) ? 1 : 0;
   const instrumented = isJvmTestFile(file) && isJvmInstrumentedSourceSetPath(file) ? 1 : 0;
   // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock/integration/e2e/keeper
-  // defer > catch-all / C# fuzz basename > hyphen satellite / other-module src/test
-  // when a src/jvmTest hit exists > instrumented src/androidTest. Product
-  // src/jvmTest Java beats sibling src/test (bar/) and satellite src/test
-  // (foo-tls/), which still beat src/main API *Test.java, which still beats
-  // sidecar Python. Unit source sets beat instrumented src/androidTest when
-  // both exist. Do not prefer src/test over src/jvmTest on the same product
-  // module. Product instrumented still beats a hyphen satellite's src/test.
-  // packages/<name>/test beats integration/ and e2e/ at the same depth.
+  // /integration-testing/-testing defer > catch-all / C# fuzz basename > hyphen
+  // satellite / other-module src/test when a src/jvmTest hit exists >
+  // instrumented src/androidTest. Product src/jvmTest Java beats sibling
+  // src/test (bar/) and satellite src/test (foo-tls/), which still beat
+  // src/main API *Test.java, which still beats sidecar Python. Unit source
+  // sets beat instrumented src/androidTest when both exist. Do not prefer
+  // src/test over src/jvmTest on the same product module. Product instrumented
+  // still beats a hyphen satellite's src/test. packages/<name>/test beats
+  // integration/ and e2e/ at the same depth. Product src/commonTest beats
+  // integration-testing/.
   return (
     sidecar * 32 +
     javaLayout * 16 +
