@@ -6213,6 +6213,122 @@ assertPass(
   },
   /^Found packages\/config\.js\/tsconfig\.json$/,
 );
+const numberedProductOverSharedNested = evalTree({
+  "packages/2-sql/tsconfig.json": "{}\n",
+  "packages/0-shared/publish-surface/tsconfig.json": "{}\n",
+});
+assert.equal(
+  numberedProductOverSharedNested["type-checker"].pass,
+  true,
+  numberedProductOverSharedNested["type-checker"].message,
+);
+assert.match(
+  numberedProductOverSharedNested["type-checker"].message,
+  /^Found packages\/2-sql\/tsconfig\.json$/,
+);
+assert.equal(
+  /0-shared/.test(numberedProductOverSharedNested["type-checker"].message),
+  false,
+  numberedProductOverSharedNested["type-checker"].message,
+);
+const productOverSharedPackage = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/0-shared/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverSharedPackage["type-checker"].pass,
+  true,
+  productOverSharedPackage["type-checker"].message,
+);
+assert.match(
+  productOverSharedPackage["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /0-shared/.test(productOverSharedPackage["type-checker"].message),
+  false,
+  productOverSharedPackage["type-checker"].message,
+);
+const numberedProductOverSharedPackage = evalTree({
+  "packages/2-sql/tsconfig.json": "{}\n",
+  "packages/0-shared/tsconfig.json": "{}\n",
+});
+assert.equal(
+  numberedProductOverSharedPackage["type-checker"].pass,
+  true,
+  numberedProductOverSharedPackage["type-checker"].message,
+);
+assert.match(
+  numberedProductOverSharedPackage["type-checker"].message,
+  /^Found packages\/2-sql\/tsconfig\.json$/,
+);
+assert.equal(
+  /0-shared/.test(numberedProductOverSharedPackage["type-checker"].message),
+  false,
+  numberedProductOverSharedPackage["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  { "packages/0-shared/tsconfig.json": "{}\n" },
+  /^Found packages\/0-shared\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/0-shared/publish-surface/tsconfig.json": "{}\n" },
+  /^Found packages\/0-shared\/publish-surface\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo/helper/tsconfig.json": "{}\n" },
+  /^Found packages\/foo\/helper\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-shared/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/shared/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-shared/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-shared\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/shared.js/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/shared\.js\/tsconfig\.json$/,
+);
+const productRootOverNestedHelper = evalTree({
+  "zzz/packages/foo/tsconfig.json": "{}\n",
+  "packages/bar/helper/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productRootOverNestedHelper["type-checker"].pass,
+  true,
+  productRootOverNestedHelper["type-checker"].message,
+);
+assert.match(
+  productRootOverNestedHelper["type-checker"].message,
+  /^Found zzz\/packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /helper/.test(productRootOverNestedHelper["type-checker"].message),
+  false,
+  productRootOverNestedHelper["type-checker"].message,
+);
 const pkgOverNestedPlayground = evalTree({
   "packages/foo/tsconfig.json": "{}\n",
   "compiler/apps/playground/tsconfig.json": "{}\n",
@@ -7725,10 +7841,14 @@ assert.match(rootReadme, /A playground-only tree still passes/);
 assert.match(rootReadme, /A util-only tree still passes/);
 assert.match(rootReadme, /A healthcheck-only tree still passes/);
 assert.match(rootReadme, /A config-only tree still passes/);
+assert.match(rootReadme, /A shared-only tree still passes/);
+assert.match(rootReadme, /A nested-only tree still passes/);
 assert.match(rootReadme, /0-config/);
+assert.match(rootReadme, /0-shared/);
 assert.match(rootReadme, /2-sql/);
 assert.match(rootReadme, /1-foo/);
 assert.match(rootReadme, /config\.js/);
+assert.match(rootReadme, /shared\.js/);
 assert.match(rootReadme, /make-read-only-util/);
 assert.match(rootReadme, /foo-util/);
 assert.match(rootReadme, /foo-healthcheck/);
@@ -7867,10 +7987,14 @@ assert.match(skillMd, /A playground-only tree still passes/);
 assert.match(skillMd, /A util-only tree still passes/);
 assert.match(skillMd, /A healthcheck-only tree still passes/);
 assert.match(skillMd, /A config-only tree still passes/);
+assert.match(skillMd, /A shared-only tree still passes/);
+assert.match(skillMd, /A nested-only tree still passes/);
 assert.match(skillMd, /0-config/);
+assert.match(skillMd, /0-shared/);
 assert.match(skillMd, /2-sql/);
 assert.match(skillMd, /1-foo/);
 assert.match(skillMd, /config\.js/);
+assert.match(skillMd, /shared\.js/);
 assert.match(skillMd, /make-read-only-util/);
 assert.match(skillMd, /foo-util/);
 assert.match(skillMd, /foo-healthcheck/);
@@ -7982,10 +8106,14 @@ assert.match(checksReadme, /A playground-only tree still passes/);
 assert.match(checksReadme, /A util-only tree still passes/);
 assert.match(checksReadme, /A healthcheck-only tree still passes/);
 assert.match(checksReadme, /A config-only tree still passes/);
+assert.match(checksReadme, /A shared-only tree still passes/);
+assert.match(checksReadme, /A nested-only tree still passes/);
 assert.match(checksReadme, /0-config/);
+assert.match(checksReadme, /0-shared/);
 assert.match(checksReadme, /2-sql/);
 assert.match(checksReadme, /1-foo/);
 assert.match(checksReadme, /config\.js/);
+assert.match(checksReadme, /shared\.js/);
 assert.match(checksReadme, /make-read-only-util/);
 assert.match(checksReadme, /foo-util/);
 assert.match(checksReadme, /foo-healthcheck/);
@@ -8136,6 +8264,15 @@ for (const file of [
 ]) {
   const text = fs.readFileSync(file, "utf8");
   assert.equal(productRepoLiteral.test(text), false, file);
+}
+{
+  const file = path.join(skillRoot(), "scripts", "evaluate.mjs");
+  const text = fs.readFileSync(file, "utf8");
+  assert.equal(
+    /prisma|publish-surface|tsdown|2-sql|9-public/.test(text),
+    false,
+    file,
+  );
 }
 const evaluateProductRepoLiteral =
   /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript|kotlinx|coroutines|docusaurus|\bzio\b/i;
