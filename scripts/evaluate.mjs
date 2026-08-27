@@ -890,9 +890,20 @@ function productTestFrameworkHits(files, languages, repoFiles) {
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
 const TYPE_CHECKER_SATELLITE_SEGMENTS = new Set(["plugin", "plugins", "hooks"]);
 // Trailing hyphen component (case-insensitive): foo-util, make-read-only-util,
-// foo-utils, foo-internal. Reuse the test-file exact-or-hyphen helper. Not a
-// letter suffix: utils.js / myutils are not util.
-const TYPE_CHECKER_SATELLITE_SUFFIXES = ["util", "utils", "internal"];
+// foo-utils, foo-internal, foo-healthcheck, foo-cli, foo-bin. Reuse the
+// test-file exact-or-hyphen helper. Not a letter suffix: utils.js / myutils
+// are not util; healthcheck.js is not healthcheck.
+const TYPE_CHECKER_SATELLITE_SUFFIXES = [
+  "util",
+  "utils",
+  "internal",
+  "healthcheck",
+  "cli",
+  "bin",
+  "cmd",
+  "tool",
+  "tools",
+];
 const TYPE_CHECKER_APPS_PLAYGROUND_SEGMENTS = ["apps", "playground"];
 
 function isTypeCheckerConfigHit(file) {
@@ -910,8 +921,9 @@ function isDeferredTypeCheckerConfig(file) {
 function isTypeCheckerSatellitePath(file) {
   // A segment containing `plugin` is the same satellite class as exact
   // plugin/plugins/hooks: foo-plugin, babel-plugin-foo, compiler-plugin.
-  // Trailing-hyphen util/utils/internal is the same satellite class
-  // (foo-util, make-read-only-util). Not a letter suffix (utils.js).
+  // Trailing-hyphen util/utils/internal/healthcheck/cli/bin/cmd/tool/tools
+  // is the same satellite class (foo-util, make-read-only-util,
+  // foo-healthcheck). Not a letter suffix (utils.js, healthcheck.js).
   return (
     file.split("/").some(
       (part) => part.includes("plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
