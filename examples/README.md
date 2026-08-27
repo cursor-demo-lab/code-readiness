@@ -8,7 +8,7 @@ One folder per OSS eval repo. Each folder is the full `/code-readiness` product 
 - `report.html` — self-contained Cursor Light render of that sidecar
 - `report.png` — full-length visual of the entire report (header through the failing-checks table)
 
-Scores are from the n=27 honesty campaign (engine `246cfb46`, v17). `llm_calls=0`. These are filesystem-heuristic scores against eval stubs, not live clones.
+Scores are from the n=27 honesty campaign (engine `246cfb46`, v17). `llm_calls=0`. These are filesystem-heuristic scores against eval stubs, not live clones. hashicorp/terraform and hashicorp/vault are additional Go/infra examples scored on current main (engine `6cddff6ee4627ef60a89028810d05b33e9c9e855`), `llm_calls=0`, filesystem-heuristic scores against sparse GitHub file-list stubs, not live clones.
 
 Every folder has a full-length `report.png`.
 
@@ -24,6 +24,8 @@ Every folder has a full-length `report.png`.
 | fastapi/fastapi | 2 Documented | 58% | [`fastapi__fastapi`](./fastapi__fastapi/) | [`report.png`](./fastapi__fastapi/report.png) |
 | gin-gonic/gin | 2 Documented | 58% | [`gin-gonic__gin`](./gin-gonic__gin/) | [`report.png`](./gin-gonic__gin/report.png) |
 | google/gson | 1 Functional | 50% | [`google__gson`](./google__gson/) | [`report.png`](./google__gson/report.png) |
+| hashicorp/terraform | 1 Functional | 60% | [`hashicorp__terraform`](./hashicorp__terraform/) | [`report.png`](./hashicorp__terraform/report.png) |
+| hashicorp/vault | 3 Standardized | 77% | [`hashicorp__vault`](./hashicorp__vault/) | [`report.png`](./hashicorp__vault/report.png) |
 | huggingface/diffusers | 2 Documented | 65% | [`huggingface__diffusers`](./huggingface__diffusers/) | [`report.png`](./huggingface__diffusers/report.png) |
 | huggingface/transformers | 2 Documented | 71% | [`huggingface__transformers`](./huggingface__transformers/) | [`report.png`](./huggingface__transformers/report.png) |
 | jqlang/jq | 1 Functional | 30% | [`jqlang__jq`](./jqlang__jq/) | [`report.png`](./jqlang__jq/report.png) |
