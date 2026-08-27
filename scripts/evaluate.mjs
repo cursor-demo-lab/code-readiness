@@ -725,8 +725,21 @@ function isRootTypeCheckerConfig(file) {
   return file === "tsconfig.json" || file === "jsconfig.json";
 }
 
+function isTypeCheckerTestOrFixturePath(file) {
+  return (
+    pathHasSegments(file, TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS) ||
+    pathHasSegments(file, ["fixtures", "testdata"])
+  );
+}
+
 function isPackagesProductTypeCheckerConfig(file) {
   if (isTypeCheckerSatellitePath(file)) return false;
+  // packages/<name>/ at any depth is not a product-package rank when a whole
+  // segment is test/tests/spec/__tests__/fixtures/testdata
+  // (packages/foo/tests/types/tsconfig.json). Another packages or root
+  // tsconfig outside those segments wins; a tests-only tree still names this
+  // file via the leftover deferred hits.
+  if (isTypeCheckerTestOrFixturePath(file)) return false;
   const parts = file.split("/");
   if (!isTypeCheckerConfigHit(parts[parts.length - 1])) return false;
   // packages/<name>/ at any depth (compiler/packages/foo/tsconfig.json), not

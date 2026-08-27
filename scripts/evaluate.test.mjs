@@ -4956,6 +4956,56 @@ assertPass(
   },
   /^Found packages\/foo\/tsconfig\.json$/,
 );
+const productOverNestedTestsTypes = evalTree({
+  "packages/foo/tests/types/tsconfig.json": "{}\n",
+  "packages/foo/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverNestedTestsTypes["type-checker"].pass,
+  true,
+  productOverNestedTestsTypes["type-checker"].message,
+);
+assert.match(
+  productOverNestedTestsTypes["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /tests\//.test(productOverNestedTestsTypes["type-checker"].message),
+  false,
+  productOverNestedTestsTypes["type-checker"].message,
+);
+const barOverFooTestsTsconfig = evalTree({
+  "packages/foo/tests/tsconfig.json": "{}\n",
+  "packages/bar/tsconfig.json": "{}\n",
+});
+assert.equal(
+  barOverFooTestsTsconfig["type-checker"].pass,
+  true,
+  barOverFooTestsTsconfig["type-checker"].message,
+);
+assert.match(
+  barOverFooTestsTsconfig["type-checker"].message,
+  /^Found packages\/bar\/tsconfig\.json$/,
+);
+assert.equal(
+  /foo\/tests/.test(barOverFooTestsTsconfig["type-checker"].message),
+  false,
+  barOverFooTestsTsconfig["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo/tests/types/tsconfig.json": "{}\n" },
+  /^Found packages\/foo\/tests\/types\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "tsconfig.json": "{}\n",
+    "packages/foo/tests/types/tsconfig.json": "{}\n",
+    "packages/bar/tsconfig.json": "{}\n",
+  },
+  /^Found tsconfig\.json$/,
+);
 assertPass(
   "type-checker",
   {
@@ -6531,6 +6581,8 @@ assert.match(rootReadme, /packages\/babel-plugin-foo/);
 assert.match(rootReadme, /compiler\/packages\/foo-plugin/);
 assert.match(rootReadme, /compiler\/packages\/foo\/tsconfig\.json/);
 assert.match(rootReadme, /compiler\/apps\/playground/);
+assert.match(rootReadme, /packages\/foo\/tests\/types\/tsconfig\.json/);
+assert.match(rootReadme, /packages\/bar\/tsconfig\.json/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -6629,6 +6681,8 @@ assert.match(skillMd, /packages\/babel-plugin-foo/);
 assert.match(skillMd, /compiler\/packages\/foo-plugin/);
 assert.match(skillMd, /compiler\/packages\/foo\/tsconfig\.json/);
 assert.match(skillMd, /compiler\/apps\/playground/);
+assert.match(skillMd, /packages\/foo\/tests\/types\/tsconfig\.json/);
+assert.match(skillMd, /packages\/bar\/tsconfig\.json/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -6723,6 +6777,8 @@ assert.match(checksReadme, /packages\/babel-plugin-foo/);
 assert.match(checksReadme, /compiler\/packages\/foo-plugin/);
 assert.match(checksReadme, /compiler\/packages\/foo\/tsconfig\.json/);
 assert.match(checksReadme, /compiler\/apps\/playground/);
+assert.match(checksReadme, /packages\/foo\/tests\/types\/tsconfig\.json/);
+assert.match(checksReadme, /packages\/bar\/tsconfig\.json/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
