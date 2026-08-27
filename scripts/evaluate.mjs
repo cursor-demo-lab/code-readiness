@@ -686,8 +686,10 @@ function isDeferredTypeCheckerConfig(file) {
 }
 
 function isTypeCheckerSatellitePath(file) {
+  // A segment containing `plugin` is the same satellite class as exact
+  // plugin/plugins/hooks: foo-plugin, babel-plugin-foo, compiler-plugin.
   return file.split("/").some(
-    (part) => part.includes("eslint-plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
+    (part) => part.includes("plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
   );
 }
 
