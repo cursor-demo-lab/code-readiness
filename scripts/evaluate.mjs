@@ -471,15 +471,14 @@ function treeHasJavaManifest(files) {
   return files.includes("pom.xml") || files.includes("build.gradle") || files.includes("build.gradle.kts");
 }
 
-// Gradle/Maven language source sets. Consecutive `src/<set>` is one first-hit
-// class: do not prefer `src/test` over `src/jvmTest`.
-const JVM_TEST_SOURCE_SETS = new Set([
-  "test",
-  "jvmtest",
-  "androidtest",
-  "androidunittest",
-  "commontest",
-]);
+// Gradle/Maven language source sets. Consecutive `src/<set>` beats `src/main`.
+// Unit sets (`src/test` / `src/jvmTest` / `src/commonTest` / `src/androidUnitTest`)
+// are one first-hit class: do not prefer `src/test` over `src/jvmTest`. Rank
+// those ahead of instrumented `src/androidTest`. An androidTest-only tree still
+// names that file. Path-segment names are not special-cased.
+const JVM_UNIT_SOURCE_SETS = new Set(["test", "jvmtest", "androidunittest", "commontest"]);
+const JVM_INSTRUMENTED_SOURCE_SETS = new Set(["androidtest"]);
+const JVM_TEST_SOURCE_SETS = new Set([...JVM_UNIT_SOURCE_SETS, ...JVM_INSTRUMENTED_SOURCE_SETS]);
 
 function jvmTestSourceSetAt(file) {
   const parts = file.split("/");
@@ -493,6 +492,16 @@ function jvmTestSourceSetAt(file) {
 
 function isJavaSrcTestPath(file) {
   return jvmTestSourceSetAt(file) != null;
+}
+
+function isJvmUnitSourceSetPath(file) {
+  const found = jvmTestSourceSetAt(file);
+  return found != null && JVM_UNIT_SOURCE_SETS.has(found.set);
+}
+
+function isJvmInstrumentedSourceSetPath(file) {
+  const found = jvmTestSourceSetAt(file);
+  return found != null && JVM_INSTRUMENTED_SOURCE_SETS.has(found.set);
 }
 
 // When any hit is under consecutive src/jvmTest, prefer those over src/test
@@ -523,6 +532,14 @@ function preferJavaSrcTestHits(files) {
   const srcTestHits = javaHits.filter(isJavaSrcTestPath);
   if (srcTestHits.length === 0) return files;
   return files.filter((file) => !isJvmTestFile(file) || isJavaSrcTestPath(file));
+}
+
+function preferJvmUnitSourceSetHits(files) {
+  const javaHits = files.filter(isJvmTestFile);
+  if (javaHits.length === 0) return files;
+  const unitHits = javaHits.filter(isJvmUnitSourceSetPath);
+  if (unitHits.length === 0) return files;
+  return files.filter((file) => !isJvmTestFile(file) || isJvmUnitSourceSetPath(file));
 }
 
 // `foo-tls` is a satellite of sibling module `foo` when both appear as whole
@@ -677,24 +694,27 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // consecutive src/jvmTest over src/test in other modules (foo/ over bar/),
   // then defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
   // processor/keeper path segments (same class as containerization
-  // sample/integration). A benchmark-only, testlib-only, jvmTest-only,
-  // src/test-only, integration-only, e2e-only, or satellite-only tree still
-  // names that file. Java-primary trees prefer *Test.java over sidecar Python
-  // test_*.py / *_test.py; a Java tree with only Python still names Python.
+  // sample/integration), then prefer unit source sets over instrumented
+  // src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
+  // src/test-only, androidTest-only, integration-only, e2e-only, or
+  // satellite-only tree still names that file. Java-primary trees prefer
+  // *Test.java over sidecar Python test_*.py / *_test.py; a Java tree with
+  // only Python still names Python.
   const afterScript = productTestScriptHits(ranked);
   const afterJavaLayout = preferJavaSrcTestHits(afterScript);
   const afterProductModule = preferProductModuleHits(afterJavaLayout);
   // After hyphen-satellite defer, an unsuffixed sibling src/test can still
   // tie with product src/jvmTest and win by lex (bar/ < foo/). Prefer
   // consecutive src/jvmTest over src/test in other modules. Same-module
-  // src/test stays the JVM source-set class. A src/test-only tree still
+  // src/test stays the JVM unit source-set class. A src/test-only tree still
   // names that file.
   const afterJvmTestSibling = preferJvmTestOverOtherModuleSrcTest(afterProductModule);
   const afterDefer = productTestFileFirstHits(afterJvmTestSibling);
+  const afterUnitSourceSet = preferJvmUnitSourceSetHits(afterDefer);
   const withoutPySidecar = deferPythonTestSidecarForJava(repoFiles)
-    ? afterDefer.filter((file) => !isPythonTestFile(file))
-    : afterDefer;
-  return withoutPySidecar.length > 0 ? withoutPySidecar : afterDefer;
+    ? afterUnitSourceSet.filter((file) => !isPythonTestFile(file))
+    : afterUnitSourceSet;
+  return withoutPySidecar.length > 0 ? withoutPySidecar : afterUnitSourceSet;
 }
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
@@ -821,19 +841,23 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const fuzzBench = shouldDeferCsharpFuzzTest(file, repoFiles) ? 1 : 0;
   const hyphenSat = isHyphenSatellitePath(file, hits) ? 1 : 0;
   const otherModuleSrcTest = isOtherModuleSrcTestWhenJvmTestExists(file, hits) ? 1 : 0;
+  const instrumented = isJvmTestFile(file) && isJvmInstrumentedSourceSetPath(file) ? 1 : 0;
   // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock/integration/e2e/keeper
   // defer > catch-all / C# fuzz basename > hyphen satellite / other-module src/test
-  // when a src/jvmTest hit exists. Product src/jvmTest Java beats sibling
-  // src/test (bar/) and satellite src/test (foo-tls/), which still beat
-  // src/main API *Test.java, which still beats sidecar Python. Do not prefer
-  // src/test over src/jvmTest on the same product module.
+  // when a src/jvmTest hit exists > instrumented src/androidTest. Product
+  // src/jvmTest Java beats sibling src/test (bar/) and satellite src/test
+  // (foo-tls/), which still beat src/main API *Test.java, which still beats
+  // sidecar Python. Unit source sets beat instrumented src/androidTest when
+  // both exist. Do not prefer src/test over src/jvmTest on the same product
+  // module. Product instrumented still beats a hyphen satellite's src/test.
   // packages/<name>/test beats integration/ and e2e/ at the same depth.
   return (
-    sidecar * 16 +
-    javaLayout * 8 +
-    deferred * 4 +
-    (catchAllOnly + fuzzBench) * 2 +
-    Math.max(hyphenSat, otherModuleSrcTest)
+    sidecar * 32 +
+    javaLayout * 16 +
+    deferred * 8 +
+    (catchAllOnly + fuzzBench) * 4 +
+    Math.max(hyphenSat, otherModuleSrcTest) * 2 +
+    instrumented
   );
 }
 

@@ -3891,6 +3891,59 @@ const javaAndroidTestOverSatellite = assertJavaFirstHit(
 );
 assert.equal(javaAndroidTestOverSatellite["test-framework"].pass, true);
 
+const javaUnitSrcTestOverInstrumented = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/java-test/src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo/android-test/src/androidTest/java/BarTest.java": "class BarTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /BarTest/ },
+);
+assert.match(
+  javaUnitSrcTestOverInstrumented["test-files-exist"].details,
+  /^foo\/java-test\/src\/test\/java\/FooTest\.java\b/,
+);
+
+const javaAndroidTestOnly = evalTree({
+  "build.gradle": "plugins { java }\n",
+  "foo/android-test/src/androidTest/java/BarTest.java": "class BarTest {}\n",
+});
+assert.equal(
+  javaAndroidTestOnly["test-framework"].pass,
+  true,
+  javaAndroidTestOnly["test-framework"].message,
+);
+assert.match(javaAndroidTestOnly["test-framework"].message, /BarTest\.java/);
+assert.equal(
+  javaAndroidTestOnly["test-files-exist"].pass,
+  true,
+  javaAndroidTestOnly["test-files-exist"].message,
+);
+assert.match(javaAndroidTestOnly["test-files-exist"].message, /androidTest/);
+
+const javaAndroidUnitTestOverInstrumented = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/androidUnitTest/java/FooTest.java": "class FooTest {}\n",
+    "foo/src/androidTest/java/BarTest.java": "class BarTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /BarTest/ },
+);
+assert.equal(javaAndroidUnitTestOverInstrumented["test-framework"].pass, true);
+
+const javaJvmTestOverInstrumented = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/jvmTest/java/FooTest.java": "class FooTest {}\n",
+    "src/androidTest/java/BarTest.java": "class BarTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /BarTest/ },
+);
+assert.equal(javaJvmTestOverInstrumented["test-files-exist"].message.includes("Found 2 test file(s)"), true);
+
 const javaAndroidUnitTestOverSatellite = assertJavaFirstHit(
   {
     "build.gradle": "plugins { java }\n",
@@ -6554,6 +6607,9 @@ assert.match(rootReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
 assert.match(rootReadme, /A `src\/test`-only tree still passes/);
 assert.match(rootReadme, /A jvmTest-only tree still passes/);
 assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
+assert.match(rootReadme, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
+assert.match(rootReadme, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
+assert.match(rootReadme, /androidTest-only tree still passes/);
 assert.match(rootReadme, /A testlib-only tree still passes/);
 assert.match(rootReadme, /foo-testlib/);
 assert.match(rootReadme, /packages\/foo\/test\/foo\.spec\.ts/);
@@ -6654,6 +6710,9 @@ assert.match(skillMd, /foo-tls\/src\/test\/java\/TlsTest\.java/);
 assert.match(skillMd, /A `src\/test`-only tree still passes/);
 assert.match(skillMd, /A jvmTest-only tree still passes/);
 assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
+assert.match(skillMd, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
+assert.match(skillMd, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
+assert.match(skillMd, /androidTest-only tree still passes/);
 assert.match(skillMd, /A testlib-only tree still passes/);
 assert.match(skillMd, /foo-testlib/);
 assert.match(skillMd, /packages\/foo\/test\/foo\.spec\.ts/);
@@ -6833,6 +6892,9 @@ assert.match(checksReadme, /foo-tls\/src\/test\/java\/TlsTest\.java/);
 assert.match(checksReadme, /A `src\/test`-only tree still passes/);
 assert.match(checksReadme, /A jvmTest-only tree still passes/);
 assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
+assert.match(checksReadme, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
+assert.match(checksReadme, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
+assert.match(checksReadme, /androidTest-only tree still passes/);
 assert.match(checksReadme, /A testlib-only tree still passes/);
 assert.match(checksReadme, /foo-testlib/);
 assert.match(checksReadme, /packages\/foo\/test\/foo\.spec\.ts/);
