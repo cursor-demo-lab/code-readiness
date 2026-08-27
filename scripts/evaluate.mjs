@@ -917,6 +917,9 @@ function productTestFrameworkHits(files, languages, repoFiles) {
 
 const TYPE_CHECKER_FIRST_HIT_DEFER_SEGMENTS = ["test", "tests", "spec", "__tests__"];
 const TYPE_CHECKER_SATELLITE_SEGMENTS = new Set(["plugin", "plugins", "hooks"]);
+// Exact segment (case-insensitive): website/docs/doc is the same satellite
+// class as plugin/playground leftover. Not a letter suffix (mywebsite).
+const TYPE_CHECKER_WEBSITE_DOCS_SEGMENTS = ["website", "docs", "doc"];
 // Trailing hyphen component (case-insensitive): foo-util, make-read-only-util,
 // foo-utils, foo-internal, foo-healthcheck, foo-cli, foo-bin. Reuse the
 // test-file exact-or-hyphen helper. Not a letter suffix: utils.js / myutils
@@ -946,16 +949,49 @@ function isDeferredTypeCheckerConfig(file) {
   );
 }
 
+function isTypeCheckerWebsiteOrDocsPath(file) {
+  return pathHasSegmentsIgnoreCase(file, TYPE_CHECKER_WEBSITE_DOCS_SEGMENTS);
+}
+
+function isTypeCheckerPluginPath(file) {
+  return file.split("/").some((part) => part.includes("plugin"));
+}
+
+function isTypeCheckerWebsiteDocsOrPluginConfig(file) {
+  return (
+    isTypeCheckerConfigHit(file) &&
+    (isTypeCheckerPluginPath(file) || isTypeCheckerWebsiteOrDocsPath(file))
+  );
+}
+
+function treeHasJvmTypeCheckerProduct(files) {
+  const list = files ?? [];
+  if (treeHasJavaManifest(list)) return true;
+  return list.some((file) => {
+    const base = posixBasename(file);
+    return (
+      base === "build.sbt" ||
+      file.endsWith(".scala") ||
+      file.endsWith(".java") ||
+      file.endsWith(".kt")
+    );
+  });
+}
+
 function isTypeCheckerSatellitePath(file) {
   // A segment containing `plugin` is the same satellite class as exact
   // plugin/plugins/hooks: foo-plugin, babel-plugin-foo, compiler-plugin.
-  // Trailing-hyphen util/utils/internal/healthcheck/cli/bin/cmd/tool/tools
-  // is the same satellite class (foo-util, make-read-only-util,
-  // foo-healthcheck). Not a letter suffix (utils.js, healthcheck.js).
+  // Exact website/docs/doc is the same satellite class (website/plugins/
+  // site-plugin/tsconfig.json, docs/tsconfig.json). Trailing-hyphen
+  // util/utils/internal/healthcheck/cli/bin/cmd/tool/tools is the same
+  // satellite class (foo-util, make-read-only-util, foo-healthcheck).
+  // Not a letter suffix (utils.js, healthcheck.js, mywebsite).
   return (
     file.split("/").some(
       (part) => part.includes("plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
-    ) || pathHasExactOrHyphenSuffixIgnoreCase(file, TYPE_CHECKER_SATELLITE_SUFFIXES)
+    ) ||
+    isTypeCheckerWebsiteOrDocsPath(file) ||
+    pathHasExactOrHyphenSuffixIgnoreCase(file, TYPE_CHECKER_SATELLITE_SUFFIXES)
   );
 }
 
@@ -1433,6 +1469,8 @@ function evalCriterion(criterion, ctx) {
     criterion.id === "test-framework" && deferJsFrameworkSidecarHits(ctx.files);
   const deferJsFormatter =
     criterion.id === "formatter" && deferJsFormatterSidecarHits(ctx.files, ctx.repoRoot);
+  const deferJvmTypeCheckerSidecar =
+    criterion.id === "type-checker" && treeHasJvmTypeCheckerProduct(ctx.files);
   const productFileHits = styleFirstHit
     ? usableHits.filter((file) => {
         if (isDeferredStyleConfig(file)) return false;
@@ -1445,7 +1483,9 @@ function evalCriterion(criterion, ctx) {
       ? usableHits.filter((file) => !isDeferredContainerConfig(file))
       : setupFirstHit
         ? usableHits.filter((file) => !isDeferredSetupHit(file))
-        : usableHits;
+        : deferJvmTypeCheckerSidecar
+          ? usableHits.filter((file) => !isTypeCheckerWebsiteDocsOrPluginConfig(file))
+          : usableHits;
   if (productFileHits.length > 0) {
     return hit(`Found ${firstFileHit(criterion, productFileHits, ctx.languages, ctx.files, ctx.repoRoot)}`);
   }
@@ -1476,7 +1516,13 @@ function evalCriterion(criterion, ctx) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
   if (usableHits.length > 0) {
-    return hit(`Found ${firstFileHit(criterion, usableHits, ctx.languages, ctx.files, ctx.repoRoot)}`);
+    // JVM-primary leftover: website/docs/plugin tsconfig is not the product
+    // type-checker. Fall through to languagesPass (Java/Kotlin built-in) or
+    // skip (Scala has no conventional checker file). A website-only TS tree
+    // still names that leftover because deferJvmTypeCheckerSidecar is false.
+    if (!(deferJvmTypeCheckerSidecar && productFileHits.length === 0)) {
+      return hit(`Found ${firstFileHit(criterion, usableHits, ctx.languages, ctx.files, ctx.repoRoot)}`);
+    }
   }
   if (contains) {
     return hit(`${contains.file} contains ${contains.needle}`);
