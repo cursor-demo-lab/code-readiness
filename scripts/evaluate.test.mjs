@@ -5009,6 +5009,82 @@ assertPass(
   { "packages/eslint-plugin-foo/tsconfig.json": "{}\n" },
   /^Found packages\/eslint-plugin-foo\/tsconfig\.json$/,
 );
+const productOverBabelPlugin = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/babel-plugin-foo/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverBabelPlugin["type-checker"].pass,
+  true,
+  productOverBabelPlugin["type-checker"].message,
+);
+assert.match(
+  productOverBabelPlugin["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /babel-plugin/.test(productOverBabelPlugin["type-checker"].message),
+  false,
+  productOverBabelPlugin["type-checker"].message,
+);
+const nestedPkgOverFooPlugin = evalTree({
+  "compiler/packages/foo/tsconfig.json": "{}\n",
+  "compiler/packages/foo-plugin/tsconfig.json": "{}\n",
+});
+assert.equal(
+  nestedPkgOverFooPlugin["type-checker"].pass,
+  true,
+  nestedPkgOverFooPlugin["type-checker"].message,
+);
+assert.match(
+  nestedPkgOverFooPlugin["type-checker"].message,
+  /^Found compiler\/packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /foo-plugin/.test(nestedPkgOverFooPlugin["type-checker"].message),
+  false,
+  nestedPkgOverFooPlugin["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-plugin/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/compiler-plugin/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/babel-plugin-foo/tsconfig.json": "{}\n" },
+  /^Found packages\/babel-plugin-foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-plugin/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-plugin\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "compiler/packages/foo-plugin/tsconfig.json": "{}\n" },
+  /^Found compiler\/packages\/foo-plugin\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "tsconfig.json": "{}\n",
+    "packages/babel-plugin-foo/tsconfig.json": "{}\n",
+    "compiler/packages/foo-plugin/tsconfig.json": "{}\n",
+  },
+  /^Found tsconfig\.json$/,
+);
 assertPass(
   "type-checker",
   {
@@ -6404,6 +6480,8 @@ assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(rootReadme, /A plugin-only tree still passes/);
 assert.match(rootReadme, /A playground-only tree still passes/);
 assert.match(rootReadme, /packages\/eslint-plugin-foo/);
+assert.match(rootReadme, /packages\/babel-plugin-foo/);
+assert.match(rootReadme, /compiler\/packages\/foo-plugin/);
 assert.match(rootReadme, /compiler\/packages\/foo\/tsconfig\.json/);
 assert.match(rootReadme, /compiler\/apps\/playground/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
@@ -6498,6 +6576,8 @@ assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
 assert.match(skillMd, /A plugin-only tree still passes/);
 assert.match(skillMd, /A playground-only tree still passes/);
 assert.match(skillMd, /packages\/eslint-plugin-foo/);
+assert.match(skillMd, /packages\/babel-plugin-foo/);
+assert.match(skillMd, /compiler\/packages\/foo-plugin/);
 assert.match(skillMd, /compiler\/packages\/foo\/tsconfig\.json/);
 assert.match(skillMd, /compiler\/apps\/playground/);
 assert.match(skillMd, /Style & Validation/);
@@ -6590,6 +6670,8 @@ assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/)
 assert.match(checksReadme, /A plugin-only tree still passes/);
 assert.match(checksReadme, /A playground-only tree still passes/);
 assert.match(checksReadme, /packages\/eslint-plugin-foo/);
+assert.match(checksReadme, /packages\/babel-plugin-foo/);
+assert.match(checksReadme, /compiler\/packages\/foo-plugin/);
 assert.match(checksReadme, /compiler\/packages\/foo\/tsconfig\.json/);
 assert.match(checksReadme, /compiler\/apps\/playground/);
 assert.match(checksReadme, /root-anchored/);
