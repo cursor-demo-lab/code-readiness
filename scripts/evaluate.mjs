@@ -615,13 +615,16 @@ function treeHasJavaManifest(files) {
 }
 
 // Gradle/Maven language source sets. Consecutive `src/<set>` beats `src/main`.
-// Unit sets (`src/test` / `src/jvmTest` / `src/commonTest` / `src/androidUnitTest`)
-// are one first-hit class: do not prefer `src/test` over `src/jvmTest`. When
-// consecutive `src/jvmTest` and `src/commonTest` both exist (same module or
+// Unit sets (`src/test` / `src/jvmTest` / `src/commonTest` / `src/androidUnitTest`
+// / consecutive `common/test` with no `src/`) are one first-hit class: do not
+// prefer `src/test` over `src/jvmTest`. `src/commonTest` stays the same class as
+// `src/test` on the same product module. Consecutive `common/test` is that same
+// class: do not let `src/commonTest` in another module beat product `common/test`.
+// When consecutive `src/jvmTest` and `src/commonTest` both exist (same module or
 // any), prefer `src/jvmTest` so lex cannot pick `commonTest` (`c` < `j`). A
-// commonTest-only tree still names that file. Rank those unit sets ahead of
-// instrumented `src/androidTest`. An androidTest-only tree still names that
-// file. Path-segment names are not special-cased.
+// commonTest-only or common/test-only tree still names that file. Rank those
+// unit sets ahead of instrumented `src/androidTest`. An androidTest-only tree
+// still names that file. Path-segment names are not special-cased.
 const JVM_UNIT_SOURCE_SETS = new Set(["test", "jvmtest", "androidunittest", "commontest"]);
 const JVM_INSTRUMENTED_SOURCE_SETS = new Set(["androidtest"]);
 const JVM_TEST_SOURCE_SETS = new Set([...JVM_UNIT_SOURCE_SETS, ...JVM_INSTRUMENTED_SOURCE_SETS]);
@@ -632,6 +635,13 @@ function jvmTestSourceSetAt(file) {
     if (parts[i].toLowerCase() === "src" && JVM_TEST_SOURCE_SETS.has(parts[i + 1].toLowerCase())) {
       return { module: parts.slice(0, i).join("/"), set: parts[i + 1].toLowerCase() };
     }
+  }
+  // Consecutive common/test without a src/ prefix is the same unit class as
+  // src/commonTest / src/test. Do not treat src/common/test as that layout.
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    if (parts[i].toLowerCase() !== "common" || parts[i + 1].toLowerCase() !== "test") continue;
+    if (i > 0 && parts[i - 1].toLowerCase() === "src") continue;
+    return { module: parts.slice(0, i).join("/"), set: "commontest" };
   }
   return null;
 }
@@ -852,23 +862,27 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // so they do not beat jest.config.* / FooTests.cs. A Fuzz-only tree still names Fuzz.
   const ranked = dropDeferredCsharpTestsWhenOtherHitsExist(afterJs);
   // Reuse test-script's *Tests.csproj / *Test.csproj Fuzz/Benchmark defer, then
-  // prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
-  // src/androidUnitTest / src/commonTest over src/main / bare src/, then prefer
-  // a product module over a hyphen satellite (foo/ over foo-tls/), then prefer
-  // consecutive src/jvmTest over src/test in other modules (foo/ over bar/),
-  // then defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
+  // defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
   // processor/keeper/integration-testing/-testing/docs/doc/.template path
   // segments (same class as containerization sample/integration; docs/template
-  // apply to named test files, not package.json / vitest.config), then prefer
-  // src/jvmTest over src/commonTest when both exist, then prefer unit source sets over
+  // apply to named test files, not package.json / vitest.config) before unit
+  // source-set preference so a smoke file under src/commonTest cannot cancel
+  // integration-testing / -testing defer when another language-native product
+  // test exists, then prefer Java/Kotlin src/test / src/jvmTest / src/androidTest /
+  // src/androidUnitTest / src/commonTest / consecutive common/test (no src/)
+  // over src/main / bare src/, then prefer a product module over a hyphen
+  // satellite (foo/ over foo-tls/), then prefer consecutive src/jvmTest over
+  // src/test in other modules (foo/ over bar/), then prefer src/jvmTest over
+  // src/commonTest when both exist, then prefer unit source sets over
   // instrumented src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
-  // src/test-only, commonTest-only, androidTest-only, docs-only, template-only,
-  // integration-only, e2e-only,
+  // src/test-only, commonTest-only, common/test-only, androidTest-only, docs-only,
+  // template-only, integration-only, e2e-only,
   // integration-testing-only, or satellite-only tree still names that file.
   // Java-primary trees prefer *Test.java over sidecar Python test_*.py /
   // *_test.py; a Java tree with only Python still names Python.
   const afterScript = productTestScriptHits(ranked);
-  const afterJavaLayout = preferJavaSrcTestHits(afterScript);
+  const afterDefer = productTestFileFirstHits(afterScript);
+  const afterJavaLayout = preferJavaSrcTestHits(afterDefer);
   const afterProductModule = preferProductModuleHits(afterJavaLayout);
   // After hyphen-satellite defer, an unsuffixed sibling src/test can still
   // tie with product src/jvmTest and win by lex (bar/ < foo/). Prefer
@@ -878,8 +892,7 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // exist (same module or any), prefer src/jvmTest so lex cannot pick
   // commonTest (`c` < `j`). A commonTest-only tree still names that file.
   const afterJvmTestSibling = preferJvmTestOverOtherModuleSrcTest(afterProductModule);
-  const afterDefer = productTestFileFirstHits(afterJvmTestSibling);
-  const afterJvmTestOverCommon = preferJvmTestOverCommonTest(afterDefer);
+  const afterJvmTestOverCommon = preferJvmTestOverCommonTest(afterJvmTestSibling);
   const afterUnitSourceSet = preferJvmUnitSourceSetHits(afterJvmTestOverCommon);
   const withoutPySidecar = deferPythonTestSidecarForJava(repoFiles)
     ? afterUnitSourceSet.filter((file) => !isPythonTestFile(file))
@@ -1040,27 +1053,32 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const commonTestWhenJvmTest = isCommonTestWhenJvmTestExists(file, hits) ? 1 : 0;
   const instrumented = isJvmTestFile(file) && isJvmInstrumentedSourceSetPath(file) ? 1 : 0;
   // sidecar (JS/Python) > catch-all (`**/*.test.*` / `**/*.spec.*`) so a
-  // language-native glob cannot lose to docs/foo.test.template > Java src/main
-  // vs src/test|jvmTest > testlib/mock/integration/e2e/keeper/docs/doc/.template
-  // /integration-testing/-testing defer > C# fuzz basename > hyphen satellite /
-  // other-module src/test when a src/jvmTest hit exists / src/commonTest when a
-  // src/jvmTest hit exists > instrumented src/androidTest. Product src/jvmTest
-  // Java beats sibling src/test (bar/) and satellite src/test (foo-tls/), which
-  // still beat src/main API *Test.java, which still beats sidecar Python. Unit
-  // source sets beat instrumented src/androidTest when both exist. Do not prefer
-  // src/test over src/jvmTest on the same product module. When src/jvmTest and
-  // src/commonTest both exist, prefer src/jvmTest (foo/src/jvmTest over
-  // foo/src/commonTest). Product instrumented still beats a hyphen satellite's
-  // src/test. packages/<name>/test beats integration/ and e2e/ at the same
-  // depth. Product src/commonTest beats integration-testing/. Language-native
-  // `**/*Test.kt` / `**/test/**/*Test.kt` / `**/*_test.go` beat catch-alls
-  // (foo/common/test/FooTest.kt over docs/foo.test.template). A docs-only,
-  // template-only, or commonTest-only tree still names that file.
+  // language-native glob cannot lose to docs/foo.test.template > testlib/mock/
+  // integration/e2e/keeper/docs/doc/.template /integration-testing/-testing defer
+  // so a unit source set under src/commonTest cannot cancel that defer > Java
+  // src/main vs src/test|jvmTest|commonTest|common/test > C# fuzz basename >
+  // hyphen satellite / other-module src/test when a src/jvmTest hit exists /
+  // src/commonTest when a src/jvmTest hit exists > instrumented src/androidTest.
+  // Product src/jvmTest Java beats sibling src/test (bar/) and satellite src/test
+  // (foo-tls/), which still beat src/main API *Test.java, which still beats
+  // sidecar Python. Unit source sets beat instrumented src/androidTest when both
+  // exist. Do not prefer src/test over src/jvmTest on the same product module.
+  // src/commonTest stays the same class as src/test on the same product module.
+  // Consecutive common/test (no src/) is that same class (foo/common/test over
+  // bar/src/commonTest). When src/jvmTest and src/commonTest both exist, prefer
+  // src/jvmTest (foo/src/jvmTest over foo/src/commonTest). Product instrumented
+  // still beats a hyphen satellite's src/test. packages/<name>/test beats
+  // integration/ and e2e/ at the same depth. Product src/commonTest and
+  // common/test beat integration-testing/ even when the smoke file sits under
+  // src/commonTest. Language-native `**/*Test.kt` / `**/test/**/*Test.kt` /
+  // `**/*_test.go` beat catch-alls (foo/common/test/FooTest.kt over
+  // docs/foo.test.template). A docs-only, template-only, commonTest-only,
+  // common/test-only, or integration-testing-only tree still names that file.
   return (
     sidecar * 64 +
     catchAllOnly * 32 +
-    javaLayout * 16 +
-    deferred * 8 +
+    deferred * 16 +
+    javaLayout * 8 +
     fuzzBench * 4 +
     Math.max(hyphenSat, otherModuleSrcTest, commonTestWhenJvmTest) * 2 +
     instrumented
