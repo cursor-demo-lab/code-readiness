@@ -363,6 +363,119 @@ function isGolangciFile(file) {
   );
 }
 
+function isHooksJsonFile(file) {
+  const name = posixBasename(file);
+  return name === "hooks.json" || name === "hook.json";
+}
+
+// Whole-tool names from the catalog's language-native linters. Formatters
+// (prettier, rustfmt, gofmt, black, clang-format, dprint) are not listed.
+const LINTER_COMMAND_TOKENS = [
+  "eslint",
+  "biome",
+  "oxlint",
+  "xo",
+  "standard",
+  "ruff",
+  "pylint",
+  "flake8",
+  "golangci-lint",
+  "golangci",
+  "tflint",
+  "clippy",
+  "ktlint",
+  "detekt",
+  "checkstyle",
+  "pmd",
+  "spotbugs",
+  "errorprone",
+  "rubocop",
+  "phpstan",
+  "psalm",
+  "phpcs",
+  "swiftlint",
+  "clang-tidy",
+  "hlint",
+  "credo",
+  "shellcheck",
+  "luacheck",
+  "jshint",
+];
+
+function textHasLinterInvocation(text) {
+  if (!text) return false;
+  return LINTER_COMMAND_TOKENS.some((token) => {
+    const escaped = escapeRegExp(token);
+    return new RegExp(`(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])`, "i").test(text);
+  });
+}
+
+function collectHookCommands(node, out = [], inHooks = false) {
+  if (node == null) return out;
+  if (typeof node === "string") {
+    if (inHooks) out.push(node);
+    return out;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) collectHookCommands(item, out, inHooks);
+    return out;
+  }
+  if (typeof node !== "object") return out;
+  if (typeof node.command === "string") out.push(node.command);
+  else if (Array.isArray(node.command)) {
+    for (const item of node.command) {
+      if (typeof item === "string") out.push(item);
+    }
+  }
+  if (node.hooks != null) {
+    collectHookCommands(node.hooks, out, true);
+    return out;
+  }
+  if (inHooks) {
+    for (const [key, child] of Object.entries(node)) {
+      if (key === "command") continue;
+      collectHookCommands(child, out, true);
+    }
+  }
+  return out;
+}
+
+function firstExistingCommandPath(repoRoot, command) {
+  const tokens = String(command).match(/(?:[^\s"']+|"(?:\\.|[^"])*"|'(?:\\.|[^'])*')+/g) ?? [];
+  for (const raw of tokens) {
+    const token = raw.replace(/^['"]|['"]$/g, "").replace(/^\.\//, "");
+    if (!token || token.startsWith("-")) continue;
+    if (token.includes("://") || path.isAbsolute(token)) continue;
+    if (token.split(/[\\/]/).includes("..")) continue;
+    const abs = path.join(repoRoot, token);
+    try {
+      if (fs.existsSync(abs) && fs.statSync(abs).isFile()) return token;
+    } catch {
+      // unreadable: skip
+    }
+  }
+  return null;
+}
+
+function hooksJsonExecutesLinter(repoRoot, file) {
+  const raw = readText(repoRoot, file);
+  if (!raw) return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  const commands = collectHookCommands(parsed);
+  for (const command of commands) {
+    if (textHasLinterInvocation(command)) return true;
+    const script = firstExistingCommandPath(repoRoot, command);
+    if (!script) continue;
+    if (textHasLinterInvocation(readText(repoRoot, script) ?? "")) return true;
+  }
+  return false;
+}
+
 function treeIsGoPrimary(files) {
   const list = files ?? [];
   return list.includes("go.mod") && !list.includes("package.json") && !list.includes("tsconfig.json");
@@ -370,12 +483,14 @@ function treeIsGoPrimary(files) {
 
 function productLinterHits(files, languages, repoFiles) {
   const styleHits = productStyleHits(files);
-  const jsHits = styleHits.filter(isJsTsLinterFile);
-  const goHits = styleHits.filter(isGolangciFile);
-  if (jsHits.length === 0 || goHits.length === 0) return styleHits;
+  const nativeHits = styleHits.filter((file) => !isHooksJsonFile(file));
+  const ranked = nativeHits.length > 0 ? nativeHits : styleHits;
+  const jsHits = ranked.filter(isJsTsLinterFile);
+  const goHits = ranked.filter(isGolangciFile);
+  if (jsHits.length === 0 || goHits.length === 0) return ranked;
   if (treeIsGoPrimary(repoFiles)) return goHits;
   if (hasJsTsProductLanguage(languages)) return jsHits;
-  return styleHits;
+  return ranked;
 }
 
 function isGoTestFile(file) {
@@ -1219,9 +1334,13 @@ function evalCriterion(criterion, ctx) {
       skipDirectoryHits: criterion.id === "issue-templates",
     },
   );
-  const usableHits = criterion.anyFilesNonEmpty
+  const usableHits = (criterion.anyFilesNonEmpty
     ? fileHits.filter((file) => fileHasContent(ctx.repoRoot, file))
-    : fileHits;
+    : fileHits
+  ).filter((file) => {
+    if (criterion.id !== "linter" || !isHooksJsonFile(file)) return true;
+    return hooksJsonExecutesLinter(ctx.repoRoot, file);
+  });
   const deferGoFramework =
     criterion.id === "test-framework" && deferGoTestSidecarHits(ctx.languages, ctx.files);
   const deferMixJsFramework =

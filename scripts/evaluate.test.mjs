@@ -215,6 +215,10 @@ assert.equal(
 );
 assert.equal(linter.anyFiles.includes(".php-cs-fixer.php"), false);
 assert.equal(linter.anyFiles.includes(".formatter.exs"), false);
+assert.ok(linter.anyFiles.includes(".cursor/hooks.json"));
+assert.ok(linter.anyFiles.includes(".cursor/hook.json"));
+assert.ok(linter.anyFiles.includes("hooks.json"));
+assert.ok(linter.anyFiles.includes("hook.json"));
 assert.equal(linter.languagesPass, undefined);
 assert.equal(linter.anyFilesNonEmpty, undefined, "empty optional linter configs still count");
 assert.equal(
@@ -2245,6 +2249,94 @@ assert.equal(docsSampleLint.linter.pass, true, docsSampleLint.linter.message);
 assert.match(docsSampleLint.linter.message, /eslint\.config\.js/);
 assert.equal(/docs\//.test(docsSampleLint.linter.message), false);
 assertPass("linter", { "docs/samples/.eslintrc": "{}\n" }, /docs\/samples\/\.eslintrc/);
+
+function hooksJson(command, extra = {}) {
+  return {
+    version: 1,
+    hooks: {
+      afterFileEdit: [{ command }],
+      ...extra,
+    },
+  };
+}
+
+const hooksEslint = evalTree({
+  ".cursor/hooks.json": hooksJson("npx eslint --fix"),
+});
+assert.equal(hooksEslint.linter.pass, true, hooksEslint.linter.message);
+assert.match(hooksEslint.linter.message, /\.cursor\/hooks\.json/);
+assert.equal(hooksEslint.editorconfig.skipped, true, "editorconfig still skips when hooks linter passes");
+
+const hooksPrettierOnly = evalTree({
+  ".cursor/hooks.json": hooksJson("prettier --write"),
+});
+assert.equal(hooksPrettierOnly.linter.pass, false, hooksPrettierOnly.linter.message);
+
+const hooksRuffScript = evalTree({
+  ".cursor/hooks.json": hooksJson(".cursor/hooks/lint.sh"),
+  ".cursor/hooks/lint.sh": "#!/bin/sh\nruff check\n",
+});
+assert.equal(hooksRuffScript.linter.pass, true, hooksRuffScript.linter.message);
+assert.match(hooksRuffScript.linter.message, /\.cursor\/hooks\.json/);
+
+const hooksEmpty = evalTree({
+  ".cursor/hooks.json": { version: 1, hooks: {} },
+});
+assert.equal(hooksEmpty.linter.pass, false, hooksEmpty.linter.message);
+
+const hooksFormatScript = evalTree({
+  ".cursor/hooks.json": hooksJson(".cursor/hooks/format.sh"),
+  ".cursor/hooks/format.sh": "#!/bin/sh\nprettier --write .\n",
+});
+assert.equal(hooksFormatScript.linter.pass, false, "formatter-only hook script is not a linter");
+
+const hooksAuditOnly = evalTree({
+  ".cursor/hooks.json": hooksJson("echo audit log"),
+});
+assert.equal(hooksAuditOnly.linter.pass, false, "audit-only hook is not a linter");
+
+const eslintBeatsHooks = evalTree({
+  "eslint.config.js": "export default [];\n",
+  ".cursor/hooks.json": hooksJson("npx eslint --fix"),
+});
+assert.equal(eslintBeatsHooks.linter.pass, true, eslintBeatsHooks.linter.message);
+assert.match(eslintBeatsHooks.linter.message, /eslint\.config\.js/);
+assert.equal(/hooks\.json/.test(eslintBeatsHooks.linter.message), false);
+
+const rootHookJson = evalTree({
+  "hook.json": hooksJson("golangci-lint run"),
+});
+assert.equal(rootHookJson.linter.pass, true, rootHookJson.linter.message);
+assert.match(rootHookJson.linter.message, /^Found hook\.json/);
+
+const productHooksBeatFixture = evalTree({
+  ".cursor/hooks.json": hooksJson("npx eslint --fix"),
+  "fixtures/hooks.json": hooksJson("ruff check"),
+});
+assert.equal(productHooksBeatFixture.linter.pass, true, productHooksBeatFixture.linter.message);
+assert.match(productHooksBeatFixture.linter.message, /\.cursor\/hooks\.json/);
+assert.equal(/fixtures/.test(productHooksBeatFixture.linter.message), false);
+
+const jsPrimaryWithHooks = evalTree({
+  "eslint.config.js": "export default [];\n",
+  ".golangci.yml": "linters: {}\n",
+  "package.json": { name: "app" },
+  ".cursor/hooks.json": hooksJson("golangci-lint run"),
+});
+assert.equal(jsPrimaryWithHooks.linter.pass, true, jsPrimaryWithHooks.linter.message);
+assert.match(jsPrimaryWithHooks.linter.message, /eslint\.config\.js/);
+assert.equal(/golangci|hooks\.json/.test(jsPrimaryWithHooks.linter.message), false);
+
+const goPrimaryWithHooks = evalTree({
+  "go.mod": "module example.com/x\n",
+  ".golangci.yml": "linters: {}\n",
+  "packages/web/eslint.config.js": "export default [];\n",
+  ".cursor/hooks.json": hooksJson("npx eslint --fix"),
+});
+assert.equal(goPrimaryWithHooks.linter.pass, true, goPrimaryWithHooks.linter.message);
+assert.match(goPrimaryWithHooks.linter.message, /\.golangci\.yml/);
+assert.equal(/eslint|hooks\.json/.test(goPrimaryWithHooks.linter.message), false);
+
 const mixedRootAndFormatPrettier = evalTree({
   ".prettierrc": "{}\n",
   "tests/format/.prettierrc": "{ \"tabWidth\": 2 }\n",
@@ -6920,6 +7012,9 @@ assert.match(skillMd, /Product `Foo\.csproj` is not a framework/);
 assert.match(skillMd, /`node -- --test`/);
 assert.match(skillMd, /`linter` first-hit prefers/);
 assert.match(skillMd, /A golangci-only tree still passes/);
+assert.match(skillMd, /project Cursor hooks/);
+assert.match(skillMd, /\.cursor\/hooks\.json/);
+assert.match(skillMd, /existence of hooks\.json is not enough/);
 assert.match(skillMd, /`formatter` first-hit prefers/);
 assert.match(skillMd, /A Mix tree with only prettier/);
 assert.match(skillMd, /A Rails tree with only prettier/);
@@ -7125,6 +7220,9 @@ assert.match(checksReadme, /A Go-only test tree still passes/);
 assert.match(checksReadme, /sidecar Go tests/);
 assert.match(checksReadme, /`linter` first-hit prefers/);
 assert.match(checksReadme, /A golangci-only tree still passes/);
+assert.match(checksReadme, /project Cursor hooks/);
+assert.match(checksReadme, /\.cursor\/hooks\.json/);
+assert.match(checksReadme, /existence of hooks\.json is not enough/);
 assert.match(checksReadme, /A Mix tree with only JS tests still passes/);
 assert.match(checksReadme, /A Rails tree with only JS tests still passes/);
 assert.match(checksReadme, /A Python tree with only JS tests still passes/);

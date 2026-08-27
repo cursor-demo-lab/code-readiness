@@ -89,7 +89,11 @@
         ".tflint.hcl",
         ".shellcheckrc",
         ".luacheckrc",
-        ".jshintrc"
+        ".jshintrc",
+        ".cursor/hooks.json",
+        ".cursor/hook.json",
+        "hooks.json",
+        "hook.json"
       ],
       "fileContains": [
         { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
