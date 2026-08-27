@@ -6107,6 +6107,112 @@ assertPass(
   },
   /^Found packages\/healthcheck\.js\/tsconfig\.json$/,
 );
+const productOverNumberedConfigTsdown = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/0-config/tsdown/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverNumberedConfigTsdown["type-checker"].pass,
+  true,
+  productOverNumberedConfigTsdown["type-checker"].message,
+);
+assert.match(
+  productOverNumberedConfigTsdown["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /0-config/.test(productOverNumberedConfigTsdown["type-checker"].message),
+  false,
+  productOverNumberedConfigTsdown["type-checker"].message,
+);
+const numberedProductOverNumberedConfig = evalTree({
+  "packages/2-sql/tsconfig.json": "{}\n",
+  "packages/0-config/tsconfig.json": "{}\n",
+});
+assert.equal(
+  numberedProductOverNumberedConfig["type-checker"].pass,
+  true,
+  numberedProductOverNumberedConfig["type-checker"].message,
+);
+assert.match(
+  numberedProductOverNumberedConfig["type-checker"].message,
+  /^Found packages\/2-sql\/tsconfig\.json$/,
+);
+assert.equal(
+  /0-config/.test(numberedProductOverNumberedConfig["type-checker"].message),
+  false,
+  numberedProductOverNumberedConfig["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  { "packages/0-config/tsconfig.json": "{}\n" },
+  /^Found packages\/0-config\/tsconfig\.json$/,
+);
+const productOverNumericPrefixedPackage = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/1-foo/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverNumericPrefixedPackage["type-checker"].pass,
+  true,
+  productOverNumericPrefixedPackage["type-checker"].message,
+);
+assert.match(
+  productOverNumericPrefixedPackage["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /1-foo/.test(productOverNumericPrefixedPackage["type-checker"].message),
+  false,
+  productOverNumericPrefixedPackage["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/0-config/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/zzz\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/config/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/2-sql/tsconfig.json": "{}\n",
+    "compiler/apps/playground/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/2-sql\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/0-config/tsdown/tsconfig.json": "{}\n" },
+  /^Found packages\/0-config\/tsdown\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/config/tsconfig.json": "{}\n" },
+  /^Found packages\/config\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/1-foo/tsconfig.json": "{}\n" },
+  /^Found packages\/1-foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/config.js/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/config\.js\/tsconfig\.json$/,
+);
 const pkgOverNestedPlayground = evalTree({
   "packages/foo/tsconfig.json": "{}\n",
   "compiler/apps/playground/tsconfig.json": "{}\n",
@@ -7618,6 +7724,11 @@ assert.match(rootReadme, /A website-only tree still passes/);
 assert.match(rootReadme, /A playground-only tree still passes/);
 assert.match(rootReadme, /A util-only tree still passes/);
 assert.match(rootReadme, /A healthcheck-only tree still passes/);
+assert.match(rootReadme, /A config-only tree still passes/);
+assert.match(rootReadme, /0-config/);
+assert.match(rootReadme, /2-sql/);
+assert.match(rootReadme, /1-foo/);
+assert.match(rootReadme, /config\.js/);
 assert.match(rootReadme, /make-read-only-util/);
 assert.match(rootReadme, /foo-util/);
 assert.match(rootReadme, /foo-healthcheck/);
@@ -7755,6 +7866,11 @@ assert.match(skillMd, /A website-only tree still passes/);
 assert.match(skillMd, /A playground-only tree still passes/);
 assert.match(skillMd, /A util-only tree still passes/);
 assert.match(skillMd, /A healthcheck-only tree still passes/);
+assert.match(skillMd, /A config-only tree still passes/);
+assert.match(skillMd, /0-config/);
+assert.match(skillMd, /2-sql/);
+assert.match(skillMd, /1-foo/);
+assert.match(skillMd, /config\.js/);
 assert.match(skillMd, /make-read-only-util/);
 assert.match(skillMd, /foo-util/);
 assert.match(skillMd, /foo-healthcheck/);
@@ -7865,6 +7981,11 @@ assert.match(checksReadme, /A website-only tree still passes/);
 assert.match(checksReadme, /A playground-only tree still passes/);
 assert.match(checksReadme, /A util-only tree still passes/);
 assert.match(checksReadme, /A healthcheck-only tree still passes/);
+assert.match(checksReadme, /A config-only tree still passes/);
+assert.match(checksReadme, /0-config/);
+assert.match(checksReadme, /2-sql/);
+assert.match(checksReadme, /1-foo/);
+assert.match(checksReadme, /config\.js/);
 assert.match(checksReadme, /make-read-only-util/);
 assert.match(checksReadme, /foo-util/);
 assert.match(checksReadme, /foo-healthcheck/);

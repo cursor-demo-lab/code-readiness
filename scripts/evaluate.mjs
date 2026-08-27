@@ -921,13 +921,14 @@ const TYPE_CHECKER_SATELLITE_SEGMENTS = new Set(["plugin", "plugins", "hooks"]);
 // class as plugin/playground leftover. Not a letter suffix (mywebsite).
 const TYPE_CHECKER_WEBSITE_DOCS_SEGMENTS = ["website", "docs", "doc"];
 // Trailing hyphen component (case-insensitive): foo-util, make-read-only-util,
-// foo-utils, foo-internal, foo-healthcheck, foo-cli, foo-bin. Reuse the
-// test-file exact-or-hyphen helper. Not a letter suffix: utils.js / myutils
-// are not util; healthcheck.js is not healthcheck.
+// foo-utils, foo-internal, 0-config, foo-healthcheck, foo-cli, foo-bin. Reuse
+// the test-file exact-or-hyphen helper. Not a letter suffix: utils.js / myutils
+// are not util; healthcheck.js is not healthcheck; config.js is not config.
 const TYPE_CHECKER_SATELLITE_SUFFIXES = [
   "util",
   "utils",
   "internal",
+  "config",
   "healthcheck",
   "cli",
   "bin",
@@ -983,9 +984,10 @@ function isTypeCheckerSatellitePath(file) {
   // plugin/plugins/hooks: foo-plugin, babel-plugin-foo, compiler-plugin.
   // Exact website/docs/doc is the same satellite class (website/plugins/
   // site-plugin/tsconfig.json, docs/tsconfig.json). Trailing-hyphen
-  // util/utils/internal/healthcheck/cli/bin/cmd/tool/tools is the same
-  // satellite class (foo-util, make-read-only-util, foo-healthcheck).
-  // Not a letter suffix (utils.js, healthcheck.js, mywebsite).
+  // util/utils/internal/config/healthcheck/cli/bin/cmd/tool/tools is the
+  // same satellite class (foo-util, make-read-only-util, foo-healthcheck,
+  // 0-config). Not a letter suffix (utils.js, healthcheck.js, config.js,
+  // mywebsite).
   return (
     file.split("/").some(
       (part) => part.includes("plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
@@ -1006,6 +1008,22 @@ function isTypeCheckerTestOrFixturePath(file) {
   );
 }
 
+function packagesNameSegment(file) {
+  const parts = file.split("/");
+  // packages/<name>/ at any depth (compiler/packages/foo/tsconfig.json), not
+  // only repo-root packages/foo/tsconfig.json. A lone packages/tsconfig.json
+  // has no <name> segment.
+  for (let i = 0; i < parts.length - 2; i += 1) {
+    if (parts[i] === "packages") return parts[i + 1];
+  }
+  return null;
+}
+
+function isNumericPrefixedPackagesName(file) {
+  const name = packagesNameSegment(file);
+  return Boolean(name) && /^\d/.test(name);
+}
+
 function isPackagesProductTypeCheckerConfig(file) {
   if (isTypeCheckerSatellitePath(file)) return false;
   // packages/<name>/ at any depth is not a product-package rank when a whole
@@ -1016,13 +1034,7 @@ function isPackagesProductTypeCheckerConfig(file) {
   if (isTypeCheckerTestOrFixturePath(file)) return false;
   const parts = file.split("/");
   if (!isTypeCheckerConfigHit(parts[parts.length - 1])) return false;
-  // packages/<name>/ at any depth (compiler/packages/foo/tsconfig.json), not
-  // only repo-root packages/foo/tsconfig.json. A lone packages/tsconfig.json
-  // has no <name> segment.
-  for (let i = 0; i < parts.length - 2; i += 1) {
-    if (parts[i] === "packages") return true;
-  }
-  return false;
+  return packagesNameSegment(file) != null;
 }
 
 function isAppsOrPlaygroundTypeCheckerPath(file) {
@@ -1030,11 +1042,18 @@ function isAppsOrPlaygroundTypeCheckerPath(file) {
 }
 
 function typeCheckerConfigRank(file) {
-  if (isTypeCheckerSatellitePath(file)) return 4;
+  if (isTypeCheckerSatellitePath(file)) return 5;
   if (isRootTypeCheckerConfig(file)) return 0;
-  if (isPackagesProductTypeCheckerConfig(file)) return 1;
-  if (isAppsOrPlaygroundTypeCheckerPath(file)) return 3;
-  return 2;
+  if (isPackagesProductTypeCheckerConfig(file)) {
+    // A packages/<name> that starts with a digit is a worse packages-product
+    // rank than an unprefixed name so lex cannot pick 0-… over foo/. A
+    // numbered product package still beats apps/playground and named
+    // satellites (config/util/plugin). Numbered tooling names (0-config)
+    // are satellites via the config suffix, not this rank.
+    return isNumericPrefixedPackagesName(file) ? 2 : 1;
+  }
+  if (isAppsOrPlaygroundTypeCheckerPath(file)) return 4;
+  return 3;
 }
 
 function productTypeCheckerHits(files) {
