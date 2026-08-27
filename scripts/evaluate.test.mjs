@@ -4765,6 +4765,61 @@ assertPass(
   { "packages/hooks/tsconfig.json": "{}\n" },
   /^Found packages\/hooks\/tsconfig\.json$/,
 );
+const pkgOverNestedPlayground = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "compiler/apps/playground/tsconfig.json": "{}\n",
+});
+assert.equal(
+  pkgOverNestedPlayground["type-checker"].pass,
+  true,
+  pkgOverNestedPlayground["type-checker"].message,
+);
+assert.match(
+  pkgOverNestedPlayground["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /playground/.test(pkgOverNestedPlayground["type-checker"].message),
+  false,
+  pkgOverNestedPlayground["type-checker"].message,
+);
+const nestedPkgOverPlayground = evalTree({
+  "compiler/packages/foo/tsconfig.json": "{}\n",
+  "compiler/apps/playground/tsconfig.json": "{}\n",
+});
+assert.equal(
+  nestedPkgOverPlayground["type-checker"].pass,
+  true,
+  nestedPkgOverPlayground["type-checker"].message,
+);
+assert.match(
+  nestedPkgOverPlayground["type-checker"].message,
+  /^Found compiler\/packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /playground/.test(nestedPkgOverPlayground["type-checker"].message),
+  false,
+  nestedPkgOverPlayground["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  {
+    "tsconfig.json": "{}\n",
+    "compiler/packages/foo/tsconfig.json": "{}\n",
+    "compiler/apps/playground/tsconfig.json": "{}\n",
+  },
+  /^Found tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "compiler/apps/playground/tsconfig.json": "{}\n" },
+  /^Found compiler\/apps\/playground\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "apps/playground/tsconfig.json": "{}\n" },
+  /^Found apps\/playground\/tsconfig\.json$/,
+);
 assertPass("type-checker", { "Foo.csproj": "<Project></Project>\n" }, /C# has a built-in static type system/);
 assert.equal(
   evalTree({ "mix.exs": "defmodule Demo.MixProject do\nend\n" })["type-checker"].skipped,
@@ -6040,7 +6095,10 @@ assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(rootReadme, /A plugin-only tree still passes/);
+assert.match(rootReadme, /A playground-only tree still passes/);
 assert.match(rootReadme, /packages\/eslint-plugin-foo/);
+assert.match(rootReadme, /compiler\/packages\/foo\/tsconfig\.json/);
+assert.match(rootReadme, /compiler\/apps\/playground/);
 assert.equal(/Style & Linting/.test(rootReadme), false);
 
 const skillMd = fs.readFileSync(path.join(skillRoot(), "SKILL.md"), "utf8");
@@ -6118,7 +6176,10 @@ assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
 assert.match(skillMd, /A plugin-only tree still passes/);
+assert.match(skillMd, /A playground-only tree still passes/);
 assert.match(skillMd, /packages\/eslint-plugin-foo/);
+assert.match(skillMd, /compiler\/packages\/foo\/tsconfig\.json/);
+assert.match(skillMd, /compiler\/apps\/playground/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
@@ -6207,7 +6268,10 @@ assert.match(checksReadme, /packages\/foo\/tsconfig\.json/);
 assert.match(checksReadme, /A test-only tree still passes/);
 assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(checksReadme, /A plugin-only tree still passes/);
+assert.match(checksReadme, /A playground-only tree still passes/);
 assert.match(checksReadme, /packages\/eslint-plugin-foo/);
+assert.match(checksReadme, /compiler\/packages\/foo\/tsconfig\.json/);
+assert.match(checksReadme, /compiler\/apps\/playground/);
 assert.match(checksReadme, /root-anchored/);
 assert.match(checksReadme, /Do not ignore `examples`/);
 assert.match(checksReadme, /Do not skip `formatter` merely because a linter exists/);
