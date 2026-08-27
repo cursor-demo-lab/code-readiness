@@ -921,14 +921,16 @@ const TYPE_CHECKER_SATELLITE_SEGMENTS = new Set(["plugin", "plugins", "hooks"]);
 // class as plugin/playground leftover. Not a letter suffix (mywebsite).
 const TYPE_CHECKER_WEBSITE_DOCS_SEGMENTS = ["website", "docs", "doc"];
 // Trailing hyphen component (case-insensitive): foo-util, make-read-only-util,
-// foo-utils, foo-internal, 0-config, foo-healthcheck, foo-cli, foo-bin. Reuse
-// the test-file exact-or-hyphen helper. Not a letter suffix: utils.js / myutils
-// are not util; healthcheck.js is not healthcheck; config.js is not config.
+// foo-utils, foo-internal, 0-config, 0-shared, foo-shared, foo-healthcheck,
+// foo-cli, foo-bin. Reuse the test-file exact-or-hyphen helper. Not a letter
+// suffix: utils.js / myutils are not util; healthcheck.js is not healthcheck;
+// config.js is not config; shared.js is not shared.
 const TYPE_CHECKER_SATELLITE_SUFFIXES = [
   "util",
   "utils",
   "internal",
   "config",
+  "shared",
   "healthcheck",
   "cli",
   "bin",
@@ -984,10 +986,10 @@ function isTypeCheckerSatellitePath(file) {
   // plugin/plugins/hooks: foo-plugin, babel-plugin-foo, compiler-plugin.
   // Exact website/docs/doc is the same satellite class (website/plugins/
   // site-plugin/tsconfig.json, docs/tsconfig.json). Trailing-hyphen
-  // util/utils/internal/config/healthcheck/cli/bin/cmd/tool/tools is the
-  // same satellite class (foo-util, make-read-only-util, foo-healthcheck,
-  // 0-config). Not a letter suffix (utils.js, healthcheck.js, config.js,
-  // mywebsite).
+  // util/utils/internal/config/shared/healthcheck/cli/bin/cmd/tool/tools is
+  // the same satellite class (foo-util, make-read-only-util, foo-healthcheck,
+  // 0-config, 0-shared, foo-shared). Not a letter suffix (utils.js,
+  // healthcheck.js, config.js, shared.js, mywebsite).
   return (
     file.split("/").some(
       (part) => part.includes("plugin") || TYPE_CHECKER_SATELLITE_SEGMENTS.has(part),
@@ -1024,6 +1026,24 @@ function isNumericPrefixedPackagesName(file) {
   return Boolean(name) && /^\d/.test(name);
 }
 
+function isPackagesPackageRootTypeCheckerConfig(file) {
+  // packages/<name>/tsconfig.json (direct child of the package) at any
+  // depth: compiler/packages/foo/tsconfig.json yes;
+  // packages/foo/helper/tsconfig.json no. A lone packages/tsconfig.json
+  // has no <name> segment.
+  const parts = file.split("/");
+  for (let i = 0; i < parts.length - 2; i += 1) {
+    if (parts[i] !== "packages") continue;
+    return i + 2 === parts.length - 1 && isTypeCheckerConfigHit(parts[i + 2]);
+  }
+  return false;
+}
+
+function packagesProductTypeCheckerNestRank(file) {
+  if (!isPackagesProductTypeCheckerConfig(file)) return 0;
+  return isPackagesPackageRootTypeCheckerConfig(file) ? 0 : 1;
+}
+
 function isPackagesProductTypeCheckerConfig(file) {
   if (isTypeCheckerSatellitePath(file)) return false;
   // packages/<name>/ at any depth is not a product-package rank when a whole
@@ -1048,8 +1068,8 @@ function typeCheckerConfigRank(file) {
     // A packages/<name> that starts with a digit is a worse packages-product
     // rank than an unprefixed name so lex cannot pick 0-… over foo/. A
     // numbered product package still beats apps/playground and named
-    // satellites (config/util/plugin). Numbered tooling names (0-config)
-    // are satellites via the config suffix, not this rank.
+    // satellites (config/shared/util/plugin). Numbered tooling names
+    // (0-config, 0-shared) are satellites via those suffixes, not this rank.
     return isNumericPrefixedPackagesName(file) ? 2 : 1;
   }
   if (isAppsOrPlaygroundTypeCheckerPath(file)) return 4;
@@ -1065,6 +1085,14 @@ function rankTypeCheckerHits(files) {
   return [...productTypeCheckerHits(files)].sort((a, b) => {
     const rank = typeCheckerConfigRank(a) - typeCheckerConfigRank(b);
     if (rank !== 0) return rank;
+    // Among same-rank packages-product hits, prefer packages/<name>/tsconfig.json
+    // (direct child of the package) over packages/<name>/<helper>/tsconfig.json
+    // so a nested helper cannot beat a product package root when every
+    // packages/<name> is numeric-prefixed (unprefixed rank never fires). A
+    // nested-only tree still names that file via leftover.
+    const nest =
+      packagesProductTypeCheckerNestRank(a) - packagesProductTypeCheckerNestRank(b);
+    if (nest !== 0) return nest;
     return comparePathDepth(a, b);
   });
 }
