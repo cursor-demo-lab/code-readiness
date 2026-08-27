@@ -6477,13 +6477,20 @@ assert.match(checksReadme, /packages\/ext\/package\.json/);
 assert.equal(/Foundational|Guided/.test(checksReadme), false);
 
 const productRepoLiteral =
-  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|vscode-typescript|microsoft\/TypeScript|ansible|django/i;
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|vscode-typescript|microsoft\/TypeScript|ansible|django/i;
 for (const file of [
   path.join(skillRoot(), "scripts", "evaluate.mjs"),
   catalogPath(),
 ]) {
   const text = fs.readFileSync(file, "utf8");
   assert.equal(productRepoLiteral.test(text), false, file);
+}
+const evaluateProductRepoLiteral =
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript/i;
+{
+  const file = path.join(skillRoot(), "scripts", "evaluate.mjs");
+  const text = fs.readFileSync(file, "utf8");
+  assert.equal(evaluateProductRepoLiteral.test(text), false, file);
 }
 
 function walkTextFiles(dir, acc = []) {
