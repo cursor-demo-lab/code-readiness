@@ -4673,6 +4673,70 @@ const testingLettersInSegmentNotDeferred = assertJavaFirstHit(
 );
 assert.equal(testingLettersInSegmentNotDeferred["test-files-exist"].pass, true);
 
+const productTestingOverBench = evalTree({
+  "testing/test_foo.py": "def test_foo():\n    pass\n",
+  "bench/unit_test.py": "def test_unit():\n    pass\n",
+});
+for (const id of ["test-framework", "test-files-exist"]) {
+  assert.equal(productTestingOverBench[id].pass, true, `${id}: ${productTestingOverBench[id].message}`);
+  assert.match(productTestingOverBench[id].message, /testing\/test_foo\.py/, `${id}: ${productTestingOverBench[id].message}`);
+  assert.equal(
+    /bench\/|unit_test\.py/.test(productTestingOverBench[id].message),
+    false,
+    `${id}: ${productTestingOverBench[id].message}`,
+  );
+}
+assert.equal(
+  productTestingOverBench["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const productTestOverHyphenTesting = evalTree({
+  "src/test_foo.py": "def test_foo():\n    pass\n",
+  "foo-testing/test_bar.py": "def test_bar():\n    pass\n",
+});
+for (const id of ["test-framework", "test-files-exist"]) {
+  assert.equal(
+    productTestOverHyphenTesting[id].pass,
+    true,
+    `${id}: ${productTestOverHyphenTesting[id].message}`,
+  );
+  assert.match(
+    productTestOverHyphenTesting[id].message,
+    /src\/test_foo\.py/,
+    `${id}: ${productTestOverHyphenTesting[id].message}`,
+  );
+  assert.equal(
+    /foo-testing|test_bar\.py/.test(productTestOverHyphenTesting[id].message),
+    false,
+    `${id}: ${productTestOverHyphenTesting[id].message}`,
+  );
+}
+assert.equal(
+  productTestOverHyphenTesting["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const benchOnlyStillPasses = evalTree({
+  "bench/unit_test.py": "def test_unit():\n    pass\n",
+});
+for (const id of ["test-framework", "test-files-exist"]) {
+  assert.equal(benchOnlyStillPasses[id].pass, true, `${id}: ${benchOnlyStillPasses[id].message}`);
+  assert.match(benchOnlyStillPasses[id].message, /bench\/unit_test\.py/, `${id}: ${benchOnlyStillPasses[id].message}`);
+}
+
+const testingOnlyStillPasses = evalTree({
+  "testing/test_foo.py": "def test_foo():\n    pass\n",
+});
+for (const id of ["test-framework", "test-files-exist"]) {
+  assert.equal(testingOnlyStillPasses[id].pass, true, `${id}: ${testingOnlyStillPasses[id].message}`);
+  assert.match(
+    testingOnlyStillPasses[id].message,
+    /testing\/test_foo\.py/,
+    `${id}: ${testingOnlyStillPasses[id].message}`,
+  );
+}
+
 const exactIntegrationStillDeferred = assertTfeFirstHit(
   {
     "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
@@ -7422,6 +7486,10 @@ assert.match(rootReadme, /foo\/src\/commonTest\/kotlin\/FooTest\.kt/);
 assert.match(rootReadme, /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/);
 assert.match(rootReadme, /integration-testing-only tree still passes/);
 assert.match(rootReadme, /letters testing/);
+assert.match(rootReadme, /testing\/test_foo\.py/);
+assert.match(rootReadme, /bench\/unit_test\.py/);
+assert.match(rootReadme, /foo-testing\/test_bar\.py/);
+assert.match(rootReadme, /A testing-only tree still passes/);
 assert.equal(/kotlinx|coroutines/i.test(rootReadme), false);
 assert.match(rootReadme, /foo-keeper/);
 assert.match(rootReadme, /foo\/java-test/);
@@ -7552,6 +7620,10 @@ assert.match(skillMd, /foo\/src\/commonTest\/kotlin\/FooTest\.kt/);
 assert.match(skillMd, /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/);
 assert.match(skillMd, /integration-testing-only tree still passes/);
 assert.match(skillMd, /letters testing/);
+assert.match(skillMd, /testing\/test_foo\.py/);
+assert.match(skillMd, /bench\/unit_test\.py/);
+assert.match(skillMd, /foo-testing\/test_bar\.py/);
+assert.match(skillMd, /A testing-only tree still passes/);
 assert.equal(/kotlinx|coroutines/i.test(skillMd), false);
 assert.match(skillMd, /foo-keeper/);
 assert.match(skillMd, /foo\/java-test/);
@@ -7772,6 +7844,10 @@ assert.match(checksReadme, /foo\/src\/commonTest\/kotlin\/FooTest\.kt/);
 assert.match(checksReadme, /integration-testing\/smoke\/src\/commonTest\/kotlin\/SampleTest\.kt/);
 assert.match(checksReadme, /integration-testing-only tree still passes/);
 assert.match(checksReadme, /letters testing/);
+assert.match(checksReadme, /testing\/test_foo\.py/);
+assert.match(checksReadme, /bench\/unit_test\.py/);
+assert.match(checksReadme, /foo-testing\/test_bar\.py/);
+assert.match(checksReadme, /A testing-only tree still passes/);
 assert.equal(/kotlinx|coroutines/i.test(checksReadme), false);
 assert.match(checksReadme, /foo-keeper/);
 assert.match(checksReadme, /foo\/java-test/);
