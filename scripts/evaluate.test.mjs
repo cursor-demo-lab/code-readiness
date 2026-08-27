@@ -6162,6 +6162,112 @@ assertPass(
   { "apps/playground/tsconfig.json": "{}\n" },
   /^Found apps\/playground\/tsconfig\.json$/,
 );
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "website/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "website/plugins/site-plugin/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "docs/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "website/tsconfig.json": "{}\n" },
+  /^Found website\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "website/plugins/site-plugin/tsconfig.json": "{}\n" },
+  /^Found website\/plugins\/site-plugin\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "docs/tsconfig.json": "{}\n" },
+  /^Found docs\/tsconfig\.json$/,
+);
+const scalaWebsitePluginTsconfig = evalTree({
+  "build.sbt": "name := \"foo\"\n",
+  "core/src/main/scala/foo/Bar.scala": "object Bar\n",
+  "website/plugins/site-plugin/tsconfig.json": "{}\n",
+});
+assert.equal(
+  /website\//.test(scalaWebsitePluginTsconfig["type-checker"].message),
+  false,
+  scalaWebsitePluginTsconfig["type-checker"].message,
+);
+assert.equal(
+  /tsconfig/.test(scalaWebsitePluginTsconfig["type-checker"].message),
+  false,
+  scalaWebsitePluginTsconfig["type-checker"].message,
+);
+assert.equal(
+  scalaWebsitePluginTsconfig["type-checker"].skipped,
+  true,
+  scalaWebsitePluginTsconfig["type-checker"].message,
+);
+assert.match(scalaWebsitePluginTsconfig["type-checker"].message, /no conventional type-checker file/i);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-plugin/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+const javaWebsitePluginTsconfig = evalTree({
+  "pom.xml": "<project></project>\n",
+  "src/main/java/foo/Bar.java": "class Bar {}\n",
+  "website/plugins/site-plugin/tsconfig.json": "{}\n",
+});
+assert.equal(
+  javaWebsitePluginTsconfig["type-checker"].pass,
+  true,
+  javaWebsitePluginTsconfig["type-checker"].message,
+);
+assert.match(
+  javaWebsitePluginTsconfig["type-checker"].message,
+  /Java has a built-in static type system/,
+);
+assert.equal(
+  /website\//.test(javaWebsitePluginTsconfig["type-checker"].message),
+  false,
+  javaWebsitePluginTsconfig["type-checker"].message,
+);
+const kotlinWebsiteTsconfig = evalTree({
+  "build.gradle.kts": "plugins { java }\n",
+  "src/main/kotlin/Foo.kt": "class Foo\n",
+  "website/tsconfig.json": "{}\n",
+});
+assert.equal(
+  kotlinWebsiteTsconfig["type-checker"].pass,
+  true,
+  kotlinWebsiteTsconfig["type-checker"].message,
+);
+assert.match(
+  kotlinWebsiteTsconfig["type-checker"].message,
+  /Kotlin has a built-in static type system/,
+);
+assert.equal(
+  /website\//.test(kotlinWebsiteTsconfig["type-checker"].message),
+  false,
+  kotlinWebsiteTsconfig["type-checker"].message,
+);
 assertPass("type-checker", { "Foo.csproj": "<Project></Project>\n" }, /C# has a built-in static type system/);
 assert.equal(
   evalTree({ "mix.exs": "defmodule Demo.MixProject do\nend\n" })["type-checker"].skipped,
@@ -7506,6 +7612,9 @@ assert.match(rootReadme, /`type-checker` first-hit among/);
 assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(rootReadme, /A plugin-only tree still passes/);
+assert.match(rootReadme, /website\/plugins\/site-plugin\/tsconfig\.json/);
+assert.match(rootReadme, /website\/tsconfig\.json/);
+assert.match(rootReadme, /A website-only tree still passes/);
 assert.match(rootReadme, /A playground-only tree still passes/);
 assert.match(rootReadme, /A util-only tree still passes/);
 assert.match(rootReadme, /A healthcheck-only tree still passes/);
@@ -7640,6 +7749,9 @@ assert.match(skillMd, /`type-checker` first-hit among/);
 assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
 assert.match(skillMd, /A plugin-only tree still passes/);
+assert.match(skillMd, /website\/plugins\/site-plugin\/tsconfig\.json/);
+assert.match(skillMd, /website\/tsconfig\.json/);
+assert.match(skillMd, /A website-only tree still passes/);
 assert.match(skillMd, /A playground-only tree still passes/);
 assert.match(skillMd, /A util-only tree still passes/);
 assert.match(skillMd, /A healthcheck-only tree still passes/);
@@ -7747,6 +7859,9 @@ assert.match(checksReadme, /packages\/foo\/tsconfig\.json/);
 assert.match(checksReadme, /A test-only tree still passes/);
 assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(checksReadme, /A plugin-only tree still passes/);
+assert.match(checksReadme, /website\/plugins\/site-plugin\/tsconfig\.json/);
+assert.match(checksReadme, /website\/tsconfig\.json/);
+assert.match(checksReadme, /A website-only tree still passes/);
 assert.match(checksReadme, /A playground-only tree still passes/);
 assert.match(checksReadme, /A util-only tree still passes/);
 assert.match(checksReadme, /A healthcheck-only tree still passes/);
@@ -7902,7 +8017,7 @@ for (const file of [
   assert.equal(productRepoLiteral.test(text), false, file);
 }
 const evaluateProductRepoLiteral =
-  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript|kotlinx|coroutines/i;
+  /Dapper|Newtonsoft|DapperLib|JamesNK|junit-team|guava-testlib|okhttp|retrofit|hashicorp|consul|terraform|microsoft\/TypeScript|kotlinx|coroutines|docusaurus|\bzio\b/i;
 {
   const file = path.join(skillRoot(), "scripts", "evaluate.mjs");
   const text = fs.readFileSync(file, "utf8");
