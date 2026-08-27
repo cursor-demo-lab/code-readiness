@@ -5415,6 +5415,94 @@ assertPass(
   { "packages/hooks/tsconfig.json": "{}\n" },
   /^Found packages\/hooks\/tsconfig\.json$/,
 );
+const productOverMakeReadOnlyUtil = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/make-read-only-util/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverMakeReadOnlyUtil["type-checker"].pass,
+  true,
+  productOverMakeReadOnlyUtil["type-checker"].message,
+);
+assert.match(
+  productOverMakeReadOnlyUtil["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /make-read-only-util/.test(productOverMakeReadOnlyUtil["type-checker"].message),
+  false,
+  productOverMakeReadOnlyUtil["type-checker"].message,
+);
+const productOverFooUtil = evalTree({
+  "packages/foo/tsconfig.json": "{}\n",
+  "packages/foo-util/tsconfig.json": "{}\n",
+});
+assert.equal(
+  productOverFooUtil["type-checker"].pass,
+  true,
+  productOverFooUtil["type-checker"].message,
+);
+assert.match(
+  productOverFooUtil["type-checker"].message,
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assert.equal(
+  /foo-util/.test(productOverFooUtil["type-checker"].message),
+  false,
+  productOverFooUtil["type-checker"].message,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-utils/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/foo/tsconfig.json": "{}\n",
+    "packages/foo-internal/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/foo\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/make-read-only-util/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/zzz\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/make-read-only-util/tsconfig.json": "{}\n" },
+  /^Found packages\/make-read-only-util\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-util/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-util\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-utils/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-utils\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  { "packages/foo-internal/tsconfig.json": "{}\n" },
+  /^Found packages\/foo-internal\/tsconfig\.json$/,
+);
+assertPass(
+  "type-checker",
+  {
+    "packages/zzz/tsconfig.json": "{}\n",
+    "packages/utils.js/tsconfig.json": "{}\n",
+  },
+  /^Found packages\/utils\.js\/tsconfig\.json$/,
+);
 const pkgOverNestedPlayground = evalTree({
   "packages/foo/tsconfig.json": "{}\n",
   "compiler/apps/playground/tsconfig.json": "{}\n",
@@ -6772,6 +6860,10 @@ assert.match(rootReadme, /A test-only tree still passes/);
 assert.match(rootReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(rootReadme, /A plugin-only tree still passes/);
 assert.match(rootReadme, /A playground-only tree still passes/);
+assert.match(rootReadme, /A util-only tree still passes/);
+assert.match(rootReadme, /make-read-only-util/);
+assert.match(rootReadme, /foo-util/);
+assert.match(rootReadme, /utils\.js/);
 assert.match(rootReadme, /packages\/eslint-plugin-foo/);
 assert.match(rootReadme, /packages\/babel-plugin-foo/);
 assert.match(rootReadme, /compiler\/packages\/foo-plugin/);
@@ -6883,6 +6975,10 @@ assert.match(skillMd, /A test-only tree still passes/);
 assert.match(skillMd, /A fixtures-only or testdata-only tree still passes/);
 assert.match(skillMd, /A plugin-only tree still passes/);
 assert.match(skillMd, /A playground-only tree still passes/);
+assert.match(skillMd, /A util-only tree still passes/);
+assert.match(skillMd, /make-read-only-util/);
+assert.match(skillMd, /foo-util/);
+assert.match(skillMd, /utils\.js/);
 assert.match(skillMd, /packages\/eslint-plugin-foo/);
 assert.match(skillMd, /packages\/babel-plugin-foo/);
 assert.match(skillMd, /compiler\/packages\/foo-plugin/);
@@ -6979,6 +7075,10 @@ assert.match(checksReadme, /A test-only tree still passes/);
 assert.match(checksReadme, /A fixtures-only or testdata-only tree still passes/);
 assert.match(checksReadme, /A plugin-only tree still passes/);
 assert.match(checksReadme, /A playground-only tree still passes/);
+assert.match(checksReadme, /A util-only tree still passes/);
+assert.match(checksReadme, /make-read-only-util/);
+assert.match(checksReadme, /foo-util/);
+assert.match(checksReadme, /utils\.js/);
 assert.match(checksReadme, /packages\/eslint-plugin-foo/);
 assert.match(checksReadme, /packages\/babel-plugin-foo/);
 assert.match(checksReadme, /compiler\/packages\/foo-plugin/);
