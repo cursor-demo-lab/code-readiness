@@ -729,6 +729,9 @@ for (const glob of [
 }
 
 assert.equal(globMatch("scripts/foo.test.mjs", "**/*.test.*"), true);
+assert.equal(globMatch("docs/foo.test.template", "**/*.test.*"), true);
+assert.equal(globMatch("docs/example.test.js", "**/*.test.*"), true);
+assert.equal(globMatch("kotlinx-foo/common/test/FooTest.kt", "**/*Test.kt"), true);
 assert.equal(globMatch(".github/workflows/ci.yml", ".github/workflows/*.yml"), true);
 assert.equal(globMatch("src/foo.js", "**/*.test.*"), false);
 assert.equal(globMatch("docs/en/docs/contributing.md", "docs/**/contributing*"), true);
@@ -4035,6 +4038,234 @@ const kotlinCommonTestOverInstrumented = assertJavaFirstHit(
 );
 assert.equal(kotlinCommonTestOverInstrumented["test-framework"].pass, true);
 
+const kotlinNativeOverDocsTemplate = evalTree({
+  "kotlinx-foo/common/test/FooTest.kt": "class FooTest\n",
+  "docs/foo.test.template": "example\n",
+});
+assert.equal(
+  kotlinNativeOverDocsTemplate["test-files-exist"].pass,
+  true,
+  kotlinNativeOverDocsTemplate["test-files-exist"].message,
+);
+assert.match(kotlinNativeOverDocsTemplate["test-files-exist"].message, /kotlinx-foo\/common\/test\/FooTest\.kt/);
+assert.equal(
+  /foo\.test\.template/.test(kotlinNativeOverDocsTemplate["test-files-exist"].message),
+  false,
+  kotlinNativeOverDocsTemplate["test-files-exist"].message,
+);
+assert.equal(
+  kotlinNativeOverDocsTemplate["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+assert.match(
+  kotlinNativeOverDocsTemplate["test-files-exist"].details,
+  /^kotlinx-foo\/common\/test\/FooTest\.kt\b/,
+);
+assert.equal(
+  kotlinNativeOverDocsTemplate["test-framework"].pass,
+  true,
+  kotlinNativeOverDocsTemplate["test-framework"].message,
+);
+assert.match(kotlinNativeOverDocsTemplate["test-framework"].message, /FooTest\.kt/);
+assert.equal(
+  /foo\.test\.template/.test(kotlinNativeOverDocsTemplate["test-framework"].message),
+  false,
+  kotlinNativeOverDocsTemplate["test-framework"].message,
+);
+
+const javaSrcTestOverDocsExampleJs = evalTree({
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "docs/example.test.js": "test('ok');\n",
+});
+assert.equal(
+  javaSrcTestOverDocsExampleJs["test-files-exist"].pass,
+  true,
+  javaSrcTestOverDocsExampleJs["test-files-exist"].message,
+);
+assert.match(javaSrcTestOverDocsExampleJs["test-files-exist"].message, /src\/test\/java\/FooTest\.java/);
+assert.equal(
+  /example\.test\.js/.test(javaSrcTestOverDocsExampleJs["test-files-exist"].message),
+  false,
+  javaSrcTestOverDocsExampleJs["test-files-exist"].message,
+);
+assert.match(
+  javaSrcTestOverDocsExampleJs["test-files-exist"].details,
+  /^src\/test\/java\/FooTest\.java\b/,
+);
+assert.equal(
+  javaSrcTestOverDocsExampleJs["test-framework"].pass,
+  true,
+  javaSrcTestOverDocsExampleJs["test-framework"].message,
+);
+assert.match(javaSrcTestOverDocsExampleJs["test-framework"].message, /FooTest\.java/);
+assert.equal(
+  /example\.test\.js/.test(javaSrcTestOverDocsExampleJs["test-framework"].message),
+  false,
+  javaSrcTestOverDocsExampleJs["test-framework"].message,
+);
+
+const kotlinNativeOverDocsKt = assertJavaFirstHit(
+  {
+    "kotlinx-foo/common/test/FooTest.kt": "class FooTest\n",
+    "docs/BarTest.kt": "class BarTest\n",
+  },
+  /kotlinx-foo\/common\/test\/FooTest\.kt/,
+  { not: /docs\/|BarTest/ },
+);
+assert.equal(
+  kotlinNativeOverDocsKt["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const goNativeOverDocsTemplate = evalTree({
+  "foo/foo_test.go": "package foo\n",
+  "docs/foo.test.template": "example\n",
+});
+assert.equal(
+  goNativeOverDocsTemplate["test-files-exist"].pass,
+  true,
+  goNativeOverDocsTemplate["test-files-exist"].message,
+);
+assert.match(goNativeOverDocsTemplate["test-files-exist"].message, /foo\/foo_test\.go/);
+assert.equal(
+  /foo\.test\.template/.test(goNativeOverDocsTemplate["test-files-exist"].message),
+  false,
+  goNativeOverDocsTemplate["test-files-exist"].message,
+);
+assert.equal(
+  goNativeOverDocsTemplate["test-framework"].pass,
+  true,
+  goNativeOverDocsTemplate["test-framework"].message,
+);
+assert.match(goNativeOverDocsTemplate["test-framework"].message, /foo_test\.go/);
+
+const javaOverTemplateSuffix = evalTree({
+  "src/test/java/FooTest.java": "class FooTest {}\n",
+  "foo.test.template": "example\n",
+});
+assert.equal(
+  javaOverTemplateSuffix["test-files-exist"].pass,
+  true,
+  javaOverTemplateSuffix["test-files-exist"].message,
+);
+assert.match(javaOverTemplateSuffix["test-files-exist"].message, /FooTest\.java/);
+assert.equal(
+  /foo\.test\.template/.test(javaOverTemplateSuffix["test-files-exist"].message),
+  false,
+  javaOverTemplateSuffix["test-files-exist"].message,
+);
+
+const docsOnlyTemplateStillPasses = evalTree({
+  "docs/foo.test.template": "example\n",
+});
+assert.equal(
+  docsOnlyTemplateStillPasses["test-files-exist"].pass,
+  true,
+  docsOnlyTemplateStillPasses["test-files-exist"].message,
+);
+assert.match(docsOnlyTemplateStillPasses["test-files-exist"].message, /docs\/foo\.test\.template/);
+
+const templateOnlyStillPasses = evalTree({
+  "foo.test.template": "example\n",
+});
+assert.equal(
+  templateOnlyStillPasses["test-files-exist"].pass,
+  true,
+  templateOnlyStillPasses["test-files-exist"].message,
+);
+assert.match(templateOnlyStillPasses["test-files-exist"].message, /foo\.test\.template/);
+
+const docsOnlyLanguageNativeStillPasses = evalTree({
+  "docs/FooTest.kt": "class FooTest\n",
+});
+assert.equal(
+  docsOnlyLanguageNativeStillPasses["test-files-exist"].pass,
+  true,
+  docsOnlyLanguageNativeStillPasses["test-files-exist"].message,
+);
+assert.match(docsOnlyLanguageNativeStillPasses["test-files-exist"].message, /docs\/FooTest\.kt/);
+assert.equal(
+  docsOnlyLanguageNativeStillPasses["test-framework"].pass,
+  true,
+  docsOnlyLanguageNativeStillPasses["test-framework"].message,
+);
+assert.match(docsOnlyLanguageNativeStillPasses["test-framework"].message, /docs\/FooTest\.kt/);
+
+const docSegmentDeferredWhenProductExists = evalTree({
+  "foo/foo_test.go": "package foo\n",
+  "doc/cmd_test.go": "package cmd\n",
+});
+assert.equal(
+  docSegmentDeferredWhenProductExists["test-files-exist"].pass,
+  true,
+  docSegmentDeferredWhenProductExists["test-files-exist"].message,
+);
+assert.match(docSegmentDeferredWhenProductExists["test-files-exist"].message, /foo\/foo_test\.go/);
+assert.equal(
+  /doc\//.test(docSegmentDeferredWhenProductExists["test-files-exist"].message),
+  false,
+  docSegmentDeferredWhenProductExists["test-files-exist"].message,
+);
+assert.equal(
+  docSegmentDeferredWhenProductExists["test-framework"].pass,
+  true,
+  docSegmentDeferredWhenProductExists["test-framework"].message,
+);
+assert.match(docSegmentDeferredWhenProductExists["test-framework"].message, /foo\/foo_test\.go/);
+
+const documentationNotDocSegment = evalTree({
+  "documentation/foo_test.go": "package foo\n",
+  "zoo/bar_test.go": "package zoo\n",
+});
+assert.equal(
+  documentationNotDocSegment["test-files-exist"].pass,
+  true,
+  documentationNotDocSegment["test-files-exist"].message,
+);
+assert.match(documentationNotDocSegment["test-files-exist"].message, /documentation\/foo_test\.go/);
+assert.equal(
+  /zoo\//.test(documentationNotDocSegment["test-files-exist"].message),
+  false,
+  documentationNotDocSegment["test-files-exist"].message,
+);
+
+const vitestConfigNotDisplacedByDocsDefer = evalTree({
+  "docs/vitest.config.ts": "export default {}\n",
+  "kotlinx-foo/common/test/FooTest.kt": "class FooTest\n",
+});
+assert.equal(
+  vitestConfigNotDisplacedByDocsDefer["test-framework"].pass,
+  true,
+  vitestConfigNotDisplacedByDocsDefer["test-framework"].message,
+);
+assert.match(vitestConfigNotDisplacedByDocsDefer["test-framework"].message, /docs\/vitest\.config\.ts/);
+assert.equal(
+  /FooTest/.test(vitestConfigNotDisplacedByDocsDefer["test-framework"].message),
+  false,
+  vitestConfigNotDisplacedByDocsDefer["test-framework"].message,
+);
+assert.equal(
+  vitestConfigNotDisplacedByDocsDefer["test-files-exist"].pass,
+  true,
+  vitestConfigNotDisplacedByDocsDefer["test-files-exist"].message,
+);
+assert.match(vitestConfigNotDisplacedByDocsDefer["test-files-exist"].message, /FooTest\.kt/);
+
+const jvmTestOverCommonTestKeepsDocsCatchAllDefer = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
+    "foo/src/commonTest/kotlin/BarTest.kt": "class BarTest\n",
+    "docs/foo.test.template": "example\n",
+  },
+  /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/,
+  { not: /commonTest|BarTest|foo\.test\.template/ },
+);
+assert.equal(
+  jvmTestOverCommonTestKeepsDocsCatchAllDefer["test-files-exist"].message.includes("Found 3 test file(s)"),
+  true,
+);
+
 const kotlinJvmTestOverSatellite = evalTree({
   "build.gradle": "plugins { java }\n",
   "foo/src/jvmTest/kotlin/FooTest.kt": "class FooTest\n",
@@ -6830,6 +7061,10 @@ assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(rootReadme, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
 assert.match(rootReadme, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
 assert.match(rootReadme, /A commonTest-only tree still passes/);
+assert.match(rootReadme, /foo\/common\/test\/FooTest\.kt/);
+assert.match(rootReadme, /docs\/foo\.test\.template/);
+assert.match(rootReadme, /docs\/example\.test\.js/);
+assert.match(rootReadme, /docs-only or template-only tree still passes/);
 assert.match(rootReadme, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
 assert.match(rootReadme, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
 assert.match(rootReadme, /androidTest-only tree still passes/);
@@ -6945,6 +7180,10 @@ assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(skillMd, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
 assert.match(skillMd, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
 assert.match(skillMd, /A commonTest-only tree still passes/);
+assert.match(skillMd, /foo\/common\/test\/FooTest\.kt/);
+assert.match(skillMd, /docs\/foo\.test\.template/);
+assert.match(skillMd, /docs\/example\.test\.js/);
+assert.match(skillMd, /docs-only or template-only tree still passes/);
 assert.match(skillMd, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
 assert.match(skillMd, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
 assert.match(skillMd, /androidTest-only tree still passes/);
@@ -7143,6 +7382,10 @@ assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(checksReadme, /foo\/src\/jvmTest\/kotlin\/FooTest\.kt/);
 assert.match(checksReadme, /foo\/src\/commonTest\/kotlin\/BarTest\.kt/);
 assert.match(checksReadme, /A commonTest-only tree still passes/);
+assert.match(checksReadme, /foo\/common\/test\/FooTest\.kt/);
+assert.match(checksReadme, /docs\/foo\.test\.template/);
+assert.match(checksReadme, /docs\/example\.test\.js/);
+assert.match(checksReadme, /docs-only or template-only tree still passes/);
 assert.match(checksReadme, /foo\/java-test\/src\/test\/java\/FooTest\.java/);
 assert.match(checksReadme, /foo\/android-test\/src\/androidTest\/java\/BarTest\.java/);
 assert.match(checksReadme, /androidTest-only tree still passes/);

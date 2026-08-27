@@ -228,10 +228,34 @@ function productContainerHits(files) {
   return productHits.length > 0 ? productHits : files;
 }
 
+function isTestFrameworkNamedConfig(file) {
+  const name = posixBasename(file);
+  return name === "package.json" || isTestFrameworkConfigHit(file);
+}
+
+// `.template` suffix (`foo.test.template`) or dotted extension component
+// (`foo.template.js`). Stem `template.js` is not a suffix.
+function hasTemplateSuffixOrExtension(file) {
+  const name = posixBasename(file).toLowerCase();
+  const parts = name.split(".");
+  return parts.length > 1 && parts.slice(1).includes("template");
+}
+
+function isDeferredDocsOrTemplateTestFile(file) {
+  // Docs/template defer applies when first-hit names a test file, not when it
+  // names package.json / vitest.config.* / jest.config.*.
+  if (isTestFrameworkNamedConfig(file)) return false;
+  return (
+    pathHasSegmentsIgnoreCase(file, STYLE_FIRST_HIT_DOCS_SEGMENTS) ||
+    hasTemplateSuffixOrExtension(file)
+  );
+}
+
 function isDeferredTestFileFirstHit(file) {
   return (
     pathHasSegmentsIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SEGMENTS) ||
-    pathHasExactOrHyphenSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SUFFIXES)
+    pathHasExactOrHyphenSuffixIgnoreCase(file, TEST_FILE_FIRST_HIT_DEFER_SUFFIXES) ||
+    isDeferredDocsOrTemplateTestFile(file)
   );
 }
 
@@ -718,11 +742,13 @@ function productTestFrameworkHits(files, languages, repoFiles) {
   // a product module over a hyphen satellite (foo/ over foo-tls/), then prefer
   // consecutive src/jvmTest over src/test in other modules (foo/ over bar/),
   // then defer benchmarks/fuzz/fixtures/samples/testlib/mock/integration/e2e/
-  // processor/keeper/integration-testing/-testing path segments (same class as
-  // containerization sample/integration), then prefer src/jvmTest over
-  // src/commonTest when both exist, then prefer unit source sets over
+  // processor/keeper/integration-testing/-testing/docs/doc/.template path
+  // segments (same class as containerization sample/integration; docs/template
+  // apply to named test files, not package.json / vitest.config), then prefer
+  // src/jvmTest over src/commonTest when both exist, then prefer unit source sets over
   // instrumented src/androidTest. A benchmark-only, testlib-only, jvmTest-only,
-  // src/test-only, commonTest-only, androidTest-only, integration-only, e2e-only,
+  // src/test-only, commonTest-only, androidTest-only, docs-only, template-only,
+  // integration-only, e2e-only,
   // integration-testing-only, or satellite-only tree still names that file.
   // Java-primary trees prefer *Test.java over sidecar Python test_*.py /
   // *_test.py; a Java tree with only Python still names Python.
@@ -837,7 +863,13 @@ function firstFileHit(criterion, fileHits, languages, repoFiles, repoRoot) {
   if (criterion.id === "license") return shallowestHit(fileHits);
   if (criterion.id === "test-script") return shallowestHit(productTestScriptHits(fileHits));
   if (criterion.id === "test-framework") {
-    return shallowestHit(productTestFrameworkHits(fileHits, languages, repoFiles));
+    const product = productTestFrameworkHits(fileHits, languages, repoFiles);
+    // Docs/template/catch-all ranking applies when first-hit names a test
+    // file. package.json / vitest.config.* / jest.config.* keep shallowest.
+    if (!product.some(isTestFrameworkNamedConfig)) {
+      return rankTestFileHits(product, languages, repoFiles)[0];
+    }
+    return shallowestHit(product);
   }
   if (criterion.id === "type-checker") {
     const configs = fileHits.filter(isTypeCheckerConfigHit);
@@ -880,24 +912,29 @@ function testFileFirstHitRank(file, languages, repoFiles, hits) {
   const otherModuleSrcTest = isOtherModuleSrcTestWhenJvmTestExists(file, hits) ? 1 : 0;
   const commonTestWhenJvmTest = isCommonTestWhenJvmTestExists(file, hits) ? 1 : 0;
   const instrumented = isJvmTestFile(file) && isJvmInstrumentedSourceSetPath(file) ? 1 : 0;
-  // sidecar (JS/Python) > Java src/main vs src/test|jvmTest > testlib/mock/integration/e2e/keeper
-  // /integration-testing/-testing defer > catch-all / C# fuzz basename > hyphen
-  // satellite / other-module src/test when a src/jvmTest hit exists / src/commonTest
-  // when a src/jvmTest hit exists > instrumented src/androidTest. Product
-  // src/jvmTest Java beats sibling src/test (bar/) and satellite src/test
-  // (foo-tls/), which still beat src/main API *Test.java, which still beats
-  // sidecar Python. Unit source sets beat instrumented src/androidTest when
-  // both exist. Do not prefer src/test over src/jvmTest on the same product
-  // module. When src/jvmTest and src/commonTest both exist, prefer src/jvmTest
-  // (foo/src/jvmTest over foo/src/commonTest). Product instrumented still
-  // beats a hyphen satellite's src/test. packages/<name>/test beats
-  // integration/ and e2e/ at the same depth. Product src/commonTest beats
-  // integration-testing/. A commonTest-only tree still names that file.
+  // sidecar (JS/Python) > catch-all (`**/*.test.*` / `**/*.spec.*`) so a
+  // language-native glob cannot lose to docs/foo.test.template > Java src/main
+  // vs src/test|jvmTest > testlib/mock/integration/e2e/keeper/docs/doc/.template
+  // /integration-testing/-testing defer > C# fuzz basename > hyphen satellite /
+  // other-module src/test when a src/jvmTest hit exists / src/commonTest when a
+  // src/jvmTest hit exists > instrumented src/androidTest. Product src/jvmTest
+  // Java beats sibling src/test (bar/) and satellite src/test (foo-tls/), which
+  // still beat src/main API *Test.java, which still beats sidecar Python. Unit
+  // source sets beat instrumented src/androidTest when both exist. Do not prefer
+  // src/test over src/jvmTest on the same product module. When src/jvmTest and
+  // src/commonTest both exist, prefer src/jvmTest (foo/src/jvmTest over
+  // foo/src/commonTest). Product instrumented still beats a hyphen satellite's
+  // src/test. packages/<name>/test beats integration/ and e2e/ at the same
+  // depth. Product src/commonTest beats integration-testing/. Language-native
+  // `**/*Test.kt` / `**/test/**/*Test.kt` / `**/*_test.go` beat catch-alls
+  // (foo/common/test/FooTest.kt over docs/foo.test.template). A docs-only,
+  // template-only, or commonTest-only tree still names that file.
   return (
-    sidecar * 32 +
+    sidecar * 64 +
+    catchAllOnly * 32 +
     javaLayout * 16 +
     deferred * 8 +
-    (catchAllOnly + fuzzBench) * 4 +
+    fuzzBench * 4 +
     Math.max(hyphenSat, otherModuleSrcTest, commonTestWhenJvmTest) * 2 +
     instrumented
   );
