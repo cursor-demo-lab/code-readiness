@@ -3705,11 +3705,21 @@ const javaSrcTestOverMock = assertJavaFirstHit(
   {
     "pom.xml": "<project></project>\n",
     "src/test/java/FooTest.java": "class FooTest {}\n",
-    "foo-mock/src/test/java/MockTest.java": "class MockTest {}\n",
+    "mock/src/test/java/MockTest.java": "class MockTest {}\n",
   },
   /FooTest\.java/,
   { not: /MockTest/ },
 );
+const javaSrcTestOverMocks = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "src/test/java/FooTest.java": "class FooTest {}\n",
+    "mocks/MockTest.java": "class MockTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /MockTest/ },
+);
+assert.equal(javaSrcTestOverMocks["test-files-exist"].pass, true);
 
 const javaSrcTestOverPy = assertJavaFirstHit(
   {
@@ -3764,7 +3774,7 @@ const javaSrcTestOverSupport = assertJavaFirstHit(
   {
     "pom.xml": "<project></project>\n",
     "src/test/java/FooTest.java": "class FooTest {}\n",
-    "foo-support/src/test/java/SupportTest.java": "class SupportTest {}\n",
+    "support/SupportTest.java": "class SupportTest {}\n",
   },
   /FooTest\.java/,
   { not: /SupportTest/ },
@@ -3882,6 +3892,120 @@ const javaSrcTestOverTestlibCase = assertJavaFirstHit(
   { not: /AbstractTests/ },
 );
 assert.equal(javaSrcTestOverTestlibCase["test-framework"].pass, true);
+
+function assertTfeFirstHit(files, needle, opts = {}) {
+  const byId = evalTree(files);
+  assert.equal(
+    byId["test-files-exist"].pass,
+    true,
+    `test-files-exist should pass: ${byId["test-files-exist"].message}`,
+  );
+  assert.match(
+    byId["test-files-exist"].message,
+    needle,
+    `test-files-exist: ${byId["test-files-exist"].message}`,
+  );
+  if (opts.not) {
+    assert.equal(
+      opts.not.test(byId["test-files-exist"].message),
+      false,
+      `test-files-exist: ${byId["test-files-exist"].message}`,
+    );
+  }
+  return byId;
+}
+
+const packagesTestOverIntegrationE2e = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "integration/cors/e2e/express.spec.ts": "test('cors', () => {});\n",
+  },
+  /packages\/foo\/test\/foo\.spec\.ts/,
+  { not: /integration|express\.spec/ },
+);
+assert.equal(
+  packagesTestOverIntegrationE2e["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const packagesTestOverIntegrationAutoMock = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "integration/auto-mock/test/bar.spec.ts": "test('auto', () => {});\n",
+  },
+  /packages\/foo\/test\/foo\.spec\.ts/,
+  { not: /auto-mock|bar\.spec/ },
+);
+assert.equal(
+  packagesTestOverIntegrationAutoMock["test-files-exist"].message.includes("Found 2 test file(s)"),
+  true,
+);
+
+const packagesSpecOverIntegration = assertTfeFirstHit(
+  {
+    "packages/foo/src/foo.spec.ts": "test('ok', () => {});\n",
+    "integration/cors/e2e/express.spec.ts": "test('cors', () => {});\n",
+  },
+  /packages\/foo\/src\/foo\.spec\.ts/,
+  { not: /integration|express\.spec/ },
+);
+assert.equal(packagesSpecOverIntegration["test-files-exist"].pass, true);
+
+const packagesTestOverE2e = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "e2e/express.spec.ts": "test('e2e', () => {});\n",
+  },
+  /packages\/foo\/test\/foo\.spec\.ts/,
+  { not: /e2e\/express/ },
+);
+assert.equal(packagesTestOverE2e["test-files-exist"].pass, true);
+
+const integrationOnlyStillPasses = assertTfeFirstHit(
+  {
+    "integration/cors/e2e/express.spec.ts": "test('cors', () => {});\n",
+  },
+  /integration\/cors\/e2e\/express\.spec\.ts/,
+);
+assert.equal(integrationOnlyStillPasses["test-files-exist"].pass, true);
+
+const e2eOnlyStillPasses = assertTfeFirstHit(
+  {
+    "e2e/express.spec.ts": "test('e2e', () => {});\n",
+  },
+  /e2e\/express\.spec\.ts/,
+);
+assert.equal(e2eOnlyStillPasses["test-files-exist"].pass, true);
+
+const autoMockNotLetterSuffix = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "auto-mock/test/bar.spec.ts": "test('auto', () => {});\n",
+  },
+  /auto-mock\/test\/bar\.spec\.ts/,
+  { not: /packages\/foo/ },
+);
+assert.equal(autoMockNotLetterSuffix["test-files-exist"].pass, true);
+
+const exactMockStillDeferred = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "mock/test/bar.spec.ts": "test('mock', () => {});\n",
+  },
+  /packages\/foo\/test\/foo\.spec\.ts/,
+  { not: /mock\/test|bar\.spec/ },
+);
+assert.equal(exactMockStillDeferred["test-files-exist"].pass, true);
+
+const letterSuffixMockNotDeferred = assertTfeFirstHit(
+  {
+    "packages/foo/test/foo.spec.ts": "test('ok', () => {});\n",
+    "automock/test/bar.spec.ts": "test('auto', () => {});\n",
+  },
+  /automock\/test\/bar\.spec\.ts/,
+  { not: /packages\/foo/ },
+);
+assert.equal(letterSuffixMockNotDeferred["test-files-exist"].pass, true);
 
 const mixExUnitStillNamesExsAfterJavaRank = evalTree({
   "mix.exs": "defmodule Demo.MixProject do\nend\n",
@@ -6190,6 +6314,10 @@ assert.match(rootReadme, /A jvmTest-only tree still passes/);
 assert.match(rootReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(rootReadme, /A testlib-only tree still passes/);
 assert.match(rootReadme, /foo-testlib/);
+assert.match(rootReadme, /packages\/foo\/test\/foo\.spec\.ts/);
+assert.match(rootReadme, /integration\/cors\/e2e\/express\.spec\.ts/);
+assert.match(rootReadme, /integration\/auto-mock/);
+assert.match(rootReadme, /e2e-only tree still passes/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
 assert.match(rootReadme, /C#-primary/);
 assert.match(rootReadme, /A C# tree with only jest/);
@@ -6276,6 +6404,10 @@ assert.match(skillMd, /A jvmTest-only tree still passes/);
 assert.match(skillMd, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(skillMd, /A testlib-only tree still passes/);
 assert.match(skillMd, /foo-testlib/);
+assert.match(skillMd, /packages\/foo\/test\/foo\.spec\.ts/);
+assert.match(skillMd, /integration\/cors\/e2e\/express\.spec\.ts/);
+assert.match(skillMd, /integration\/auto-mock/);
+assert.match(skillMd, /e2e-only tree still passes/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
 assert.match(skillMd, /C#-primary/);
 assert.match(skillMd, /A C# tree with only jest/);
@@ -6437,6 +6569,10 @@ assert.match(checksReadme, /A jvmTest-only tree still passes/);
 assert.match(checksReadme, /do not prefer `src\/test` over `src\/jvmTest`/);
 assert.match(checksReadme, /A testlib-only tree still passes/);
 assert.match(checksReadme, /foo-testlib/);
+assert.match(checksReadme, /packages\/foo\/test\/foo\.spec\.ts/);
+assert.match(checksReadme, /integration\/cors\/e2e\/express\.spec\.ts/);
+assert.match(checksReadme, /integration\/auto-mock/);
+assert.match(checksReadme, /e2e-only tree still passes/);
 assert.match(checksReadme, /A C# tree with only JS tests still passes/);
 assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A C# tree with only jest/);
