@@ -150,6 +150,12 @@ assert.ok(
   ".github/AGENTS.md must precede CLAUDE.md",
 );
 assert.equal(/does not look for AGENTS\.md/i.test(aiContext.fix), false);
+assert.match(aiContext.fix, /AGENTS\.md/);
+assert.equal(
+  /CLAUDE\.md/.test(aiContext.fix),
+  false,
+  "ai-context fix must recommend AGENTS.md, not CLAUDE.md",
+);
 
 const contributing = catalog.criteria.find((row) => row.id === "contributing");
 assert.ok(contributing.anyFiles.includes("**/CONTRIBUTING.md"));
@@ -1076,6 +1082,17 @@ const l2GateAgentsChat = chatLines(l2GateAgentsReport, "./code-readiness.canvas.
 assertChatThreeLines(l2GateAgentsChat);
 assert.match(l2GateAgentsChat[1], /ai-context/);
 assert.match(l2GateAgentsChat[1], /AGENTS\.md/);
+assert.equal(
+  /CLAUDE\.md/.test(l2GateAgentsChat[1]),
+  false,
+  "ai-context miss must recommend AGENTS.md, not CLAUDE.md",
+);
+assert.match(l2GateAgentsRecs[0].description, /AGENTS\.md/);
+assert.equal(
+  /CLAUDE\.md/.test(l2GateAgentsRecs[0].description),
+  false,
+  "ai-context remediation description must recommend AGENTS.md, not CLAUDE.md",
+);
 assert.equal(/editorconfig/i.test(l2GateAgentsChat[1]), false);
 
 assert.equal(
@@ -1109,6 +1126,17 @@ assert.equal(
   ),
   "eslint.config.js",
   "never dummy .editorconfig while linter is the gate",
+);
+assert.equal(
+  chatFixFile(
+    {
+      languages: [],
+      criterion_results: [{ criterionId: "ai-context", message: "No AI context files found." }],
+    },
+    { criterionId: "ai-context" },
+  ),
+  "AGENTS.md",
+  "ai-context miss must open AGENTS.md, not CLAUDE.md",
 );
 
 const pyGuidedRoot = tmp("code-readiness-py-guided-");
@@ -6096,7 +6124,15 @@ assertPass("ai-context", { "GEMINI.md": "# gemini\n" }, /GEMINI\.md/);
 assertPass("ai-context", { ".github/instructions/js.md": "# js\n" }, /instructions/);
 assertPass("ai-context", { ".windsurfrules": "# rules\n" }, /windsurfrules/);
 assertPass("ai-context", { "WARP.md": "# warp\n" }, /WARP\.md/);
-assertFail("ai-context", { "README.md": "See AGENTS.md and GEMINI.md for agent context.\n" });
+const aiContextMiss = assertFail("ai-context", {
+  "README.md": "See AGENTS.md and GEMINI.md for agent context.\n",
+});
+assert.match(aiContextMiss["ai-context"].fix, /AGENTS\.md/);
+assert.equal(
+  /CLAUDE\.md/.test(aiContextMiss["ai-context"].fix),
+  false,
+  "ai-context miss must recommend AGENTS.md, not CLAUDE.md",
+);
 assertPass("architecture-docs", { "docs/adr/0001-record.md": "# adr\n" }, /docs\/adr/);
 assertPass("architecture-docs", { "docs/decisions/0001.md": "# decision\n" }, /docs\/decisions/);
 assertPass("architecture-docs", { "adr/0001.md": "# adr\n" }, /adr\/0001/);
@@ -7116,6 +7152,29 @@ assert.equal(
 );
 assert.equal(openById["type-checker"], undefined);
 assert.equal(openById["ai-context"], "AGENTS.md");
+assert.equal(
+  /"ai-context": "CLAUDE\.md"/.test(canvasTemplate),
+  false,
+  "OPEN_BY_ID must recommend AGENTS.md, not CLAUDE.md",
+);
+assert.equal(
+  simulateFailOpenPath(
+    {
+      criterionId: "ai-context",
+      name: "AI context files",
+      message: "No AI context files found.",
+      fix: aiContext.fix,
+      details: "",
+    },
+    openById,
+    concretePaths,
+    [],
+    openByLang,
+    langOrder,
+  ),
+  "AGENTS.md",
+  "ai-context remaining-fail Card must name AGENTS.md",
+);
 assert.equal(openById["issue-templates"], ".github/ISSUE_TEMPLATE.md");
 assert.equal(openById.containerization, ".devcontainer/devcontainer.json");
 assert.ok(concretePaths.includes(".cursor/environment.json"));
@@ -7235,6 +7294,7 @@ assert.match(rootReadme, /First-hit prefers a form/);
 assert.match(rootReadme, /config\.yml-only tree still passes/);
 assert.match(rootReadme, /PR-template-only tree still passes/);
 assert.match(rootReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
+assert.match(rootReadme, /When the check fails, the file to add is `AGENTS\.md`/);
 assert.match(rootReadme, /`containerization` first-hit prefers/);
 assert.match(rootReadme, /integration-only tree still passes/);
 assert.match(rootReadme, /sample-only tree still passes/);
@@ -7465,6 +7525,7 @@ assert.match(skillMd, /packages\/foo\/tests\/types\/tsconfig\.json/);
 assert.match(skillMd, /packages\/bar\/tsconfig\.json/);
 assert.match(skillMd, /Style & Validation/);
 assert.match(skillMd, /catalog id stays `style-linting`/);
+assert.match(skillMd, /When the check fails, the file to add is `AGENTS\.md`/);
 assert.match(skillMd, /Forbidden UI copy: "9 pillars"/);
 assert.equal(/Style & Linting/.test(skillMd), false);
 assert.equal(/Foundational|Guided/.test(skillMd), false);
@@ -7542,6 +7603,7 @@ assert.match(checksReadme, /Do not reject empty linter configs/);
 assert.match(checksReadme, /eslint\.config\.\*/);
 assert.match(checksReadme, /match the basename at any depth for `linter`, `formatter`, and `test-framework`/);
 assert.match(checksReadme, /`AGENTS\.md` is the preferred first-hit when both `AGENTS\.md` and `CLAUDE\.md` exist/);
+assert.match(checksReadme, /When the check fails, the file to add is `AGENTS\.md`/);
 assert.match(checksReadme, /`test-framework` first-hit prefers the shallowest product-tree/);
 assert.match(checksReadme, /sample \/ examples \/ docs samples/);
 assert.match(checksReadme, /vitest\.config\.coverage\.mts/);

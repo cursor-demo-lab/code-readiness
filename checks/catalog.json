@@ -501,7 +501,7 @@
         "WARP.md"
       ],
       "fail": "No AI context files found.",
-      "fix": "Add AGENTS.md, CLAUDE.md, .cursor/rules, .cursorrules, or .github/copilot-instructions.md.",
+      "fix": "Add AGENTS.md.",
       "effort": "low"
     },
     {
