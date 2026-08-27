@@ -313,6 +313,9 @@ assert.ok(testFramework.anyGlobs.includes("**/test_*.py"));
 assert.ok(testFramework.anyGlobs.includes("**/*_test.py"));
 assert.ok(testFramework.anyGlobs.includes("**/*Test.java"));
 assert.ok(testFramework.anyGlobs.includes("**/*Tests.java"));
+assert.ok(testFramework.anyGlobs.includes("**/*Test.kt"));
+assert.ok(testFramework.anyGlobs.includes("**/*Tests.kt"));
+assert.ok(testFramework.anyGlobs.includes("**/*Spec.kt"));
 assert.ok(testFramework.anyGlobs.includes("**/*Test.cs"));
 assert.ok(testFramework.anyGlobs.includes("**/*Tests.cs"));
 assert.ok(testFramework.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pytest")));
@@ -3882,6 +3885,72 @@ assert.equal(
   kotlinJvmTestOverSatellite["test-files-exist"].message,
 );
 
+const javaSrcTestOverKeeperSatellite = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "foo/java-test/src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-keeper/src/test/kotlin/KeepTest.kt": "class KeepTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /KeepTest/ },
+);
+assert.match(
+  javaSrcTestOverKeeperSatellite["test-files-exist"].details,
+  /^foo\/java-test\/src\/test\/java\/FooTest\.java\b/,
+);
+
+const javaSrcTestOverProcessorSatellite = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "foo/src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-processor/src/test/java/ProcTest.java": "class ProcTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /ProcTest/ },
+);
+assert.equal(javaSrcTestOverProcessorSatellite["test-framework"].pass, true);
+
+const javaSrcTestOverKeeperWithoutPrefixSibling = assertJavaFirstHit(
+  {
+    "pom.xml": "<project></project>\n",
+    "zoo/src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-keeper/src/test/kotlin/KeepTest.kt": "class KeepTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /KeepTest/ },
+);
+assert.match(
+  javaSrcTestOverKeeperWithoutPrefixSibling["test-files-exist"].details,
+  /^zoo\/src\/test\/java\/FooTest\.java\b/,
+);
+
+const javaSrcTestOverProcessorWithoutPrefixSibling = assertJavaFirstHit(
+  {
+    "build.gradle": "plugins { java }\n",
+    "zoo/src/test/java/FooTest.java": "class FooTest {}\n",
+    "foo-processor/src/test/java/ProcTest.java": "class ProcTest {}\n",
+  },
+  /FooTest\.java/,
+  { not: /ProcTest/ },
+);
+assert.equal(javaSrcTestOverProcessorWithoutPrefixSibling["test-framework"].pass, true);
+
+const javaKeeperOnly = evalTree({
+  "foo-keeper/src/test/kotlin/KeepTest.kt": "class KeepTest {}\n",
+});
+assert.equal(javaKeeperOnly["test-framework"].pass, true, javaKeeperOnly["test-framework"].message);
+assert.match(javaKeeperOnly["test-framework"].message, /KeepTest\.kt/);
+assert.equal(javaKeeperOnly["test-files-exist"].pass, true, javaKeeperOnly["test-files-exist"].message);
+assert.match(javaKeeperOnly["test-files-exist"].message, /KeepTest\.kt/);
+
+const javaProcessorOnly = evalTree({
+  "foo-processor/src/test/java/ProcTest.java": "class ProcTest {}\n",
+});
+assert.equal(javaProcessorOnly["test-framework"].pass, true, javaProcessorOnly["test-framework"].message);
+assert.match(javaProcessorOnly["test-framework"].message, /ProcTest\.java/);
+assert.equal(javaProcessorOnly["test-files-exist"].pass, true, javaProcessorOnly["test-files-exist"].message);
+assert.match(javaProcessorOnly["test-files-exist"].message, /ProcTest\.java/);
+
 const javaSrcTestOverTestlibCase = assertJavaFirstHit(
   {
     "build.gradle": "plugins { java }\n",
@@ -6318,6 +6387,10 @@ assert.match(rootReadme, /packages\/foo\/test\/foo\.spec\.ts/);
 assert.match(rootReadme, /integration\/cors\/e2e\/express\.spec\.ts/);
 assert.match(rootReadme, /integration\/auto-mock/);
 assert.match(rootReadme, /e2e-only tree still passes/);
+assert.match(rootReadme, /foo-keeper/);
+assert.match(rootReadme, /foo\/java-test/);
+assert.match(rootReadme, /KeepTest\.kt/);
+assert.match(rootReadme, /A satellite-only tree still passes/);
 assert.match(rootReadme, /A C# tree with only JS tests still passes/);
 assert.match(rootReadme, /C#-primary/);
 assert.match(rootReadme, /A C# tree with only jest/);
@@ -6408,6 +6481,10 @@ assert.match(skillMd, /packages\/foo\/test\/foo\.spec\.ts/);
 assert.match(skillMd, /integration\/cors\/e2e\/express\.spec\.ts/);
 assert.match(skillMd, /integration\/auto-mock/);
 assert.match(skillMd, /e2e-only tree still passes/);
+assert.match(skillMd, /foo-keeper/);
+assert.match(skillMd, /foo\/java-test/);
+assert.match(skillMd, /KeepTest\.kt/);
+assert.match(skillMd, /A satellite-only tree still passes/);
 assert.match(skillMd, /A C# tree with only JS tests still passes/);
 assert.match(skillMd, /C#-primary/);
 assert.match(skillMd, /A C# tree with only jest/);
@@ -6573,6 +6650,10 @@ assert.match(checksReadme, /packages\/foo\/test\/foo\.spec\.ts/);
 assert.match(checksReadme, /integration\/cors\/e2e\/express\.spec\.ts/);
 assert.match(checksReadme, /integration\/auto-mock/);
 assert.match(checksReadme, /e2e-only tree still passes/);
+assert.match(checksReadme, /foo-keeper/);
+assert.match(checksReadme, /foo\/java-test/);
+assert.match(checksReadme, /KeepTest\.kt/);
+assert.match(checksReadme, /A satellite-only tree still passes/);
 assert.match(checksReadme, /A C# tree with only JS tests still passes/);
 assert.match(checksReadme, /C#-primary/);
 assert.match(checksReadme, /A C# tree with only jest/);
