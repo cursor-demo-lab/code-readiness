@@ -28,6 +28,34 @@ const LANG_ORDER = [
   "node",
 ];
 
+const VERSION_PIN_ORDER = [
+  "go",
+  "rust",
+  "elixir",
+  "ruby",
+  "java",
+  "kotlin",
+  "csharp",
+  "swift",
+  "typescript",
+  "javascript",
+  "node",
+  "python",
+  "c",
+  "cpp",
+  "haskell",
+];
+
+const VERSION_PIN_BY_LANG = {
+  typescript: ".nvmrc",
+  javascript: ".nvmrc",
+  node: ".nvmrc",
+  python: ".python-version",
+  go: "go.mod",
+  rust: "rust-toolchain.toml",
+  ruby: ".ruby-version",
+};
+
 const LINTER_BY_LANG = {
   go: ".golangci.yml",
   rust: "clippy.toml",
@@ -46,6 +74,10 @@ const LINTER_BY_LANG = {
   node: "eslint.config.js",
 };
 
+const LABEL_BY_ID = {
+  "pre-commit-hooks": "hooks",
+};
+
 const OPEN_BY_ID = {
   linter: "eslint.config.js",
   "ai-context": "AGENTS.md",
@@ -54,7 +86,7 @@ const OPEN_BY_ID = {
   editorconfig: ".editorconfig",
   license: "LICENSE",
   contributing: "CONTRIBUTING.md",
-  "pre-commit-hooks": ".pre-commit-config.yaml",
+  "pre-commit-hooks": ".cursor/hooks.json",
   "ci-config": ".github/workflows/ci.yml",
 };
 
@@ -79,10 +111,10 @@ const CONCRETE_PATHS = [
   "tsconfig.json",
 ];
 
-function pickLangFile(byLang, languages) {
+function pickLangFile(byLang, languages, order = LANG_ORDER) {
   if (!languages?.length) return null;
   const known = new Set(languages);
-  for (const lang of LANG_ORDER) {
+  for (const lang of order) {
     if (known.has(lang) && byLang[lang]) return byLang[lang];
   }
   return null;
@@ -105,6 +137,10 @@ export function chatFixFile(payload, remediation) {
     const hit = pathFromHit(row);
     if (hit && hit !== ".editorconfig") return hit;
     return OPEN_BY_ID.linter;
+  }
+  if (id === "version-pinned") {
+    const honest = pickLangFile(VERSION_PIN_BY_LANG, languages, VERSION_PIN_ORDER);
+    if (honest) return honest;
   }
   const hit = pathFromHit(row);
   if (hit) return hit;
@@ -223,10 +259,11 @@ export function chatLines(payload, canvasMarkdown) {
   const { maturity_level: band, remediations } = payload;
   const top = remediations[0];
   const file = chatFixFile(payload, top);
+  const topId = top ? (LABEL_BY_ID[top.criterionId] ?? top.criterionId) : null;
   const topFix = top
     ? file
-      ? `${top.criterionId} — ${file}`
-      : top.criterionId
+      ? `${topId} — ${file}`
+      : topId
     : "No failing checks in this run.";
   const canvas =
     canvasMarkdown == null

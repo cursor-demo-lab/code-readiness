@@ -125,11 +125,15 @@ const LEVELS: Array<{ level: 1 | 2 | 3 | 4 | 5; label: string }> = [
   { level: 5, label: "Autonomous" },
 ];
 
+const LABEL_BY_ID: Record<string, string> = {
+  "pre-commit-hooks": "hooks",
+};
+
 const OPEN_BY_ID: Record<string, string> = {
   editorconfig: ".editorconfig",
   linter: "eslint.config.js",
   formatter: ".prettierrc",
-  "pre-commit-hooks": ".pre-commit-config.yaml",
+  "pre-commit-hooks": ".cursor/hooks.json",
   "test-framework": "jest.config.js",
   "test-script": "package.json",
   "coverage-config": ".coveragerc",
@@ -145,7 +149,7 @@ const OPEN_BY_ID: Record<string, string> = {
   "env-documentation": ".env.example",
   "setup-script": "Makefile",
   "version-pinned": ".mise.toml",
-  containerization: ".devcontainer/devcontainer.json",
+  containerization: ".cursor/environment.json",
   "ci-config": ".github/workflows/ci.yml",
   "ci-runs-tests": ".github/workflows/ci.yml",
   "ci-runs-linters": ".github/workflows/ci.yml",
@@ -180,7 +184,34 @@ const LANG_ORDER = [
   "node",
 ];
 
+const VERSION_PIN_ORDER = [
+  "go",
+  "rust",
+  "elixir",
+  "ruby",
+  "java",
+  "kotlin",
+  "csharp",
+  "swift",
+  "typescript",
+  "javascript",
+  "node",
+  "python",
+  "c",
+  "cpp",
+  "haskell",
+];
+
 const OPEN_BY_LANG: Record<string, Record<string, string>> = {
+  "version-pinned": {
+    typescript: ".nvmrc",
+    javascript: ".nvmrc",
+    node: ".nvmrc",
+    python: ".python-version",
+    go: "go.mod",
+    rust: "rust-toolchain.toml",
+    ruby: ".ruby-version",
+  },
   linter: {
     javascript: "eslint.config.js",
     typescript: "eslint.config.js",
@@ -320,6 +351,7 @@ const CONCRETE_PATHS = [
   ".cursor/environment.json",
   ".devcontainer/devcontainer.json",
   ".pre-commit-config.yaml",
+  ".cursor/hooks.json",
   "playwright.config.ts",
   "eslint.config.js",
   "jest.config.js",
@@ -375,10 +407,11 @@ function scoreChartTone(percent: number): ChartTone {
 function pickLangPath(
   byLang: Record<string, string>,
   languages: string[],
+  order: readonly string[] = LANG_ORDER,
 ): string | null | undefined {
   if (languages.length === 0) return undefined;
   const known = new Set(languages);
-  for (const lang of LANG_ORDER) {
+  for (const lang of order) {
     if (known.has(lang) && Object.hasOwn(byLang, lang)) return byLang[lang];
   }
   return null;
@@ -408,7 +441,9 @@ function failOpenPath(
 ): string | null {
   const byLang = OPEN_BY_LANG[row.criterionId];
   if (byLang) {
-    const picked = pickLangPath(byLang, languages);
+    const order =
+      row.criterionId === "version-pinned" ? VERSION_PIN_ORDER : LANG_ORDER;
+    const picked = pickLangPath(byLang, languages, order);
     if (picked !== undefined) return picked;
   }
   const mapped = OPEN_BY_ID[row.criterionId];
@@ -420,8 +455,12 @@ function failOpenPath(
   return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
 }
 
+function criterionLabel(id: string): string {
+  return LABEL_BY_ID[id] ?? id;
+}
+
 function joinIds(ids: string[]): string {
-  return ids.join(", ");
+  return ids.map(criterionLabel).join(", ");
 }
 
 function remainingGateFails(report: Report): CriterionRow[] {
@@ -457,9 +496,10 @@ function rankedFixRows(report: Report): CriterionRow[] {
 
 function todoLine(row: CriterionRow, languages: string[]): string {
   const file = failOpenPath(row, languages);
-  if (file) return `${row.criterionId} — add ${file}`;
+  const label = criterionLabel(row.criterionId);
+  if (file) return `${label} — add ${file}`;
   const hint = row.fix || row.message;
-  return hint ? `${row.criterionId} — ${hint}` : row.criterionId;
+  return hint ? `${label} — ${hint}` : label;
 }
 
 function whyForAgents(criterionId: string): string {
@@ -769,7 +809,7 @@ export default function CodeReadinessCanvas() {
         <Row gap={8} wrap>
           {gateRows.map((row) => (
             <Pill key={row.criterionId} size="sm" tone="warning">
-              {row.criterionId}
+              {criterionLabel(row.criterionId)}
             </Pill>
           ))}
         </Row>
@@ -884,7 +924,7 @@ export default function CodeReadinessCanvas() {
                           return (
                             <Stack key={row.criterionId} gap={4}>
                               <Text>
-                                <Code>{row.criterionId}</Code>
+                                <Code>{criterionLabel(row.criterionId)}</Code>
                                 {` — ${file ? `add ${file}` : row.fix || row.message}`}
                               </Text>
                               <Text size="small" tone="tertiary">
@@ -1001,7 +1041,7 @@ export default function CodeReadinessCanvas() {
               headers={["Check", "Id", "Level", "Gap", "Fix"]}
               rows={group.rows.map((row) => [
                 row.name,
-                <Code>{row.criterionId}</Code>,
+                <Code>{criterionLabel(row.criterionId)}</Code>,
                 row.level != null ? (
                   <Pill size="sm">{`L${row.level}`}</Pill>
                 ) : (

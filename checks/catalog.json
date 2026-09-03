@@ -195,7 +195,7 @@
     },
     {
       "id": "pre-commit-hooks",
-      "name": "Pre-commit hooks configured",
+      "name": "Hooks",
       "pillarId": "style-linting",
       "level": 2,
       "requiresLLM": false,
@@ -210,13 +210,15 @@
         ".pre-commit-config.yaml",
         ".pre-commit-config.yml",
         ".lintstagedrc",
-        ".lintstagedrc.*"
+        ".lintstagedrc.*",
+        ".cursor/hooks.json",
+        ".cursor/hook.json"
       ],
       "fileContains": [
         { "file": "package.json", "includes": ["\"husky\"", "\"lint-staged\"", "\"simple-git-hooks\""] }
       ],
       "fail": "No pre-commit hooks found.",
-      "fix": "Add Husky, Lefthook, lint-staged, or pre-commit hooks.",
+      "fix": "Add Husky, Lefthook, lint-staged, pre-commit, or `.cursor/hooks.json`. Traditional git hooks are not required when Cursor hooks exist.",
       "effort": "medium"
     },
     {
