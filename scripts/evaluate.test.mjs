@@ -542,6 +542,8 @@ assert.ok(preCommit.anyFiles.includes(".lintstagedrc"));
 assert.ok(preCommit.anyFiles.includes(".lintstagedrc.*"));
 assert.ok(preCommit.anyFiles.includes(".pre-commit-config.yaml"));
 assert.ok(preCommit.anyFiles.includes(".pre-commit-config.yml"));
+assert.ok(preCommit.anyFiles.includes(".cursor/hooks.json"));
+assert.ok(preCommit.anyFiles.includes(".cursor/hook.json"));
 assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"husky\"")));
 assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"lint-staged\"")));
 assert.ok(preCommit.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"simple-git-hooks\"")));
@@ -7377,6 +7379,12 @@ assert.match(canvasTemplate, /Documented/);
 assert.equal(/Foundational|Guided/.test(canvasTemplate), false);
 assert.match(canvasTemplate, /function remainingGateFails/);
 assert.match(canvasTemplate, /function rankedFixRows/);
+assert.equal(
+  /function passedLinterRow/.test(canvasTemplate),
+  false,
+  "pillar cards list remaining fails only; a passing linter is not a gap",
+);
+assert.match(canvasTemplate, /const VERSION_PIN_ORDER/);
 assert.match(canvasTemplate, /Would be \$\{band\.nextLevelLabel\}/);
 assert.match(canvasTemplate, /except \$\{joinIds\(ids\)\}/);
 assert.match(canvasTemplate, /band\.l1Capped/);
@@ -7391,7 +7399,7 @@ assert.equal(
 );
 assert.match(canvasTemplate, /\.\.\.gate\.slice\(\)\.sort\(byFileThenCatalog\)/);
 assert.match(canvasTemplate, /\.\.\.rest\.slice\(\)\.sort\(byFileThenCatalog\)/);
-assert.match(canvasTemplate, /"pre-commit-hooks": "\.pre-commit-config\.yaml"/);
+assert.match(canvasTemplate, /"pre-commit-hooks": "\.cursor\/hooks\.json"/);
 assert.match(canvasTemplate, /"architecture-docs": "ARCHITECTURE\.md"/);
 assert.equal(
   /"version-pinned": "\.nvmrc"/.test(canvasTemplate),
@@ -7597,6 +7605,65 @@ assert.equal(
   openById["version-pinned"],
   ".mise.toml",
   "version-pinned conventional file is catalog anyFiles .mise.toml, not .nvmrc",
+);
+assert.equal(openByLang["version-pinned"].typescript, ".nvmrc");
+assert.equal(openByLang["version-pinned"].javascript, ".nvmrc");
+assert.equal(openByLang["version-pinned"].node, ".nvmrc");
+assert.equal(openByLang["version-pinned"].python, ".python-version");
+assert.equal(openByLang["version-pinned"].go, "go.mod");
+assert.equal(openByLang["version-pinned"].rust, "rust-toolchain.toml");
+const versionPinOrder = parseTsStringArray(canvasTemplate, "VERSION_PIN_ORDER");
+assert.ok(
+  versionPinOrder.indexOf("typescript") < versionPinOrder.indexOf("python"),
+  "JS/TS version pin must beat sidecar python",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "version-pinned", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["typescript"],
+    openByLang,
+    versionPinOrder,
+  ),
+  ".nvmrc",
+  "TypeScript remaining-fail must recommend .nvmrc, not .mise.toml",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "version-pinned", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["python", "node", "javascript", "typescript"],
+    openByLang,
+    versionPinOrder,
+  ),
+  ".nvmrc",
+  "TS-primary with sidecar python must recommend .nvmrc, not .python-version or .mise.toml",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "version-pinned", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    ["rust"],
+    openByLang,
+    versionPinOrder,
+  ),
+  "rust-toolchain.toml",
+  "Rust remaining-fail must recommend rust-toolchain.toml, not .mise.toml",
+);
+assert.equal(
+  simulateFailOpenPath(
+    { criterionId: "version-pinned", name: "", message: "", fix: "", details: "" },
+    openById,
+    concretePaths,
+    [],
+    openByLang,
+    versionPinOrder,
+  ),
+  ".mise.toml",
+  "unknown-language version-pinned fallback stays .mise.toml",
 );
 assert.equal(openById["type-checker"], undefined);
 assert.equal(openById["ai-context"], "AGENTS.md");

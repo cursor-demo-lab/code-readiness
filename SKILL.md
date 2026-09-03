@@ -46,7 +46,7 @@ If you cannot produce real check results, stop. Do not emit a canvas.
 
 ### 3. Score as documented
 
-Keep the catalog's seven pillars and level names. Do not invent a second band. Pillar 1 display name is Style & Validation; catalog id stays `style-linting`.
+Keep the catalog's seven pillars and level names. Do not invent a second band. Pillar 1 display name is Style & Validation; catalog id stays `style-linting`. Display label for `pre-commit-hooks` is `hooks`; catalog id stays `pre-commit-hooks`. When `containerization` fails, the file to add is `.cursor/environment.json`. Remaining-fail cards omit passes: do not list a passing `linter` in Style & Validation. `version-pinned` remaining-fail OPEN is language-honest (`.nvmrc` for JS/TS, `rust-toolchain.toml` for Rust); `.mise.toml` is the unknown-language fallback only.
 
 Levels: 1 Functional, 2 Documented, 3 Standardized, 4 Optimized, 5 Autonomous. Every level is 80% sequential, including L1. L1 is readme, linter, test-files-exist, and type-checker (skip when there is no conventional checker file). license and lock-file are L2. Minimum level is always 1.
 
