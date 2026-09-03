@@ -66,7 +66,7 @@ assert.deepEqual(
     "type-checker",
   ],
 );
-assert.equal(catalog.criteria.length, 40);
+assert.equal(catalog.criteria.length, 41);
 assert.equal(catalog.v1SkipLLM, true);
 assert.equal(catalog.level1Threshold, 0.8);
 assert.equal(catalog.levelThreshold, 0.8);
@@ -93,7 +93,7 @@ function countedAt(level) {
 assert.equal(countedAt(1), 4);
 assert.equal(countedAt(2), 13);
 assert.equal(countedAt(3), 10);
-assert.equal(countedAt(4), 8);
+assert.equal(countedAt(4), 9);
 assert.equal(countedAt(5), 1);
 
 assert.equal(thresholdForLevel(1), 0.8);
@@ -648,11 +648,15 @@ assert.ok(securityPolicy.anyFiles.includes("SECURITY.md"));
 assert.ok(securityPolicy.anyFiles.includes("security.md"));
 
 const e2eTests = catalog.criteria.find((row) => row.id === "e2e-tests");
-assert.ok(e2eTests.anyFiles.includes("**/e2e/**"));
-assert.ok(e2eTests.anyFiles.includes("**/cypress/**"));
-assert.ok(e2eTests.anyFiles.includes("tests/e2e/**"));
-assert.ok(e2eTests.anyFiles.includes("**/playwright.config.*"));
-assert.ok(e2eTests.anyFiles.includes("integration"));
+assert.equal(e2eTests.anyFilesNonEmpty, true);
+assert.ok(e2eTests.anyFiles.includes("**/e2e/**/*.spec.*"));
+assert.ok(e2eTests.anyFiles.includes("**/e2e/**/*.test.*"));
+assert.ok(e2eTests.anyFiles.includes("**/*.e2e.ts"));
+assert.ok(e2eTests.anyFiles.includes("**/*.cy.ts"));
+assert.ok(e2eTests.anyFiles.includes("**/playwright/**/*.spec.*"));
+assert.equal(e2eTests.anyFiles.includes("**/e2e/**"), false);
+assert.equal(e2eTests.anyFiles.includes("**/playwright.config.*"), false);
+assert.equal(e2eTests.anyFiles.includes("integration"), false);
 
 const depUpdate = catalog.criteria.find((row) => row.id === "dep-update-automation");
 assert.ok(depUpdate.anyFiles.includes("renovate.json5"));
@@ -892,7 +896,7 @@ const scoredThreeOfFour = scoreResults(catalog, l1ThreeOfFour);
 assert.equal(scoredThreeOfFour.level, 1, "L1 3/4 stays Functional at 80%");
 assert.equal(scoredThreeOfFour.l1Passed, 3);
 assert.equal(scoredThreeOfFour.l1Total, 4);
-assert.equal(scoredThreeOfFour.nextLevelProgress.needed, Math.ceil(13 * LEVEL_THRESHOLD));
+assert.equal(scoredThreeOfFour.nextLevelProgress.needed, Math.ceil(4 * LEVEL_THRESHOLD));
 
 const root = tmp("code-readiness-");
 fs.writeFileSync(path.join(root, "LICENSE"), "MIT\n");
@@ -1773,7 +1777,7 @@ assert.equal(emptyById["lock-file"].skipped, false);
 assert.equal(emptyById["type-checker"].skipped, true);
 assert.equal(
   emptyEval.results.filter((row) => row.skipped).length,
-  6,
+  8,
 );
 
 const capRoot = tmp("code-readiness-cap-");
@@ -6557,7 +6561,15 @@ assert.equal(/packages\/foo\/README\.md/.test(bothReadme.readme.message), false)
 assertFail("readme", { "node_modules/foo/README.md": `${"A".repeat(520)}\n` });
 assertPass("contributing", { "docs/guide/CONTRIBUTING.rst": "How to contribute\n" }, /CONTRIBUTING\.rst/);
 assertPass("e2e-tests", { "packages/web/e2e/login.spec.ts": "test('ok', () => {});\n" }, /e2e/);
+assertPass("e2e-tests", { "e2e/login.spec.ts": "test('ok', () => {});\n" }, /e2e\/login\.spec\.ts/);
+assertPass("e2e-tests", { "cypress/e2e/login.cy.ts": "it('ok', () => {});\n" }, /login\.cy\.ts/);
+assertPass("e2e-tests", { "login.e2e.ts": "test('ok', () => {});\n" }, /login\.e2e\.ts/);
+assertPass("e2e-tests", { "playwright/tests/login.spec.ts": "test('ok', () => {});\n" }, /playwright/);
 assertFail("e2e-tests", { "src/main/java/com/example/integration/Foo.java": "class Foo {}\n" });
+assertFail("e2e-tests", { "playwright.config.ts": "export default {};\n" });
+assertFail("e2e-tests", { "cypress.config.ts": "export default {};\n" });
+assertFail("e2e-tests", { "e2e/README.md": "helpers\n" });
+assertFail("e2e-tests", { "e2e/login.spec.ts": "   \n" });
 const nestedBiomeSkipEditor = evalTree({ "apps/web/biome.json": "{}\n" });
 assert.equal(nestedBiomeSkipEditor.linter.pass, true);
 assert.equal(nestedBiomeSkipEditor.editorconfig.skipped, true, nestedBiomeSkipEditor.editorconfig.message);
@@ -7666,6 +7678,7 @@ assert.equal(
   "unknown-language version-pinned fallback stays .mise.toml",
 );
 assert.equal(openById["type-checker"], undefined);
+assert.equal(openById["e2e-tests"], "e2e/login.spec.ts");
 assert.equal(openById["ai-context"], "AGENTS.md");
 assert.equal(
   /"ai-context": "CLAUDE\.md"/.test(canvasTemplate),
@@ -7805,6 +7818,9 @@ for (const file of exampleCanvasFiles) {
 
 const rootReadme = fs.readFileSync(path.join(skillRoot(), "README.md"), "utf8");
 assert.equal((rootReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.equal((rootReadme.match(/e2e-tests/g) ?? []).length, 1);
+assert.match(rootReadme, /Do not dummy `playwright\.config\.ts`/);
+assert.match(rootReadme, /e2e\/login\.spec\.ts/);
 assert.match(rootReadme, /First-hit prefers a form/);
 assert.match(rootReadme, /config\.yml-only tree still passes/);
 assert.match(rootReadme, /PR-template-only tree still passes/);
@@ -7950,6 +7966,9 @@ assert.match(skillMd, /Do not dummy `\.editorconfig`/);
 assert.match(skillMd, /criterion \+ file/);
 assert.match(skillMd, /never lead with `\.editorconfig` when `linter` is the L1 fail/);
 assert.equal((skillMd.match(/issue-templates/g) ?? []).length, 1);
+assert.equal((skillMd.match(/e2e-tests/g) ?? []).length, 1);
+assert.match(skillMd, /Do not dummy `playwright\.config\.ts`/);
+assert.match(skillMd, /e2e\/login\.spec\.ts/);
 assert.match(skillMd, /First-hit prefers a form/);
 assert.match(skillMd, /config\.yml-only tree still passes/);
 assert.match(skillMd, /PR-template-only tree still passes/);
@@ -8105,6 +8124,10 @@ assert.equal(/Style & Linting/.test(canvasTemplate), false);
 
 const checksReadme = fs.readFileSync(path.join(skillRoot(), "checks", "README.md"), "utf8");
 assert.equal((checksReadme.match(/issue-templates/g) ?? []).length, 1);
+assert.equal((checksReadme.match(/e2e-tests/g) ?? []).length, 1);
+assert.match(checksReadme, /empty `e2e\/` directory/);
+assert.match(checksReadme, /e2e\/login\.spec\.ts/);
+assert.match(checksReadme, /playwright\.config\.ts/);
 assert.match(checksReadme, /First-hit prefers a form/);
 assert.match(checksReadme, /config\.yml-only tree still passes/);
 assert.match(checksReadme, /PR-template-only tree still passes/);

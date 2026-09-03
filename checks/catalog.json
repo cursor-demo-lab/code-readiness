@@ -367,19 +367,21 @@
       "level": 4,
       "requiresLLM": false,
       "anyFiles": [
-        "playwright.config.*",
-        "**/playwright.config.*",
-        "cypress.config.*",
-        "cypress",
-        "**/cypress/**",
-        "e2e",
-        "**/e2e/**",
-        "tests/e2e",
-        "tests/e2e/**",
-        "integration"
+        "**/e2e/**/*.spec.*",
+        "**/e2e/**/*.test.*",
+        "**/*.e2e.ts",
+        "**/*.e2e.js",
+        "**/*.e2e.tsx",
+        "**/*.e2e.mjs",
+        "**/*.cy.ts",
+        "**/*.cy.js",
+        "**/*.cy.tsx",
+        "**/playwright/**/*.spec.*",
+        "**/playwright/**/*.test.*"
       ],
-      "fail": "No E2E or integration test setup found.",
-      "fix": "Add Playwright, Cypress, or an e2e directory.",
+      "anyFilesNonEmpty": true,
+      "fail": "No E2E test files found.",
+      "fix": "Add a non-empty spec such as e2e/login.spec.ts. A Playwright or Cypress config, or an empty e2e directory, is not enough.",
       "effort": "high"
     },
     {

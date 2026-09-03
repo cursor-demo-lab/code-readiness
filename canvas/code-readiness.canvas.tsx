@@ -133,7 +133,7 @@ const OPEN_BY_ID: Record<string, string> = {
   "test-framework": "jest.config.js",
   "test-script": "package.json",
   "coverage-config": ".coveragerc",
-  "e2e-tests": "playwright.config.ts",
+  "e2e-tests": "e2e/login.spec.ts",
   readme: "README.md",
   contributing: "CONTRIBUTING.md",
   "api-docs": "openapi.yaml",
@@ -311,7 +311,7 @@ const WHY_FOR_AGENTS: Record<string, string> = {
   "coverage-config":
     "Without a coverage config, agents cannot tell which lines their tests missed. .coveragerc or .nycrc is the local coverage oracle.",
   "e2e-tests":
-    "Unit tests miss browser and HTTP seams. playwright.config or an e2e directory is the path an agent uses to catch those.",
+    "Unit tests miss browser and HTTP seams. A real e2e spec (not a Playwright config or empty e2e/) is the path an agent uses to catch those.",
   "ci-runs-tests":
     "A CI file that never runs tests is a green that lies. The agent needs a test step as the remote oracle.",
   "ci-runs-linters":
@@ -355,6 +355,7 @@ const CONCRETE_PATHS = [
   ".cursor/environment.json",
   ".devcontainer/devcontainer.json",
   ".pre-commit-config.yaml",
+  "e2e/login.spec.ts",
   "playwright.config.ts",
   "eslint.config.js",
   "jest.config.js",
