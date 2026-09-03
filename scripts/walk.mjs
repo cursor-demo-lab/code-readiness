@@ -143,6 +143,10 @@ export function detectLanguages(files) {
   ) {
     langs.add("python");
   }
+  if (has("mix.exs") || files.some((f) => /\.(ex|exs)$/i.test(f))) langs.add("elixir");
+  if (has("Gemfile") || files.some((f) => f.endsWith(".rb") || f.endsWith(".gemspec"))) {
+    langs.add("ruby");
+  }
   if (has("package.json") || has("tsconfig.json")) langs.add("node");
   if (
     has("package.json") ||

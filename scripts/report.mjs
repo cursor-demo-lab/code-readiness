@@ -160,7 +160,7 @@ function thesis(repoName, level, label, scorePercent, remediations) {
     titles.length === 0
       ? "No failing checks in this run."
       : `Fix ${joinEnglish(titles)} first.`;
-  return `${repoName} is Level ${level} ${label} at ${scorePercent}% of counted checks. ${fix} Scoring is ${SCOPE_LABEL}.`;
+  return `${repoName} is Level ${level} ${label} at ${scorePercent}% of counted checks. ${fix}`;
 }
 
 function countedAtLevel(results, level) {

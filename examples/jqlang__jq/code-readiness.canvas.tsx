@@ -2,9 +2,6 @@ import {
   BarChart,
   Button,
   Callout,
-  Card,
-  CardBody,
-  CardHeader,
   Checkbox,
   Code,
   CollapsibleSection,
@@ -22,7 +19,6 @@ import {
   Spacer,
   Stack,
   Stat,
-  Swatch,
   Table,
   Text,
   TextInput,
@@ -223,6 +219,11 @@ const OPEN_BY_LANG: Record<string, Record<string, string>> = {
     c: ".clang-tidy",
     cpp: ".clang-tidy",
     ruby: ".rubocop.yml",
+    haskell: ".hlint.yaml",
+    java: "checkstyle.xml",
+    kotlin: "detekt.yml",
+    csharp: "stylecop.json",
+    swift: ".swiftlint.yml",
   },
   formatter: {
     javascript: ".prettierrc",
@@ -264,7 +265,7 @@ const WHY_FOR_AGENTS: Record<string, string> = {
   "type-checker":
     "Agents hallucinate APIs. tsconfig, mypy, ty, or pyright is a local proof they can rerun without starting the app.",
   "pre-commit-hooks":
-    "Agents skip the human lint step. Hooks make the default commit path the same as CI.",
+    "Agents skip the human lint step. Cursor `.cursor/hooks.json` or git hooks make the default edit path the same as CI.",
   "test-framework":
     "Agents need a named runner. A configured framework tells them how to verify a change in one command.",
   "test-files-exist":
@@ -298,9 +299,11 @@ const WHY_FOR_AGENTS: Record<string, string> = {
   containerization:
     "Cursor Cloud Agent `.cursor/environment.json` is a boot/container signal agents can run; root `environment.json` is not a hit.",
   "branch-protection":
-    "Documented branch rules stop agents from pushing around review.",
+    "Repo-local settings.yml or CONTRIBUTING text is the only signal this walk can see. Org-level GitHub rules are invisible on disk, so missing local files skip rather than fail.",
   "dead-code-detection":
     "Agents add files and rarely delete. Unused-export checks keep generated code from rotting.",
+  "use-effect":
+    "Agents copy useEffect for fetch and sync. The named file still calls it. Remove that hook so the next agent uses event handlers or the framework data API.",
   "secrets-detection":
     "Agents paste keys into examples. A detector is the last gate before that lands on main.",
   license:
@@ -348,10 +351,10 @@ const CONCRETE_PATHS = [
   ".github/ISSUE_TEMPLATE.md",
   ".github/ISSUE_TEMPLATE/",
   ".github/PULL_REQUEST_TEMPLATE.md",
+  ".cursor/hooks.json",
   ".cursor/environment.json",
   ".devcontainer/devcontainer.json",
   ".pre-commit-config.yaml",
-  ".cursor/hooks.json",
   "playwright.config.ts",
   "eslint.config.js",
   "jest.config.js",
@@ -379,6 +382,11 @@ const CONCRETE_PATHS = [
   ".credo.exs",
   ".clang-tidy",
   ".rubocop.yml",
+  ".hlint.yaml",
+  "checkstyle.xml",
+  "detekt.yml",
+  "stylecop.json",
+  ".swiftlint.yml",
   ".formatter.exs",
   "rustfmt.toml",
   ".clang-format",
@@ -408,13 +416,13 @@ function pickLangPath(
   byLang: Record<string, string>,
   languages: string[],
   order: readonly string[] = LANG_ORDER,
-): string | null | undefined {
+): string | undefined {
   if (languages.length === 0) return undefined;
   const known = new Set(languages);
   for (const lang of order) {
     if (known.has(lang) && Object.hasOwn(byLang, lang)) return byLang[lang];
   }
-  return null;
+  return undefined;
 }
 
 function inferLanguagesFromRows(rows: CriterionRow[]): string[] {
@@ -439,18 +447,21 @@ function failOpenPath(
   row: CriterionRow,
   languages: string[] = [],
 ): string | null {
+  if (row.criterionId === "use-effect") {
+    const match = `${row.message} ${row.details ?? ""}`.match(
+      /Found useEffect in (\S+)/,
+    );
+    if (match) return match[1];
+  }
   const byLang = OPEN_BY_LANG[row.criterionId];
   if (byLang) {
     const order =
       row.criterionId === "version-pinned" ? VERSION_PIN_ORDER : LANG_ORDER;
     const picked = pickLangPath(byLang, languages, order);
-    if (picked !== undefined) return picked;
+    if (picked != null) return picked;
   }
   const mapped = OPEN_BY_ID[row.criterionId];
-  if (mapped) {
-    if (byLang && languages.length > 0) return null;
-    return mapped;
-  }
+  if (mapped) return mapped;
   const blob = `${row.name} ${row.message} ${row.fix ?? ""} ${row.details ?? ""}`;
   return CONCRETE_PATHS.find((file) => blob.includes(file)) ?? null;
 }
@@ -469,9 +480,13 @@ function remainingGateFails(report: Report): CriterionRow[] {
     const ids = new Set(band.l1CapReasons);
     return report.criterion_results.filter((row) => ids.has(row.criterionId));
   }
-  if (band.nextLevel == null) return [];
+  const l1Open = report.criterion_results.some(
+    (row) => row.level === 1 && !row.skipped && !row.pass,
+  );
+  const gateLevel = l1Open ? 1 : band.nextLevel;
+  if (gateLevel == null) return [];
   return report.criterion_results.filter(
-    (row) => row.level === band.nextLevel && !row.skipped && !row.pass,
+    (row) => row.level === gateLevel && !row.skipped && !row.pass,
   );
 }
 
@@ -494,10 +509,15 @@ function rankedFixRows(report: Report): CriterionRow[] {
   ].slice(0, 5);
 }
 
+function failAction(row: CriterionRow, file: string): string {
+  if (row.criterionId === "use-effect") return `remove useEffect from ${file}`;
+  return `add ${file}`;
+}
+
 function todoLine(row: CriterionRow, languages: string[]): string {
   const file = failOpenPath(row, languages);
   const label = criterionLabel(row.criterionId);
-  if (file) return `${label} — add ${file}`;
+  if (file) return `${label} — ${failAction(row, file)}`;
   const hint = row.fix || row.message;
   return hint ? `${label} — ${hint}` : label;
 }
@@ -513,6 +533,13 @@ function countedPillarFails(
   return report.criterion_results.filter(
     (row) => row.pillarId === pillarId && !row.skipped && !row.pass,
   );
+}
+
+function pillarRowTone(pillar: PillarScore): TableRowTone {
+  if (pillar.total === 0) return "neutral";
+  if (pillar.percentage >= 80) return "success";
+  if (pillar.passed === 0) return "danger";
+  return "warning";
 }
 
 function nextGateCallout(
@@ -661,6 +688,9 @@ export default function CodeReadinessCanvas() {
   const skippedCount = report.criterion_results.filter((row) => row.skipped).length;
   const gateRows = remainingGateFails(report);
   const rankedRows = rankedFixRows(report);
+  const remainingFailRows = report.pillar_scores.flatMap((pillar) =>
+    countedPillarFails(report, pillar.pillarId),
+  );
   const todos: TodoItem[] = rankedRows.map((row) => ({
     id: row.criterionId,
     content: todoLine(row, languages),
@@ -790,7 +820,7 @@ export default function CodeReadinessCanvas() {
         <Text>{report.thesis}</Text>
         <Text size="small" tone="tertiary">
           {report.attribution} Generated {meta.generated_at}. Git {sha}.{" "}
-          {report.repo_identity.scope}. llm_calls={meta.llm_calls}.
+          llm_calls={meta.llm_calls}.
         </Text>
         {report.agentsMdNote ? (
           <Text size="small" tone="tertiary">
@@ -798,6 +828,62 @@ export default function CodeReadinessCanvas() {
           </Text>
         ) : null}
       </Stack>
+
+      {pieData.length > 0 || report.pillar_scores.length > 0 ? (
+        <Stack gap={12}>
+          <H2>Summary</H2>
+          <Grid columns="auto max-content" gap={32} align="start">
+            {pieData.length > 0 ? (
+              <Stack gap={8}>
+                <H3>Pass, fail, skip</H3>
+                <PieChart data={pieData} donut size={160} />
+              </Stack>
+            ) : null}
+            {report.pillar_scores.length > 0 ? (
+              <Stack gap={8}>
+                <H3>Category breakdown</H3>
+                <Table
+                  headers={["Category", "Pass", "Fail", "%"]}
+                  columnAlign={["left", "right", "right", "right"]}
+                  rows={report.pillar_scores.map((pillar) => [
+                    pillar.name,
+                    String(pillar.passed),
+                    String(pillar.total - pillar.passed),
+                    `${pillar.percentage}%`,
+                  ])}
+                  rowTone={report.pillar_scores.map(pillarRowTone)}
+                  striped
+                  style={{ width: "max-content" }}
+                />
+                <Text size="small" tone="tertiary">
+                  Counted checks only. Skipped AI excluded from the
+                  denominator.
+                </Text>
+              </Stack>
+            ) : null}
+          </Grid>
+          <CollapsibleSection
+            title="Remaining gaps"
+            count={remainingFailRows.length}
+            defaultOpen={false}
+          >
+            <Table
+              headers={["Check", "Category", "Fix", "Why agents care"]}
+              rows={remainingFailRows.map((row) => {
+                const file = failOpenPath(row, languages);
+                return [
+                  <Code>{criterionLabel(row.criterionId)}</Code>,
+                  row.pillarName,
+                  file ? failAction(row, file) : row.fix || row.message,
+                  whyForAgents(row.criterionId),
+                ];
+              })}
+              emptyMessage="No counted gaps."
+              striped
+            />
+          </CollapsibleSection>
+        </Stack>
+      ) : null}
 
       {gapCallout ? (
         <Callout tone="warning" title={gapCallout.title}>
@@ -858,91 +944,6 @@ export default function CodeReadinessCanvas() {
         </Button>
       ) : null}
 
-      {pieData.length > 0 ? (
-        <Stack gap={12}>
-          <H2>Pass, fail, skip</H2>
-          <Row gap={24} align="center">
-            <PieChart data={pieData} donut />
-            <Stack gap={8}>
-              <Row gap={8} align="center">
-                <Swatch color="green" />
-                <Text size="small">Pass</Text>
-              </Row>
-              <Row gap={8} align="center">
-                <Swatch color="red" />
-                <Text size="small">Fail</Text>
-              </Row>
-              <Row gap={8} align="center">
-                <Swatch color="gray" />
-                <Text size="small">Skip</Text>
-              </Row>
-            </Stack>
-          </Row>
-        </Stack>
-      ) : null}
-
-      {report.pillar_scores.length > 0 ? (
-        <Stack gap={12}>
-          <H2>Category breakdown</H2>
-          <Text size="small" tone="tertiary">
-            Remaining counted fails in each pillar: the file to add, and why
-            agents care.
-          </Text>
-          <Grid columns={2} gap={16}>
-            {report.pillar_scores.map((pillar) => {
-              const fails = countedPillarFails(report, pillar.pillarId);
-              return (
-                <Card key={pillar.pillarId}>
-                  <CardHeader
-                    trailing={<Pill size="sm">{`${pillar.percentage}%`}</Pill>}
-                  >
-                    {pillar.name}
-                  </CardHeader>
-                  <CardBody>
-                    <Stack gap={12}>
-                      {pillar.total > 0 ? (
-                        <UsageBar
-                          total={pillar.total}
-                          topLeftLabel={`${pillar.passed} / ${pillar.total}`}
-                          segments={[
-                            { id: "passed", value: pillar.passed, color: "green" },
-                            {
-                              id: "failed",
-                              value: pillar.total - pillar.passed,
-                              color: "red",
-                            },
-                          ]}
-                        />
-                      ) : null}
-                      {fails.length === 0 ? (
-                        <Text size="small" tone="tertiary">
-                          No counted gaps.
-                        </Text>
-                      ) : (
-                        fails.map((row) => {
-                          const file = failOpenPath(row, languages);
-                          return (
-                            <Stack key={row.criterionId} gap={4}>
-                              <Text>
-                                <Code>{criterionLabel(row.criterionId)}</Code>
-                                {` — ${file ? `add ${file}` : row.fix || row.message}`}
-                              </Text>
-                              <Text size="small" tone="tertiary">
-                                {`Why agents care: ${whyForAgents(row.criterionId)}`}
-                              </Text>
-                            </Stack>
-                          );
-                        })
-                      )}
-                    </Stack>
-                  </CardBody>
-                </Card>
-              );
-            })}
-          </Grid>
-        </Stack>
-      ) : null}
-
       <Stack gap={8}>
         <H2>Sequential gate</H2>
         <SequentialGateDag current={band.level} />
@@ -971,8 +972,7 @@ export default function CodeReadinessCanvas() {
           />
           <Text size="small" tone="tertiary">
             Dashed line is the 80% gate for the current level's non-skipped
-            checks. Local filesystem heuristics on the repository root only.
-            v1 never runs AI. Not /doctor.
+            checks. Local filesystem heuristics. v1 never runs AI. Not /doctor.
           </Text>
         </Stack>
       ) : null}

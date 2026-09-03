@@ -384,6 +384,7 @@ function isJsTsLinterFile(file) {
   const name = posixBasename(file);
   return (
     globMatch(name, "eslint.config.*") ||
+    globMatch(name, "tseslint.config.*") ||
     globMatch(name, ".eslintrc*") ||
     name === "biome.json" ||
     name === "biome.jsonc" ||
@@ -410,6 +411,8 @@ function isHooksJsonFile(file) {
 // (prettier, rustfmt, gofmt, black, clang-format, dprint) are not listed.
 const LINTER_COMMAND_TOKENS = [
   "eslint",
+  "tseslint",
+  "typescript-eslint",
   "biome",
   "oxlint",
   "xo",
@@ -1329,14 +1332,26 @@ function evalFileContains(repoRoot, files, rules, options = {}) {
   return { file: hits[0].file, needle: hits[0].needle };
 }
 
-function evalFileRegex(repoRoot, rules) {
+function evalFileRegex(repoRoot, files, rules) {
   if (!rules?.length) return null;
+  const walked = files ?? [];
+  const hits = [];
   for (const rule of rules) {
-    const content = readText(repoRoot, rule.file);
-    if (!content) continue;
-    if (new RegExp(rule.pattern, "i").test(content)) return rule.file;
+    const basenameOnly = isBasenameOnly(rule.file);
+    const matches = walked.filter((file) => {
+      if (file === rule.file || globMatch(file, rule.file)) return true;
+      return basenameOnly && posixBasename(file) === rule.file;
+    });
+    const candidates = matches.length > 0 ? matches : [rule.file];
+    const rx = new RegExp(rule.pattern, "i");
+    for (const file of candidates) {
+      const content = readText(repoRoot, file);
+      if (content && rx.test(content)) hits.push(file);
+    }
   }
-  return null;
+  if (!hits.length) return null;
+  hits.sort(comparePathDepth);
+  return hits[0];
 }
 
 function makefileHasTarget(repoRoot, spec) {
@@ -1397,6 +1412,64 @@ const LOCK_FIRST_HIT_DEFER_SEGMENTS = [
   "third-party",
   "thirdparty",
 ];
+
+const USE_EFFECT_SOURCE_EXT = new Set([
+  ".tsx",
+  ".jsx",
+  ".ts",
+  ".js",
+  ".mjs",
+  ".cjs",
+]);
+
+const USE_EFFECT_DEFER_SEGMENTS = [
+  "test",
+  "tests",
+  "spec",
+  "__tests__",
+  "fixtures",
+  "testdata",
+  "examples",
+  "example",
+  "samples",
+  "sample",
+  "docs",
+  "doc",
+];
+
+const USE_EFFECT_RX = /\b(?:React\.)?useEffect\s*\(/;
+
+function isUseEffectSource(file) {
+  return USE_EFFECT_SOURCE_EXT.has(path.posix.extname(file));
+}
+
+function isDeferredUseEffectPath(file) {
+  if (pathHasSegmentsIgnoreCase(file, USE_EFFECT_DEFER_SEGMENTS)) return true;
+  return /\.(test|spec)\.[^.]+$/.test(posixBasename(file));
+}
+
+function treeHasReact(ctx) {
+  if (ctx.files.some((file) => file.endsWith(".tsx") || file.endsWith(".jsx"))) {
+    return true;
+  }
+  const pkg = ctx.pkg;
+  if (!pkg) return false;
+  for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+    if (pkg[field]?.react) return true;
+  }
+  return false;
+}
+
+function findUseEffectHits(ctx) {
+  const hits = [];
+  for (const file of ctx.files) {
+    if (!isUseEffectSource(file)) continue;
+    const content = readText(ctx.repoRoot, file);
+    if (!content || !USE_EFFECT_RX.test(content)) continue;
+    hits.push(file);
+  }
+  return hits;
+}
 
 function productLockFiles(files) {
   const hits = files.filter((file) => LOCK_FILES.includes(posixBasename(file)));
@@ -1471,6 +1544,22 @@ function evalCriterion(criterion, ctx) {
     const found = ciFiles(ctx.files);
     if (found.length > 0) return hit(`CI configuration found: ${found[0]}`);
     return miss(criterion.fail);
+  }
+
+  if (criterion.id === "use-effect") {
+    if (!treeHasReact(ctx)) {
+      return skip("No React/JSX product files.");
+    }
+    const productHits = findUseEffectHits(ctx)
+      .filter((file) => !isDeferredUseEffectPath(file))
+      .sort(comparePathDepth);
+    if (productHits.length === 0) {
+      return hit("No product-tree useEffect.");
+    }
+    return miss(
+      `Found useEffect in ${productHits[0]}`,
+      productHits.slice(0, 8).join(", "),
+    );
   }
 
   if (criterion.id === "lock-file") {
@@ -1575,7 +1664,7 @@ function evalCriterion(criterion, ctx) {
     return hit(`${contains.file} contains ${contains.needle}`);
   }
 
-  const regexHit = evalFileRegex(ctx.repoRoot, criterion.fileRegex);
+  const regexHit = evalFileRegex(ctx.repoRoot, ctx.files, criterion.fileRegex);
   if (regexHit) return hit(`${regexHit} documents the check`);
 
   if (criterion.ciGrep) {
@@ -1599,6 +1688,12 @@ function evalCriterion(criterion, ctx) {
 
   if (criterion.id === "type-checker") {
     return skip("This language has no conventional type-checker file.");
+  }
+
+  if (criterion.id === "branch-protection") {
+    return skip(
+      "No repo-local branch protection file. Org- or enterprise-level rules are not visible to this filesystem walk.",
+    );
   }
 
   return miss(criterion.fail);
@@ -1678,6 +1773,7 @@ export function scoreResults(catalog, results) {
   const l2 = levelStats(2);
 
   let highestPassed = 1;
+  let openGate = null;
   for (const level of [1, 2, 3, 4, 5]) {
     const atLevel = counted.filter((row) => row.level === level);
     if (atLevel.length === 0) {
@@ -1685,11 +1781,15 @@ export function scoreResults(catalog, results) {
       continue;
     }
     const passedCount = atLevel.filter((row) => row.pass).length;
-    if (passedCount / atLevel.length >= thresholdForLevel(level)) highestPassed = level;
-    else break;
+    if (passedCount / atLevel.length >= thresholdForLevel(level)) {
+      highestPassed = level;
+    } else {
+      openGate = level;
+      break;
+    }
   }
 
-  const nextLevel = highestPassed < 5 ? highestPassed + 1 : null;
+  const nextLevel = openGate ?? (highestPassed < 5 ? highestPassed + 1 : null);
   let current = 0;
   let needed = 0;
   let remaining = 0;

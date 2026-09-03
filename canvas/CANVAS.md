@@ -58,15 +58,15 @@ Hooks: `useHostTheme`, `useCanvasState`, `useCanvasAction`.
 
 Layout and type: `Stack`, `Row`, `Spacer`, `Grid`, `H1`, `H2`, `H3`, `Text`, `Code`, `Divider`.
 
-Chrome: `Pill`, `Button`, `Select`, `Toggle`, `Stat` (two in the header, never a third), `Callout`, `Card` / `CardHeader` / `CardBody` (pillar board only).
+Chrome: `Pill`, `Button`, `Select`, `Toggle`, `Stat` (two in the header, never a third), `Callout`. Do not use `Card` / `CardHeader` / `CardBody` for the category board.
 
-Data: `UsageBar`, `Swatch`, `PieChart`, `BarChart`, `TodoListCard`, `CollapsibleSection`, `Table`.
+Data: `UsageBar`, `PieChart`, `BarChart`, `TodoListCard`, `CollapsibleSection`, `Table`.
 
 - Also: `LineChart` of pillar %, `computeDAGLayout` L1–L5 SVG, `Link` when `repo_identity` has a URL, `TextInput` fail search, `Checkbox` L1-capped filter.
 
 Do not use `DiffView`, `RadarChart`, hex colors, gradients, or emoji chrome.
 
-Mix open sections with the seven named pillar Cards. CardHeader names come from the catalog: Style & Validation (`style-linting`), Testing, Documentation, Developer Environment, CI/CD, Code Health, Security. Do not wrap the page, stats, charts, or tables in Card.
+Compressed Summary after the header: donut plus a seven-row Category / Pass / Fail / % table. Category names come from the catalog: Style & Validation (`style-linting`), Testing, Documentation, Developer Environment, CI/CD, Code Health, Security. Remaining gaps are one table, not seven Cards. Do not wrap the page, stats, charts, or tables in Card.
 
 ### Intended look (Cursor Light)
 
@@ -86,17 +86,17 @@ Dark hosts resolve through `useHostTheme()` the same way. Do not fork a light-on
 
 `LineChart` of pillar scores, `yMax={100}`, `valueSuffix="%"`, `referenceLines` at 80. Series `tone` follows counted score (danger / warning / success). Horizontal `BarChart` is remaining failing counted checks at each sequential level, not the same pillar series. Caption on `Text size="small"`. Do not omit series `tone`. No `RadarChart`.
 
-`PieChart` donut is pass / fail / skip with tones `success` / `danger` / `neutral`. `Swatch` is the pie legend (green / red / gray).
+`PieChart` donut is pass / fail / skip with tones `success` / `danger` / `neutral`. The donut already draws its own legend; do not add a second `Swatch` stack.
 
 ## Layout
 
-Thesis-first. The job is what band, what unblocks the next sequential gate, which files, and why each gap helps coding agents. Callout names remaining fail ids for that gate (would be Documented except editorconfig, ai-context). `l1CapReasons` only when `l1Capped`. `TodoListCard` ranks 3–5 items by gate impact: `nextLevel` fails first, then other fails. Each line is criterion id plus a concrete path from `OPEN_BY_ID` / `OPEN_BY_LANG` / `CONCRETE_PATHS`. The seven pillar Cards are the category breakdown: remaining counted fails, the file to add, and why agents care. Every catalog criterion has a technical `WHY_FOR_AGENTS` sentence (why a coding agent fails without that file). Remaining counted fails name a language-honest file: `failOpenPath` reads `report.languages` (or infers from sibling row messages) and `OPEN_BY_LANG` so a Go fail is `.golangci.yml`, not `eslint.config.js`. `version-pinned` OPEN is `.nvmrc` for JS/TS, `rust-toolchain.toml` for Rust, `go.mod` for Go; `.mise.toml` is the unknown-language fallback only. Remaining-fail cards omit passes: do not list a passing `linter` in Style & Validation, and do not put it on the todo list. AI context OPEN is `AGENTS.md`. Containerization OPEN is `.cursor/environment.json`; `.devcontainer/devcontainer.json` stays in `CONCRETE_PATHS`. Display label for `pre-commit-hooks` is `hooks`; catalog id stays `pre-commit-hooks`. Remaining counted fails name a concrete file from `OPEN_BY_ID` / `OPEN_BY_LANG` / `CONCRETE_PATHS` (catalog `anyFiles` / conventional fix), not a blank. `WHY_FOR_AGENTS_FALLBACK` is unused against the catalog.
+Thesis-first. The job is what band, what unblocks the next sequential gate, which files, and why each gap helps coding agents. Callout names remaining fail ids for that gate (would be Documented except editorconfig, ai-context). `l1CapReasons` only when `l1Capped`. `TodoListCard` ranks 3–5 items by gate impact: `nextLevel` fails first, then other fails. Each line is criterion id plus a concrete path from `OPEN_BY_ID` / `OPEN_BY_LANG` / `CONCRETE_PATHS`. The compressed Summary is the category breakdown: donut of pass / fail / skip plus a seven-row Category / Pass / Fail / % table. Remaining counted fails sit in one compact table (criterion id + file to add, then a technical why-agents-care sentence from `WHY_FOR_AGENTS`). Every catalog criterion has a technical `WHY_FOR_AGENTS` sentence (why a coding agent fails without that file). Remaining counted fails name a language-honest file: `failOpenPath` reads `report.languages` (or infers from sibling row messages) and `OPEN_BY_LANG` so a Go fail is `.golangci.yml`, not `eslint.config.js`. `version-pinned` OPEN is `.nvmrc` for JS/TS, `rust-toolchain.toml` for Rust, `go.mod` for Go; `.mise.toml` is the unknown-language fallback only. Remaining-fail table omits passes: do not list a passing `linter` in Style & Validation, and do not put it on the todo list. AI context OPEN is `AGENTS.md`. Containerization OPEN is `.cursor/environment.json`; `.devcontainer/devcontainer.json` stays in `CONCRETE_PATHS`. Display label for `pre-commit-hooks` is `hooks`; catalog id stays `pre-commit-hooks`. Remaining counted fails name a concrete file from `OPEN_BY_ID` / `OPEN_BY_LANG` / `CONCRETE_PATHS` (catalog `anyFiles` / conventional fix), not a blank. `WHY_FOR_AGENTS_FALLBACK` is unused against the catalog.
 
 - Open header: eyebrow `/CODE-READINESS`, `H1` plus `Row` / `Spacer` / level `Pill`, second `Pill` when `l1Capped` (most important visual), five L1–L5 `Pill`s with the current level `active`, two Stats, counted `UsageBar` (`22 / 36 counted`), thesis, tertiary source line. `Link` the repo name in header `Text` only when `repo_identity` has a URL.
 - One `Callout`: L1 cap when present (`l1CapReasons` only then), else Level 5 disclaimer, else would-be-except naming remaining fail ids at `nextLevel`
 - `TodoListCard` of the top 3 to 5 gate-ranked fails (criterion id + file); `Button` + `useCanvasAction` `openFile` when `OPEN_BY_ID` / `OPEN_BY_LANG` / `CONCRETE_PATHS` names a path
-- Donut + swatch legend
-- `Grid` of seven pillar Cards: `CardHeader` is the pillar name plus percent, `CardBody` is that pillar's `UsageBar` then each counted fail (criterion id + file to add, then a technical why-agents-care sentence from `WHY_FOR_AGENTS`). Empty pillar: `No counted gaps.` Named-entity board, not a metric-card wall
+- Compressed `Summary`: donut (`size={160}`) beside a shrink-wrapped Category / Pass / Fail / % table (`columns="auto max-content"`, table `width: max-content`). Do not give the table `1fr` or add a second Swatch legend.
+- `CollapsibleSection` remaining-gaps table: criterion id + file + `WHY_FOR_AGENTS`. Empty: `No counted gaps.` One table, not a seven-card wall
 - Sequential L1–L5 `computeDAGLayout` SVG, `LineChart` of pillar percentages, horizontal `BarChart` of remaining fails per sequential level
 - `Select` + `Toggle` + `TextInput` fail search + `Checkbox` L1-capped then `CollapsibleSection` + `Table` under `H2` / `H3`. Criterion id in `Code`, level in `Pill`. Tables are not inside Cards
 

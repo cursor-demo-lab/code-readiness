@@ -57,6 +57,7 @@
         ".eslintrc",
         ".eslintrc.*",
         "eslint.config.*",
+        "tseslint.config.*",
         "biome.json",
         "biome.jsonc",
         ".ruff.toml",
@@ -99,13 +100,13 @@
         { "file": "build.gradle.kts", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "build.gradle", "includes": ["detekt", "ktlint", "checkstyle", "pmd", "spotbugs"] },
         { "file": "pom.xml", "includes": ["checkstyle", "maven-pmd-plugin", "spotbugs", "errorprone", "error_prone", "error_prone_core"] },
-        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"biome\"", "\"oxlint\"", "\"standard\"", "\"xo\""] },
+        { "file": "package.json", "includes": ["\"eslint\"", "eslintConfig", "\"typescript-eslint\"", "\"@typescript-eslint\"", "tseslint", "\"biome\"", "\"oxlint\"", "\"standard\"", "\"xo\""] },
         { "file": "pyproject.toml", "includes": ["[tool.ruff", "[tool.ruff.lint]", "[tool.pylint", "[tool.flake8"] },
         { "file": "setup.cfg", "includes": ["[flake8]", "[pylint"] },
         { "file": "Cargo.toml", "includes": ["[lints.clippy", "[workspace.lints", "[lints.rust"] }
       ],
       "fail": "No linter configuration found.",
-      "fix": "Add a language-native linter config such as ESLint, Biome, Ruff, flake8, pylint, golangci-lint, clippy, clang-tidy, hlint, Credo, or tflint.",
+      "fix": "Add a language-native linter config such as ESLint, TypeScript ESLint, Biome, Ruff, flake8, pylint, golangci-lint, clippy, clang-tidy, hlint, Credo, or tflint.",
       "effort": "medium"
     },
     {
@@ -752,7 +753,7 @@
       "pillarId": "ci-cd",
       "level": 3,
       "requiresLLM": false,
-      "ciGrep": "\\b(npm\\s+run\\s+lint|yarn\\s+lint|pnpm\\s+lint|eslint|biome\\s+check|biome\\s+lint|ruff\\s+check|golangci-lint|make\\s+lint|cargo\\s+clippy|dotnet\\s+format|rubocop|phpstan|swiftlint)\\b",
+      "ciGrep": "\\b(npm\\s+run\\s+lint|yarn\\s+lint|pnpm\\s+lint|eslint|tseslint|typescript-eslint|biome\\s+check|biome\\s+lint|ruff\\s+check|golangci-lint|make\\s+lint|cargo\\s+clippy|dotnet\\s+format|rubocop|phpstan|swiftlint)\\b",
       "fail": "CI configuration found but no linter execution detected.",
       "fix": "Add a lint step to CI. Do not run the linter as part of this skill.",
       "effort": "medium"
@@ -801,10 +802,12 @@
       "requiresLLM": false,
       "anyFiles": [".github/branch-protection*", ".github/settings.yml", ".github/settings.yaml"],
       "fileRegex": [
-        { "file": "CONTRIBUTING.md", "pattern": "branch.?protection|protected.?branch|required review" }
+        { "file": "CONTRIBUTING.md", "pattern": "branch.?protection|protected.?branch|required review" },
+        { "file": ".github/CONTRIBUTING.md", "pattern": "branch.?protection|protected.?branch|required review" },
+        { "file": "docs/CONTRIBUTING.md", "pattern": "branch.?protection|protected.?branch|required review" }
       ],
-      "fail": "No branch protection rules documented or configured.",
-      "fix": "Document branch protection in CONTRIBUTING.md or .github/settings.yml.",
+      "fail": "No repo-local branch protection docs or settings.yml.",
+      "fix": "Document branch protection in CONTRIBUTING.md or .github/settings.yml. Org-level rules still count; this walk cannot see GitHub org or enterprise settings.",
       "effort": "medium"
     },
     {
@@ -834,6 +837,16 @@
       "fail": "No dead code detection tool found.",
       "fix": "Add knip or similar unused-export config.",
       "effort": "medium"
+    },
+    {
+      "id": "use-effect",
+      "name": "Block product-tree useEffect",
+      "pillarId": "code-health",
+      "level": 4,
+      "requiresLLM": false,
+      "fail": "Product-tree source calls useEffect.",
+      "fix": "Remove useEffect from the named file. Prefer event handlers, derived state, or a framework data API. Do not dummy a useEffect.",
+      "effort": "high"
     },
     {
       "id": "bundle-analysis",
