@@ -119,6 +119,13 @@ assert.equal(catalog.criteria.find((row) => row.id === "ci-config").level, 2);
 assert.equal(catalog.criteria.find((row) => row.id === "containerization").level, 3);
 assert.equal(catalog.criteria.find((row) => row.id === "branch-protection").level, 4);
 assert.equal(catalog.criteria.find((row) => row.id === "e2e-tests").level, 4);
+const useEffectCrit = catalog.criteria.find((row) => row.id === "use-effect");
+assert.ok(useEffectCrit);
+assert.equal(useEffectCrit.level, 4);
+assert.equal(useEffectCrit.pillarId, "code-health");
+assert.equal(useEffectCrit.anyFiles, undefined);
+assert.equal(useEffectCrit.fileContains, undefined);
+assert.equal(useEffectCrit.fileRegex, undefined);
 
 const lockFile = catalog.criteria.find((row) => row.id === "lock-file");
 assert.deepEqual(lockFile.anyFiles, LOCK_FILES);
@@ -176,6 +183,7 @@ assert.ok(linter.anyFiles.includes(".oxlintrc.json"));
 assert.ok(linter.anyFiles.includes("biome.json"));
 assert.ok(linter.anyFiles.includes("biome.jsonc"));
 assert.ok(linter.anyFiles.includes("eslint.config.*"));
+assert.ok(linter.anyFiles.includes("tseslint.config.*"));
 assert.ok(linter.anyFiles.includes(".golangci.yml"));
 assert.ok(linter.anyFiles.includes(".golangci.yaml"));
 assert.ok(linter.anyFiles.includes(".golangci.toml"));
@@ -204,6 +212,9 @@ assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && r
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.pylint")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "pyproject.toml" && rule.includes.includes("[tool.flake8")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"biome\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"typescript-eslint\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"@typescript-eslint\"")));
+assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("tseslint")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"oxlint\"")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"standard\"")));
 assert.ok(linter.fileContains.some((rule) => rule.file === "package.json" && rule.includes.includes("\"xo\"")));
@@ -694,6 +705,8 @@ const ciRunsLinters = catalog.criteria.find((row) => row.id === "ci-runs-linters
 assert.match(ciRunsLinters.ciGrep, /golangci-lint/);
 assert.match(ciRunsLinters.ciGrep, /biome\\s\+check/);
 assert.match(ciRunsLinters.ciGrep, /eslint/);
+assert.match(ciRunsLinters.ciGrep, /tseslint/);
+assert.match(ciRunsLinters.ciGrep, /typescript-eslint/);
 assert.equal(/prettier|gofmt|rustfmt|clang-format|black|dprint/i.test(ciRunsLinters.ciGrep), false);
 
 for (const glob of [
@@ -890,6 +903,7 @@ assert.equal(scoredL1.l1Passed, 4);
 assert.equal(scoredL1.l1Total, 4);
 assert.equal(scoredL1.l2Passed, 13);
 assert.equal(scoredL1.l2Total, 13);
+assert.equal(scoredL1.nextLevelProgress.nextLevel, 3);
 assert.equal(scoredL1.nextLevelProgress.needed, Math.ceil(10 * LEVEL_THRESHOLD));
 
 const l1ThreeOfFour = catalogRows({
@@ -900,7 +914,13 @@ const scoredThreeOfFour = scoreResults(catalog, l1ThreeOfFour);
 assert.equal(scoredThreeOfFour.level, 1, "L1 3/4 stays Functional at 80%");
 assert.equal(scoredThreeOfFour.l1Passed, 3);
 assert.equal(scoredThreeOfFour.l1Total, 4);
-assert.equal(scoredThreeOfFour.nextLevelProgress.needed, Math.ceil(4 * LEVEL_THRESHOLD));
+assert.equal(
+  scoredThreeOfFour.nextLevelProgress.nextLevel,
+  1,
+  "openGate: L1 fail keeps nextLevel at 1, not L2",
+);
+assert.equal(scoredThreeOfFour.nextLevelProgress.needed, Math.ceil(4 * thresholdForLevel(1)));
+assert.equal(scoredThreeOfFour.nextLevelProgress.remaining, 1);
 
 const root = tmp("code-readiness-");
 fs.writeFileSync(path.join(root, "LICENSE"), "MIT\n");
@@ -1779,6 +1799,8 @@ assert.match(emptyById.containerization.message, /No Dockerfile/);
 assert.equal(emptyById["env-documentation"].skipped, true);
 assert.equal(emptyById["lock-file"].skipped, false);
 assert.equal(emptyById["type-checker"].skipped, true);
+assert.equal(emptyById["use-effect"].skipped, true, emptyById["use-effect"].message);
+assert.equal(emptyById["branch-protection"].skipped, true, emptyById["branch-protection"].message);
 assert.equal(
   emptyEval.results.filter((row) => row.skipped).length,
   8,
@@ -1866,6 +1888,11 @@ assert.equal(identityLieById["test-files-exist"].pass, false);
 assert.equal(identityLieScored.l1Passed, 0);
 assert.ok(identityLieScored.l1Total >= 3);
 assert.equal(identityLieScored.level, 1, "license+lock alone is not Functional L1");
+assert.equal(
+  identityLieScored.nextLevelProgress.nextLevel,
+  1,
+  "openGate: L1 misses keep nextLevel at 1",
+);
 
 assert.equal(/factory|kodus/i.test(ATTRIBUTION), false);
 
@@ -1899,6 +1926,14 @@ function assertFail(id, files, needle) {
   return byId;
 }
 
+function assertSkip(id, files, needle) {
+  const byId = evalTree(files);
+  assert.equal(byId[id].skipped, true, `${id} should skip: ${byId[id].message}`);
+  assert.equal(byId[id].pass, false, `${id} skip is not a pass: ${byId[id].message}`);
+  if (needle) assert.match(byId[id].message, needle);
+  return byId;
+}
+
 const linterConfigs = [
   [".golangci.toml", "linters = {}\n"],
   [".golangci.json", "{}\n"],
@@ -1923,6 +1958,18 @@ for (const [name, body] of linterConfigs) {
 assertPass("linter", { "biome.json": "{}\n" }, /biome\.json/);
 assert.equal(evalTree({ "biome.json": "{}\n" }).linter.pass, true);
 assert.equal(evalTree({ "eslint.config.js": "export default [];\n" }).linter.pass, true);
+assertPass("linter", { "tseslint.config.js": "export default [];\n" }, /tseslint\.config\.js/);
+assertPass("linter", { "tseslint.config.mjs": "export default [];\n" }, /tseslint\.config\.mjs/);
+assertPass(
+  "linter",
+  { "package.json": { devDependencies: { "typescript-eslint": "8.0.0" } } },
+  /typescript-eslint/,
+);
+assertPass(
+  "linter",
+  { "package.json": { devDependencies: { "@typescript-eslint": "8.0.0" } } },
+  /@typescript-eslint/,
+);
 assertPass("linter", { "package.json": { devDependencies: { oxlint: "1.0.0" } } }, /oxlint/);
 assertPass("linter", { "pyproject.toml": "[tool.pylint]\n" }, /\[tool\.pylint/);
 assertPass("linter", { "pyproject.toml": "[tool.flake8]\n" }, /\[tool\.flake8/);
@@ -2216,6 +2263,15 @@ assert.equal(jsPrimaryBothLinters.linter.pass, true, jsPrimaryBothLinters.linter
 assert.match(jsPrimaryBothLinters.linter.message, /eslint\.config\.js/);
 assert.equal(/golangci/.test(jsPrimaryBothLinters.linter.message), false);
 
+const tseslintPrimaryBothLinters = evalTree({
+  "tseslint.config.js": "export default [];\n",
+  ".golangci.yml": "linters: {}\n",
+  "package.json": { name: "app" },
+});
+assert.equal(tseslintPrimaryBothLinters.linter.pass, true, tseslintPrimaryBothLinters.linter.message);
+assert.match(tseslintPrimaryBothLinters.linter.message, /tseslint\.config\.js/);
+assert.equal(/golangci/.test(tseslintPrimaryBothLinters.linter.message), false);
+
 const biomePrimaryBothLinters = evalTree({
   "biome.json": "{}\n",
   ".golangci.yml": "linters: {}\n",
@@ -2415,7 +2471,136 @@ assertPass("pre-commit-hooks", { ".pre-commit-config.yml": "repos: []\n" }, /\.p
 assertPass("pre-commit-hooks", { "package.json": { devDependencies: { husky: "9.0.0" } } }, /husky/);
 assertPass("pre-commit-hooks", { "package.json": { "lint-staged": { "*.js": "eslint" } } }, /lint-staged/);
 assertPass("pre-commit-hooks", { "package.json": { "simple-git-hooks": { "pre-commit": "lint" } } }, /simple-git-hooks/);
+assertPass("pre-commit-hooks", { ".cursor/hooks.json": "{}\n" }, /\.cursor\/hooks\.json/);
+assertPass("pre-commit-hooks", { ".cursor/hook.json": "{}\n" }, /\.cursor\/hook\.json/);
 assertFail("pre-commit-hooks", { Makefile: "lint:\n\teslint .\n" });
+
+assertSkip("use-effect", { "app.js": "export const x = 1;\n" }, /No React\/JSX/);
+assertSkip("use-effect", { "app.py": "print(1)\n" }, /No React\/JSX/);
+assertSkip(
+  "use-effect",
+  { "app.js": "useEffect(() => {}, []);\n" },
+  /No React\/JSX/,
+);
+assertPass(
+  "use-effect",
+  { "App.tsx": "export function App() { return <div /> }\n" },
+  /No product-tree useEffect/,
+);
+assertPass(
+  "use-effect",
+  {
+    "package.json": { dependencies: { react: "18.3.1" } },
+    "src/index.js": "export function App() { return null }\n",
+  },
+  /No product-tree useEffect/,
+);
+assertFail(
+  "use-effect",
+  { "src/App.tsx": "import { useEffect } from 'react';\nuseEffect(() => {});\n" },
+  /Found useEffect in src\/App\.tsx/,
+);
+assert.equal(
+  evalTree({ "src/App.tsx": "import { useEffect } from 'react';\nuseEffect(() => {});\n" })[
+    "use-effect"
+  ].skipped,
+  false,
+);
+assertFail(
+  "use-effect",
+  { "App.jsx": "useEffect(() => {});\n" },
+  /Found useEffect in App\.jsx/,
+);
+assertFail(
+  "use-effect",
+  {
+    "package.json": { dependencies: { react: "18.3.1" } },
+    "hooks.ts": "useEffect(() => {});\n",
+  },
+  /Found useEffect in hooks\.ts/,
+);
+assertFail(
+  "use-effect",
+  {
+    "package.json": { dependencies: { react: "18.3.1" } },
+    "hooks.js": "React.useEffect(() => {});\n",
+  },
+  /Found useEffect in hooks\.js/,
+);
+assertFail(
+  "use-effect",
+  { "App.tsx": "React.useEffect(() => {});\n" },
+  /Found useEffect in App\.tsx/,
+);
+assertPass(
+  "use-effect",
+  { "test/effect.tsx": "useEffect(() => {});\n" },
+  /No product-tree useEffect/,
+);
+for (const deferred of [
+  "test/effect.tsx",
+  "tests/effect.tsx",
+  "spec/effect.tsx",
+  "__tests__/effect.tsx",
+  "fixtures/effect.tsx",
+  "examples/effect.tsx",
+  "docs/effect.tsx",
+  "App.test.tsx",
+  "App.spec.jsx",
+]) {
+  assertPass(
+    "use-effect",
+    {
+      "App.tsx": "export function App() { return null }\n",
+      [deferred]: "useEffect(() => {});\n",
+    },
+    /No product-tree useEffect/,
+  );
+}
+const useEffectProductWins = evalTree({
+  "src/App.tsx": "useEffect(() => {});\n",
+  "test/effect.tsx": "useEffect(() => {});\n",
+});
+assert.equal(useEffectProductWins["use-effect"].pass, false, useEffectProductWins["use-effect"].message);
+assert.equal(useEffectProductWins["use-effect"].skipped, false);
+assert.match(useEffectProductWins["use-effect"].message, /src\/App\.tsx/);
+assert.equal(/test\/effect/.test(useEffectProductWins["use-effect"].message), false);
+
+assertPass(
+  "branch-protection",
+  { ".github/settings.yml": "branches: []\n" },
+  /\.github\/settings\.yml/,
+);
+assertPass(
+  "branch-protection",
+  { ".github/settings.yaml": "branches: []\n" },
+  /\.github\/settings\.yaml/,
+);
+assertPass(
+  "branch-protection",
+  { ".github/branch-protection.yml": "protection: true\n" },
+  /branch-protection/,
+);
+assertPass(
+  "branch-protection",
+  { "docs/CONTRIBUTING.md": "# Contributing\nThis repo uses branch protection.\n" },
+  /docs\/CONTRIBUTING\.md/,
+);
+assertPass(
+  "branch-protection",
+  { ".github/CONTRIBUTING.md": "PRs need a required review on the protected branch.\n" },
+  /\.github\/CONTRIBUTING\.md/,
+);
+assertSkip(
+  "branch-protection",
+  { "README.md": "# app\n" },
+  /not visible to this filesystem walk/,
+);
+assertSkip(
+  "branch-protection",
+  { "CONTRIBUTING.md": "# how to contribute\n" },
+  /not visible to this filesystem walk/,
+);
 
 assertPass("test-framework", { "vitest.config.ts": "export default {}\n" }, /vitest\.config\.ts/);
 assertPass("test-framework", { "jest.config.js": "export default {}\n" }, /jest\.config\.js/);
@@ -7208,6 +7393,16 @@ assertPass(
   /CI config matched/,
 );
 assertFail("ci-runs-linters", { ".github/workflows/ci.yml": "run: prettier --check .\n" });
+assertPass(
+  "ci-runs-linters",
+  { ".github/workflows/ci.yml": "run: tseslint\n" },
+  /CI config matched/,
+);
+assertPass(
+  "ci-runs-linters",
+  { ".github/workflows/ci.yml": "run: npx typescript-eslint\n" },
+  /CI config matched/,
+);
 
 assertPass(
   "ci-runs-tests",
@@ -7406,7 +7601,9 @@ assert.match(canvasTemplate, /except \$\{joinIds\(ids\)\}/);
 assert.match(canvasTemplate, /band\.l1Capped/);
 assert.match(canvasTemplate, /l1CapReasons/);
 assert.match(canvasTemplate, /\.slice\(\s*0,\s*5\s*\)/);
-assert.match(canvasTemplate, /\$\{row\.criterionId\} — add \$\{file\}/);
+assert.match(canvasTemplate, /function failAction/);
+assert.match(canvasTemplate, /remove useEffect from \$\{file\}/);
+assert.match(canvasTemplate, /\$\{label\} — \$\{failAction\(row, file\)\}/);
 assert.match(canvasTemplate, /type: "openFile"/);
 assert.equal(
   /Need \$\{band\.nextLevelRemaining\} more Level/.test(canvasTemplate),
@@ -7439,7 +7636,7 @@ assert.match(
   /Agents generate code that looks right/,
   "pillar Cards must render a technical why-for-agents sentence",
 );
-assert.match(canvasTemplate, /containerization: "\.devcontainer\/devcontainer\.json"/);
+assert.match(canvasTemplate, /containerization: "\.cursor\/environment\.json"/);
 assert.match(canvasTemplate, /"\.cursor\/environment\.json"/);
 assert.match(canvasTemplate, /"Dockerfile"/);
 assert.match(
@@ -7481,6 +7678,7 @@ for (const key of [
   "linter:",
   '"test-files-exist":',
   '"branch-protection":',
+  '"use-effect":',
   "license:",
   '"coverage-config":',
   '"security-policy":',
@@ -7608,8 +7806,10 @@ for (const criterion of catalog.criteria) {
   );
   assert.match(
     whyMap[criterion.id],
-    /agent/i,
-    `${criterion.id} WHY must say why a coding agent fails without this file`,
+    criterion.id === "branch-protection" ? /skip rather than fail/i : /agent/i,
+    criterion.id === "branch-protection"
+      ? "branch-protection WHY must name the skip when org rules are invisible"
+      : `${criterion.id} WHY must say why a coding agent fails without this file`,
   );
 }
 
@@ -7708,7 +7908,7 @@ assert.equal(
   "ai-context remaining-fail Card must name AGENTS.md",
 );
 assert.equal(openById["issue-templates"], ".github/ISSUE_TEMPLATE.md");
-assert.equal(openById.containerization, ".devcontainer/devcontainer.json");
+assert.equal(openById.containerization, ".cursor/environment.json");
 assert.ok(concretePaths.includes(".cursor/environment.json"));
 assert.equal(openById.linter, "eslint.config.js");
 assert.equal(openByLang.linter.go, ".golangci.yml");
