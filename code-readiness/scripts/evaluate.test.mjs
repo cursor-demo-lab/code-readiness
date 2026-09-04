@@ -8595,11 +8595,26 @@ function walkTextFiles(dir, acc = []) {
   }
   return acc;
 }
-for (const file of walkTextFiles(skillRoot())) {
+const repoRoot = path.resolve(skillRoot(), "..");
+assert.equal(path.basename(skillRoot()), "code-readiness");
+assert.ok(fs.existsSync(path.join(skillRoot(), "SKILL.md")));
+assert.ok(fs.existsSync(path.join(repoRoot, "remediate-code-readiness", "SKILL.md")));
+const remediateSkill = fs.readFileSync(
+  path.join(repoRoot, "remediate-code-readiness", "SKILL.md"),
+  "utf8",
+);
+assert.match(remediateSkill, /\.\.\/code-readiness\/checks\/catalog\.json/);
+
+const scanned = [
+  ...walkTextFiles(skillRoot()),
+  ...walkTextFiles(path.join(repoRoot, "remediate-code-readiness")),
+  path.join(repoRoot, "README.md"),
+  path.join(repoRoot, "package.json"),
+];
+for (const file of scanned) {
   if (file.endsWith(`${path.sep}evaluate.test.mjs`)) continue;
-  if (/adr-scoring/.test(file)) continue;
   if (file.split(path.sep).includes("examples")) continue;
-  const text = fs.readFileSync(file, "utf8").replaceAll("kodustech/agent-readiness", "");
+  const text = fs.readFileSync(file, "utf8");
   assert.equal(/factory|kodus/i.test(text), false, file);
 }
 

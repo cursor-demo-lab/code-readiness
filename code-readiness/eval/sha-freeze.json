@@ -3,7 +3,7 @@
   "catalog": "checks/catalog.json",
   "note": "Default-branch SHAs looked up on frozen_at with the GitHub API. Do not clone these repositories into the skill repo. Ground truth is the catalog versus the tree.",
   "hard_ranking": "chat-example < express < fastapi ≈ act",
-  "excluded": ["CockroachDB", "kodustech/agent-readiness"],
+  "excluded": ["CockroachDB"],
   "goldens": [
     {
       "id": "chat-example",

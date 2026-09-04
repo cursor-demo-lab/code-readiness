@@ -24,7 +24,7 @@ A criterion is **done** only when every box holds:
 1. **Installed** — the package or binary is in the lockfile / toolchain, not hoped for on PATH.
 2. **Wired** — `package.json` scripts, app-owned CI, or a Cursor hook actually invokes it.
 3. **Ran** — you executed that same command in this session and it exited 0 (or you fixed the findings, then re-ran to 0).
-4. **Re-scored** — `node scripts/code-readiness.mjs <repo> --skip-canvas --force` now passes the id.
+4. **Re-scored** — `node ../code-readiness/scripts/code-readiness.mjs <repo> --skip-canvas --force` now passes the id.
 
 If you only added `knip.json`, `playwright.config.ts`, `.gitleaks.toml`, `.size-limit.json`, or an empty `e2e/`, stop. That is file creation. It is not remediating.
 
@@ -34,7 +34,7 @@ Docs-only ids (`readme`, `contributing`, `ai-context`, `architecture-docs`, `lic
 
 ### 1. Score first
 
-Resolve the git root. Find the catalog next to this skill (`../checks/catalog.json` in the skill repo, or `.cursor/skills/code-readiness/checks/catalog.json` in an app).
+Resolve the git root. Find the catalog next to this skill (`../code-readiness/checks/catalog.json` in the skill repo, or `.cursor/skills/code-readiness/checks/catalog.json` in an app).
 
 Reuse a fresh `.cursor/cache/readiness/` report if the catalog hash and `HEAD` match. Otherwise:
 

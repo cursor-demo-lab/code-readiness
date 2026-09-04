@@ -1258,6 +1258,13 @@ function evalAnyFiles(repoRoot, files, patterns, options = {}) {
     }
     if (!shouldIgnorePath(pattern, options) && fs.existsSync(path.join(repoRoot, pattern))) {
       const abs = path.join(repoRoot, pattern);
+      const onDisk = files.find((file) => (pathPattern ? sameName(file, pattern) : file === pattern || (!file.includes("/") && sameName(file, pattern))));
+      // existsSync is case-insensitive on APFS. Skip when the root/on-disk name
+      // differs only by case (Justfile vs justfile). Keep catalog existsSync
+      // hits the walker never listed (.cursor/hooks.json).
+      if (onDisk && onDisk !== pattern && !looseCase) {
+        continue;
+      }
       if (options.skipDirectoryHits && fs.statSync(abs).isDirectory()) {
         // Directory presence is not a hit. Children match via globs / prefixes.
       } else {
@@ -1342,7 +1349,12 @@ function evalFileRegex(repoRoot, files, rules) {
       if (file === rule.file || globMatch(file, rule.file)) return true;
       return basenameOnly && posixBasename(file) === rule.file;
     });
-    const candidates = matches.length > 0 ? matches : [rule.file];
+    const otherCase = walked.find((file) =>
+      basenameOnly ? sameName(posixBasename(file), rule.file) : sameName(file, rule.file),
+    );
+    // Do not fall back to the catalog spelling when the walk already saw a
+    // different casing. readText would succeed on APFS and lex would pick Justfile.
+    const candidates = matches.length > 0 ? matches : otherCase ? [] : [rule.file];
     const rx = new RegExp(rule.pattern, "i");
     for (const file of candidates) {
       const content = readText(repoRoot, file);
@@ -1354,8 +1366,10 @@ function evalFileRegex(repoRoot, files, rules) {
   return hits[0];
 }
 
-function makefileHasTarget(repoRoot, spec) {
+function makefileHasTarget(repoRoot, spec, files) {
   if (!spec) return false;
+  // readText("Makefile") succeeds for makefile on APFS. Casing is semantic.
+  if (Array.isArray(files) && !files.includes("Makefile")) return false;
   const makefile = readText(repoRoot, "Makefile");
   if (!makefile) return false;
   const rx = new RegExp(`^(${spec})\\s*:`, "m");
@@ -1637,7 +1651,7 @@ function evalCriterion(criterion, ctx) {
     return hit(`${pkgPathHit} found in package.json`);
   }
 
-  if (makefileHasTarget(ctx.repoRoot, criterion.makefileTarget)) {
+  if (makefileHasTarget(ctx.repoRoot, criterion.makefileTarget, ctx.files)) {
     return hit(`Makefile target matched: ${criterion.makefileTarget}`);
   }
 

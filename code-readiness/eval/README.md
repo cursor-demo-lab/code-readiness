@@ -29,7 +29,7 @@ Cheap public roots. Expected bands are ordinal hints for `level_sanity`.
 
 Hard ranking: `chat-example < express < fastapi ≈ act`. Fail if inverted. `fastapi ≈ act` means those two may swap or tie. Neither may fall to or below `express`. `express` must stay above `chat-example`.
 
-Excluded on purpose: CockroachDB. `kodustech/agent-readiness`.
+Excluded on purpose: CockroachDB.
 
 ## Skill command under eval
 
