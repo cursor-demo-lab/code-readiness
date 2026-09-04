@@ -2,7 +2,7 @@
 
 Cursor skill that scores a repository with **local filesystem heuristics** from `checks/catalog.json` and renders the report on a Cursor `/canvas`.
 
-Not `/doctor`.
+Not `/doctor`. Scoring never remediates. Closing catalog gaps is `/remediate-code-readiness` (`remediate-code-readiness/SKILL.md`): install the tool, wire a script/CI/hook, run it, then re-score. A config file alone is not done.
 
 ## How to run
 
@@ -37,6 +37,8 @@ Canvas copy rules are in `canvas/CANVAS.md`.
 `ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` is the preferred first-hit when both `AGENTS.md` and `CLAUDE.md` exist. When the check fails, the file to add is `AGENTS.md`. Do not add LLM scoring.
 
 `issue-templates` looks for `.github/ISSUE_TEMPLATE.md` or `.github/ISSUE_TEMPLATE/` (and the matching pull-request template paths). First-hit prefers a form (`bug_report.md` / `Bug_report.yml` / `formatting.md`) over `config.yml` / `config.yaml` and over a pull-request template when both exist; a config.yml-only tree still passes. A PR-template-only tree still passes. Agents need the issue/PR contract to open work the repo already accepts.
+
+`e2e-tests` looks for a non-empty spec under `e2e/` / `playwright/` (`*.spec.*` / `*.test.*`), a `*.e2e.ts` / `*.cy.ts` file, or the same shapes for `.js` / `.tsx`. A Playwright or Cypress config, an empty `e2e/` directory, or a Java `integration/` package is not a hit. When the check fails, the file to add is `e2e/login.spec.ts`. Do not dummy `playwright.config.ts`. Do not write that spec from this skill. Closing dummy-prone fails is `/remediate-code-readiness`.
 
 `containerization` first-hit prefers `.devcontainer` / `.cursor/environment.json` / a root Dockerfile or compose file. Nested `integration/docker-compose.yml` or `sample/**/docker-compose.yml` is not the boot env when a product boot file exists; an integration-only tree still passes. A sample-only tree still passes. When only deferred hits remain, first-hit names the shallowest leftover.
 

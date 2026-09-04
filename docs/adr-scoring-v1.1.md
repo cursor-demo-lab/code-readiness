@@ -24,7 +24,7 @@ Align **level placement of existing check ids** with Factory Agent Readiness. Un
 | 4 | Optimized | coverage-config, e2e-tests, architecture-docs, deploy-pipeline, branch-protection, dead-code-detection, security-scanning, secrets-detection |
 | 5 | Autonomous | bundle-analysis (plus skipped LLM rows) |
 
-Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=10 need 8, L4=8 need 7, L5=1 need 1.
+Non-AI counts: L1=4 need 4 (3/3 when type-checker skips), L2=13 need 11, L3=10 need 8, L4=9 need 8, L5=1 need 1.
 
 ## Why
 
@@ -150,7 +150,7 @@ Hill-climb after PR #114 leftover: when every `packages/<name>` is numeric-prefi
 - LLM checks (`v1SkipLLM`; L5 quality rows stay skipped)
 - Moving `branch-protection` to L2 (detector is a weak file mention; stays L4)
 - Moving `containerization` to L2 (Dockerfile false-pass; stays L3 Standardized). Factory's L2 devcontainer is a subset of this detector.
-- Moving `e2e-tests` to L3 (Factory L3 integration tests). Our detector is Playwright/Cypress, not generic integration; stays L4.
+- Moving `e2e-tests` to L3 (Factory L3 integration tests). Our detector is a non-empty Playwright/Cypress/e2e spec file, not a config or empty directory; stays L4.
 - L4/L5 threshold or id retune beyond ids that moved away
 - Canvas chrome / layout (level label strings only)
 

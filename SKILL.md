@@ -1,13 +1,13 @@
 ---
 name: code-readiness
-description: Score how ready a repository is for coding agents using local filesystem heuristics from checks/catalog.json, then render a Cursor canvas. Use when the user types /code-readiness, asks about agent readiness, asks "is this repo ready for agents", or wants a canvas readiness report. This is not /doctor.
+description: Score how ready a repository is for coding agents using local filesystem heuristics from checks/catalog.json, then render a Cursor canvas. Use when the user types /code-readiness, asks about agent readiness, asks "is this repo ready for agents", or wants a canvas readiness report. This skill scores only. Do not install packages, run tools, or create dummy configs. Closing fails is /remediate-code-readiness. This is not /doctor.
 ---
 
 # /code-readiness
 
-Score **one repository root** by walking `checks/catalog.json` with Read, glob, and grep. Fill a report JSON. Copy this repo's canvas template and sidecar. That single-repo canvas is the product. The 27-repo eval campaign is the honesty gate for the catalog, not a second canvas and not the chat recipe. Do not install packages. Do not run `npx`. Do not call external scoring APIs. Do not run an LLM judge. Do not run tests, linters, or scanners.
+Score **one repository root** by walking `checks/catalog.json` with Read, glob, and grep. Fill a report JSON. Copy this repo's canvas template and sidecar. That single-repo canvas is the product. The 27-repo eval campaign is the honesty gate for the catalog, not a second canvas and not the chat recipe. Do not install packages. Do not run `npx`. Do not call external scoring APIs. Do not run an LLM judge. Do not run tests, linters, or scanners. Do not create files to close a fail.
 
-`/code-readiness` is a deterministic file and config score from this catalog. `/doctor` is a different Cursor rubric. The scores are not comparable. Do not wrap a Doctor canvas.
+`/code-readiness` is a deterministic file and config score from this catalog. Closing a fail (install, wire a script/CI/hook, run the command) is `/remediate-code-readiness`. A config file alone is not remediating. `/doctor` is a different Cursor rubric. The scores are not comparable. Do not wrap a Doctor canvas.
 
 This skill owns readiness **content** only. When creating or editing the canvas, first read `~/.cursor/skills-cursor/canvas/SKILL.md` and `~/.cursor/skills-cursor/canvas/sdk/index.d.ts`. Defer path, import, design, and link rules to `/canvas`.
 
@@ -18,7 +18,7 @@ This skill owns readiness **content** only. When creating or editing the canvas,
 - "is this repo ready for agents"
 - canvas readiness report
 
-Do not use this skill for `/doctor` or a qualitative Cursor-health review.
+Do not use this skill for `/doctor` or a qualitative Cursor-health review. Do not remediate fails here. Do not write `knip.json`, `playwright.config.ts`, `.gitleaks.toml`, `.size-limit.json`, `.coveragerc`, an empty `e2e/`, or an empty `SECURITY.md` to raise the score. Closing catalog gaps is `/remediate-code-readiness`.
 
 ## Recipe
 
@@ -61,6 +61,12 @@ If the canvas would show Level 5, add the disclaimer. Do not celebrate Autonomou
 `ai-context` looks for `AGENTS.md`, `.github/AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursorrules`, and `.github/copilot-instructions.md`. `AGENTS.md` is the preferred first-hit when both `AGENTS.md` and `CLAUDE.md` exist. When the check fails, the file to add is `AGENTS.md`. Do not add LLM scoring.
 
 `issue-templates` looks for `.github/ISSUE_TEMPLATE.md` or `.github/ISSUE_TEMPLATE/` (and the matching pull-request template paths). First-hit prefers a form (`bug_report.md` / `Bug_report.yml` / `formatting.md`) over `config.yml` / `config.yaml` and over a pull-request template when both exist; a config.yml-only tree still passes. A PR-template-only tree still passes. Agents need the issue/PR contract to open work the repo already accepts.
+
+`e2e-tests` looks for a non-empty spec under `e2e/` / `playwright/` (`*.spec.*` / `*.test.*`), a `*.e2e.ts` / `*.cy.ts` file, or the same shapes for `.js` / `.tsx`. A Playwright or Cypress config, an empty `e2e/` directory, or a Java `integration/` package is not a hit. When the check fails, the file to add is `e2e/login.spec.ts`. Do not dummy `playwright.config.ts`. Do not write that spec from this skill.
+
+`dead-code-detection` looks for knip / ts-prune / vulture / cargo-machete / deadcode in package.json, pyproject.toml, Cargo.toml, CI, or a config such as `knip.json` / `.vulture`. When the check fails, OPEN is `knip.json` as a catalog hint. Do not dummy `knip.json`. Closing this check is `/remediate-code-readiness` (install the tool, wire a script/CI step, run it).
+
+`secrets-detection` looks for `.gitleaks.toml` / `.gitleaks.yml` / `.detect-secrets.cfg` / `.gitguardian.yml` or CI that names those tools. When the check fails, OPEN is `.gitleaks.toml` as a catalog hint. Do not dummy `.gitleaks.toml`. Closing this check is `/remediate-code-readiness` (binary + hook or CI that scans staged commits).
 
 `containerization` first-hit prefers `.devcontainer` / `.cursor/environment.json` / a root Dockerfile or compose file. Nested `integration/docker-compose.yml` or `sample/**/docker-compose.yml` is not the boot env when a product boot file exists; an integration-only tree still passes. A sample-only tree still passes. When only deferred hits remain, first-hit names the shallowest leftover.
 
@@ -131,3 +137,5 @@ See `canvas/CANVAS.md`.
 If this is the first `.canvas.tsx` in the workspace canvases directory, add one sentence: a canvas is a live React panel beside chat.
 
 If scoring failed, say so in chat and do not invent scores.
+
+Do not create the named remaining-fail file from this skill. If the user wants those fails closed, hand off to `/remediate-code-readiness`.

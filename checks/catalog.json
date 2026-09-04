@@ -367,19 +367,21 @@
       "level": 4,
       "requiresLLM": false,
       "anyFiles": [
-        "playwright.config.*",
-        "**/playwright.config.*",
-        "cypress.config.*",
-        "cypress",
-        "**/cypress/**",
-        "e2e",
-        "**/e2e/**",
-        "tests/e2e",
-        "tests/e2e/**",
-        "integration"
+        "**/e2e/**/*.spec.*",
+        "**/e2e/**/*.test.*",
+        "**/*.e2e.ts",
+        "**/*.e2e.js",
+        "**/*.e2e.tsx",
+        "**/*.e2e.mjs",
+        "**/*.cy.ts",
+        "**/*.cy.js",
+        "**/*.cy.tsx",
+        "**/playwright/**/*.spec.*",
+        "**/playwright/**/*.test.*"
       ],
-      "fail": "No E2E or integration test setup found.",
-      "fix": "Add Playwright, Cypress, or an e2e directory.",
+      "anyFilesNonEmpty": true,
+      "fail": "No E2E test files found.",
+      "fix": "Add a non-empty spec such as e2e/login.spec.ts. A Playwright or Cypress config, or an empty e2e directory, is not enough.",
       "effort": "high"
     },
     {
@@ -835,7 +837,7 @@
       ],
       "ciGrep": "\\b(knip|ts-prune|vulture|cargo-machete|deadcode)\\b",
       "fail": "No dead code detection tool found.",
-      "fix": "Add knip or similar unused-export config.",
+      "fix": "Add knip to package.json or CI via /remediate-code-readiness. Do not dummy knip.json.",
       "effort": "medium"
     },
     {
@@ -954,7 +956,7 @@
       "anyFiles": [".gitleaks.toml", ".gitleaks.yml", ".detect-secrets.cfg", ".gitguardian.yml"],
       "ciGrep": "\\b(gitleaks|detect-secrets|trufflehog|gitguardian)\\b",
       "fail": "No secrets detection tool configured.",
-      "fix": "Add gitleaks or detect-secrets config.",
+      "fix": "Add gitleaks as a commit or CI runner via /remediate-code-readiness. Do not dummy .gitleaks.toml.",
       "effort": "medium"
     }
   ]
