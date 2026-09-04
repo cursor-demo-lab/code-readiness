@@ -837,7 +837,7 @@
       ],
       "ciGrep": "\\b(knip|ts-prune|vulture|cargo-machete|deadcode)\\b",
       "fail": "No dead code detection tool found.",
-      "fix": "Add knip or similar unused-export config.",
+      "fix": "Add knip to package.json or CI via /remediate-code-readiness. Do not dummy knip.json.",
       "effort": "medium"
     },
     {
@@ -956,7 +956,7 @@
       "anyFiles": [".gitleaks.toml", ".gitleaks.yml", ".detect-secrets.cfg", ".gitguardian.yml"],
       "ciGrep": "\\b(gitleaks|detect-secrets|trufflehog|gitguardian)\\b",
       "fail": "No secrets detection tool configured.",
-      "fix": "Add gitleaks or detect-secrets config.",
+      "fix": "Add gitleaks as a commit or CI runner via /remediate-code-readiness. Do not dummy .gitleaks.toml.",
       "effort": "medium"
     }
   ]
